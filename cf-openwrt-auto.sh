@@ -136,9 +136,15 @@ ensure_jq() {
 		return
 	fi
 
-	need_cmd opkg
-	log "jq not found, installing it with opkg"
-	opkg install jq >/dev/null
+	if command -v apk >/dev/null 2>&1; then
+		log "jq not found, installing it with apk"
+		apk add jq >/dev/null
+	elif command -v opkg >/dev/null 2>&1; then
+		log "jq not found, installing it with opkg"
+		opkg install jq >/dev/null
+	else
+		die "jq not found and no supported package manager (apk or opkg) available"
+	fi
 	need_cmd jq
 }
 

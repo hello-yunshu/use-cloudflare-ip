@@ -6,7 +6,16 @@
 
 ## 依赖
 
-先在 OpenWrt 上安装基础依赖：
+先在 OpenWrt 上安装基础依赖。
+
+OpenWrt 23.05+ 使用 apk：
+
+```sh
+apk update
+apk add bash curl wget tar jq ca-bundle ca-certificates
+```
+
+旧版 OpenWrt 使用 opkg：
 
 ```sh
 opkg update
