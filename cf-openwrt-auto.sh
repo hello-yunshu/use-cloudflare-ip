@@ -17,8 +17,10 @@ IP_HISTORY_FILE="ip-all.txt"
 SPEEDTEST_DN="10"
 SPEEDTEST_TLL="40"
 PASSWALL_TARGET_DOMAIN=""
+PASSWALL_NAME_SUFFIX=" [CF-{n}]"
 OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
 OPENCLASH_TARGET_DOMAIN=""
+OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
 AUTO_UPDATE="true"
 SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
 VERBOSE="false"
@@ -254,7 +256,7 @@ restart_service() {
 }
 
 update_passwall() {
-	local sections=() section idx ip
+	local sections=() section idx ip old_remarks new_remarks
 
 	need_cmd uci
 	while IFS= read -r section; do
@@ -266,7 +268,18 @@ update_passwall() {
 	for section in "${sections[@]}"; do
 		ip="${FAST_IPS[$((idx % IP_COUNT))]}"
 		uci set "passwall.${section}.address=${ip}" >/dev/null || die "failed to update passwall.${section}.address"
-		log "PassWall ${section}.address -> ${ip}"
+		if [[ -n "$PASSWALL_NAME_SUFFIX" ]]; then
+			old_remarks="$(uci_unquote "$(uci get "passwall.${section}.remarks" 2>/dev/null || printf '')")"
+			if [[ -n "$old_remarks" ]]; then
+				new_remarks="${old_remarks}$(expand_suffix "$PASSWALL_NAME_SUFFIX" "$((idx + 1))" "$ip")"
+				uci set "passwall.${section}.remarks=${new_remarks}" >/dev/null || die "failed to update passwall.${section}.remarks"
+				log "PassWall ${section}.remarks '${old_remarks}' -> '${new_remarks}'; address -> ${ip}"
+			else
+				log "PassWall ${section}.address -> ${ip}"
+			fi
+		else
+			log "PassWall ${section}.address -> ${ip}"
+		fi
 		idx=$((idx + 1))
 	done
 
@@ -348,11 +361,18 @@ write_block_original() {
 	done
 }
 
+expand_suffix() {
+	local suffix="$1" seq="$2" ip_addr="$3"
+	suffix="${suffix//\{n\}/${seq}}"
+	suffix="${suffix//\{ip\}/${ip_addr}}"
+	printf '%s' "$suffix"
+}
+
 process_openclash_block() {
 	local line idx
 	local name="" type="" server="" tls="" network=""
-	local server_idx=-1 tls_idx=-1 network_idx=-1 servername_idx=-1 ws_opts_idx=-1 xhttp_opts_idx=-1 headers_idx=-1 host_idx=-1
-	local prop_indent="" ip
+	local name_idx=-1 server_idx=-1 tls_idx=-1 network_idx=-1 servername_idx=-1 ws_opts_idx=-1 xhttp_opts_idx=-1 headers_idx=-1 host_idx=-1
+	local prop_indent="" ip new_name
 	local updated=false
 	local normalized_network opts_idx opt_key
 
@@ -362,6 +382,7 @@ process_openclash_block() {
 		line="${BLOCK_LINES[$idx]}"
 		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*(.+)$ ]]; then
 			name="$(trim_scalar "${BASH_REMATCH[1]}")"
+			name_idx="$idx"
 		elif [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]]; then
 			type="$(trim_scalar "${BASH_REMATCH[1]}")"
 			[[ -n "$prop_indent" ]] || prop_indent="$(line_indent "$line")"
@@ -405,9 +426,17 @@ process_openclash_block() {
 	ip="${FAST_IPS[$((OPENCLASH_UPDATED % IP_COUNT))]}"
 	OPENCLASH_UPDATED=$((OPENCLASH_UPDATED + 1))
 
+	if [[ -n "$OPENCLASH_NAME_SUFFIX" && -n "$name" ]]; then
+		new_name="${name}$(expand_suffix "$OPENCLASH_NAME_SUFFIX" "$OPENCLASH_UPDATED" "$ip")"
+	else
+		new_name="$name"
+	fi
+
 	for idx in "${!BLOCK_LINES[@]}"; do
 		line="${BLOCK_LINES[$idx]}"
-		if ((idx == server_idx)); then
+		if ((idx == name_idx)) && [[ "$new_name" != "$name" ]]; then
+			printf '%s- name: %s\n' "$(line_indent "$line")" "$new_name" >>"$TMP_CONFIG"
+		elif ((idx == server_idx)); then
 			printf '%sserver: %s\n' "$prop_indent" "$ip" >>"$TMP_CONFIG"
 			updated=true
 		elif ((idx == servername_idx)); then
@@ -448,7 +477,11 @@ process_openclash_block() {
 	done
 
 	if [[ "$updated" == "true" ]]; then
-		log "OpenClash proxy '${name:-unknown}' server -> ${ip}; domain kept as ${OPENCLASH_TARGET_DOMAIN}"
+		if [[ "$new_name" != "$name" ]]; then
+			log "OpenClash proxy '${name:-unknown}' -> '${new_name}'; server -> ${ip}; domain kept as ${OPENCLASH_TARGET_DOMAIN}"
+		else
+			log "OpenClash proxy '${name:-unknown}' server -> ${ip}; domain kept as ${OPENCLASH_TARGET_DOMAIN}"
+		fi
 	fi
 }
 

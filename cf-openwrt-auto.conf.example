@@ -77,6 +77,26 @@ SPEEDTEST_TLL="40"
 
 PASSWALL_TARGET_DOMAIN="cdn.example.com"
 
+# PassWall 节点名称后缀：
+#   修改节点后，在原始名称后面追加的后缀。
+#   支持占位符：{n} = 序号（从 1 开始），{ip} = 优选 IP 地址。
+#   留空则不修改节点名称。
+#   示例：
+#     " [CF-{n}]"   → "节点名 [CF-1]"、"节点名 [CF-2]"...
+#     " [CF-{ip}]"  → "节点名 [CF-104.18.1.1]"...
+#     ""             → 不修改名称
+#
+# PassWall node name suffix:
+#   Suffix appended to the original node name after update.
+#   Placeholders: {n} = sequence number (starting from 1), {ip} = fast IP address.
+#   Leave empty to keep original names unchanged.
+#   Examples:
+#     " [CF-{n}]"   → "Node [CF-1]", "Node [CF-2]"...
+#     " [CF-{ip}]"  → "Node [CF-104.18.1.1]"...
+#     ""             → do not modify names
+
+PASSWALL_NAME_SUFFIX=" [CF-{n}]"
+
 # OpenClash 目标：
 #   OPENCLASH_CONFIG 是 OpenClash 当前使用的 YAML 配置文件路径。
 #   只修改 server 等于 OPENCLASH_TARGET_DOMAIN 的代理节点。
@@ -89,6 +109,26 @@ PASSWALL_TARGET_DOMAIN="cdn.example.com"
 
 OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
 OPENCLASH_TARGET_DOMAIN="cdn.example.com"
+
+# OpenClash 节点名称后缀：
+#   修改节点后，在原始名称后面追加的后缀。
+#   支持占位符：{n} = 序号（从 1 开始），{ip} = 优选 IP 地址。
+#   留空则不修改节点名称。
+#   示例：
+#     " [CF-{n}]"   → "节点名 [CF-1]"、"节点名 [CF-2]"...
+#     " [CF-{ip}]"  → "节点名 [CF-104.18.1.1]"...
+#     ""             → 不修改名称
+#
+# OpenClash node name suffix:
+#   Suffix appended to the original proxy name after update.
+#   Placeholders: {n} = sequence number (starting from 1), {ip} = fast IP address.
+#   Leave empty to keep original names unchanged.
+#   Examples:
+#     " [CF-{n}]"   → "Node [CF-1]", "Node [CF-2]"...
+#     " [CF-{ip}]"  → "Node [CF-104.18.1.1]"...
+#     ""             → do not modify names
+
+OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
 
 # 脚本自升级：
 #   true  = 启动时检查脚本版本，有新版就自动升级
