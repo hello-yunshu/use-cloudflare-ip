@@ -1,0 +1,114 @@
+# 复制本文件为 cf-openwrt-auto.conf，并和 cf-openwrt-auto.sh 放在同一目录。
+# 脚本会自动读取同目录的 cf-openwrt-auto.conf。
+#
+# Copy this file to cf-openwrt-auto.conf and keep it in the same directory as
+# cf-openwrt-auto.sh. The script automatically loads cf-openwrt-auto.conf from
+# its own directory.
+
+# 推荐定时运行频率：
+#   建议每 6 小时运行一次：0 */6 * * * /path/to/cf-openwrt-auto.sh
+#   网络环境很稳定可以改成每天 1 次；波动明显可以改成每 3 小时 1 次。
+#   不建议低于每小时 1 次，测速会占用路由器 CPU 和网络资源。
+#
+# Recommended schedule:
+#   Run every 6 hours: 0 */6 * * * /path/to/cf-openwrt-auto.sh
+#   Use once per day for stable networks, or every 3 hours for unstable networks.
+#   Avoid running more often than once per hour because speed tests consume CPU
+#   and network resources.
+
+# 配置文件版本：
+#   脚本会检查 CONFIG_VERSION 是否满足最低配置版本要求。
+#   不要删除这一项；升级模板时按新模板同步更新。
+#
+# Config version:
+#   The script checks CONFIG_VERSION against the minimum required config version.
+#   Do not remove this value; update it when you refresh this config from the template.
+
+CONFIG_VERSION="1.1.0"
+
+# 运行模式：
+#   passwall  = 修改 PassWall 节点
+#   openclash = 修改 OpenClash YAML 里的代理节点
+#
+# Mode:
+#   passwall  = update PassWall nodes
+#   openclash = update OpenClash YAML proxies
+
+MODE="passwall"
+
+# 工作目录：
+#   留空表示使用脚本所在目录。
+#   cfst 二进制、测速结果 cf_result.txt、历史 IP ip-all.txt 都会保存在这里。
+#
+# Work directory:
+#   Leave empty to use the script directory.
+#   cfst binary, cf_result.txt, and ip-all.txt will be stored here.
+
+WORK_DIR=""
+
+# 优选 IP 数量：
+#   默认保留 4 个最快 IP。
+#   如果实际测速结果不足 4 个，会用最快的第 1 个 IP 自动补齐。
+#
+# IP count:
+#   Keep the fastest 4 IPs by default.
+#   If fewer IPs are found, the fastest one is reused.
+
+IP_COUNT="4"
+
+# CloudflareSpeedTest 测速参数：
+#   SPEEDTEST_DN  = 下载测速数量，对应 cfst -dn
+#   SPEEDTEST_TLL = 平均延迟上限，对应 cfst -tll
+#
+# CloudflareSpeedTest options:
+#   SPEEDTEST_DN  maps to cfst -dn
+#   SPEEDTEST_TLL maps to cfst -tll
+
+SPEEDTEST_DN="10"
+SPEEDTEST_TLL="40"
+
+# PassWall 目标域名：
+#   脚本会扫描 `uci show passwall`。
+#   只修改 address 等于该域名的节点。
+#
+# PassWall target domain:
+#   The script scans `uci show passwall`.
+#   Only nodes whose address equals this domain are updated.
+
+PASSWALL_TARGET_DOMAIN="cdn.example.com"
+
+# OpenClash 目标：
+#   OPENCLASH_CONFIG 是 OpenClash 当前使用的 YAML 配置文件路径。
+#   只修改 server 等于 OPENCLASH_TARGET_DOMAIN 的代理节点。
+#   server 会改成优选 IP；servername / Host 会保留为域名。
+#
+# OpenClash target:
+#   OPENCLASH_CONFIG is the active YAML config path.
+#   Only proxies whose server equals OPENCLASH_TARGET_DOMAIN are updated.
+#   server is changed to a fast IP; servername and Host stay as the domain.
+
+OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
+OPENCLASH_TARGET_DOMAIN="cdn.example.com"
+
+# 脚本自升级：
+#   true  = 启动时检查脚本版本，有新版就自动升级
+#   false = 禁用脚本自动升级
+#   自升级只替换脚本，不会覆盖本地 cf-openwrt-auto.conf。
+#
+# Self update:
+#   true  = check this script version on startup and auto-upgrade if newer
+#   false = never update this script automatically
+#   The local cf-openwrt-auto.conf is never overwritten by self-update.
+
+AUTO_UPDATE="true"
+SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
+
+# 调试输出：
+#   false = 成功时静默
+#   true  = 输出过程日志到 stderr
+#
+# Verbose:
+#   false = silent on success
+#   true  = print progress to stderr
+
+VERBOSE="false"
