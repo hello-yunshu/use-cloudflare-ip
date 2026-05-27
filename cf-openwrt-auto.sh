@@ -2,8 +2,8 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.1.0"
-MIN_CONFIG_VERSION="1.1.0"
+SCRIPT_VERSION="1.3.0"
+MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
 CONFIG_FILE="${CONFIG_FILE:-${SCRIPT_DIR}/cf-openwrt-auto.conf}"
@@ -12,15 +12,19 @@ MODE="passwall"
 CONFIG_VERSION=""
 WORK_DIR="$SCRIPT_DIR"
 IP_COUNT="4"
+IP_TYPE="ipv4"
 RESULT_FILE="cf_result.txt"
 IP_HISTORY_FILE="ip-all.txt"
 SPEEDTEST_DN="10"
 SPEEDTEST_TLL="40"
+SPEEDTEST_PROTOCOL="tcp"
+SPEEDTEST_CFCOLO=""
 PASSWALL_TARGET_DOMAIN=""
 PASSWALL_NAME_SUFFIX=" [CF-{n}]"
 OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
 OPENCLASH_TARGET_DOMAIN=""
 OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
+OPENCLASH_TRANSPORT_FILTER=""
 AUTO_UPDATE="true"
 SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
 VERBOSE="false"
@@ -138,6 +142,43 @@ ensure_jq() {
 	need_cmd jq
 }
 
+is_valid_ip() {
+	local ip="$1"
+	if [[ "$ip" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+		local i
+		for i in 1 2 3 4; do
+			((10#${BASH_REMATCH[$i]} <= 255)) || return 1
+		done
+		return 0
+	fi
+	if [[ "$ip" =~ ^[0-9a-fA-F:]+$ ]] && [[ "$ip" == *:* ]]; then
+		return 0
+	fi
+	return 1
+}
+
+verify_ip() {
+	local ip="$1" domain="$2" resolve_ip="$ip" curl_proto=()
+	[[ -n "$domain" ]] || return 0
+	[[ "$ip" == *:* ]] && resolve_ip="[${ip}]"
+	case "$IP_TYPE" in
+		ipv4) curl_proto=("-4") ;;
+		ipv6) curl_proto=("-6") ;;
+	esac
+	curl -s "${curl_proto[@]}" --max-time 3 --resolve "${domain}:443:${resolve_ip}" "https://${domain}" -o /dev/null 2>/dev/null
+}
+
+rotate_history_file() {
+	local file="$1" max_lines="${2:-1000}"
+	[[ -f "$file" ]] || return 0
+	local lines
+	lines="$(wc -l < "$file")" || return 0
+	((lines > max_lines)) || return 0
+	local tmp
+	tmp="$(mktemp "${file}.XXXXXX")" || return 0
+	tail -n "$max_lines" "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
 normalize_mode() {
 	case "${1:-$MODE}" in
 		passwall|openclash)
@@ -226,23 +267,87 @@ download_speedtest() {
 }
 
 run_speedtest() {
-	local ip ips=()
+	local ip all_ips=() verified_ips=() ips=() target_domain cfst_files=() result_files=()
+	local cfst_proto_args=()
+
+	case "$SPEEDTEST_PROTOCOL" in
+		http)
+			cfst_proto_args+=("-httping")
+			[[ -n "$SPEEDTEST_CFCOLO" ]] && cfst_proto_args+=("-cfcolo" "$SPEEDTEST_CFCOLO")
+			;;
+	esac
+
+	case "$IP_TYPE" in
+		ipv4) cfst_files=("ip.txt") ;;
+		ipv6) cfst_files=("ipv6.txt") ;;
+		both) cfst_files=("ip.txt" "ipv6.txt") ;;
+	esac
 
 	rm -f "$RESULT_FILE"
-	"./${BINARY_NAME}" -dn "$SPEEDTEST_DN" -tll "$SPEEDTEST_TLL" -o "$RESULT_FILE" >/dev/null
-	[[ -s "$RESULT_FILE" ]] || die "speed test did not generate $RESULT_FILE"
-
-	while IFS= read -r ip && ((${#ips[@]} < IP_COUNT)); do
-		[[ -n "$ip" ]] || continue
-		ips+=("$ip")
-	done < <(awk -F ',' 'NR > 1 && $1 != "" { print $1 }' "$RESULT_FILE")
-
-	((${#ips[@]} > 0)) || die "no usable IPs found in $RESULT_FILE"
-
-	while ((${#ips[@]} < IP_COUNT)); do
-		ips+=("${ips[0]}")
+	for cfst_file in "${cfst_files[@]}"; do
+		local partial_result
+		partial_result="$(mktemp "${RESULT_FILE}.XXXXXX")"
+		"./${BINARY_NAME}" -f "$cfst_file" -dn "$SPEEDTEST_DN" -tll "$SPEEDTEST_TLL" "${cfst_proto_args[@]}" -o "$partial_result" >/dev/null || true
+		result_files+=("$partial_result")
 	done
 
+	if ((${#result_files[@]} > 0)); then
+		cat "${result_files[@]}" > "$RESULT_FILE"
+	fi
+
+	for rf in "${result_files[@]}"; do
+		while IFS= read -r ip; do
+			[[ -n "$ip" ]] || continue
+			if ! is_valid_ip "$ip"; then
+				log "skip invalid IP format: $ip"
+				continue
+			fi
+			if [[ "$IP_TYPE" == "ipv4" && "$ip" == *:* ]]; then
+				continue
+			fi
+			if [[ "$IP_TYPE" == "ipv6" && "$ip" != *:* ]]; then
+				continue
+			fi
+			all_ips+=("$ip")
+		done < <(awk -F ',' 'NR > 1 && $1 != "" { print $1 }' "$rf")
+		rm -f "$rf"
+	done
+
+	((${#all_ips[@]} > 0)) || die "no valid IPs found in speedtest results"
+
+	case "$MODE" in
+		passwall) target_domain="$PASSWALL_TARGET_DOMAIN" ;;
+		openclash) target_domain="$OPENCLASH_TARGET_DOMAIN" ;;
+	esac
+
+	if [[ -n "$target_domain" ]]; then
+		for ip in "${all_ips[@]}"; do
+			((${#verified_ips[@]} >= IP_COUNT)) && break
+			if verify_ip "$ip" "$target_domain"; then
+				verified_ips+=("$ip")
+			else
+				log "skip unreachable IP: $ip"
+			fi
+		done
+	fi
+
+	if ((${#verified_ips[@]} > 0)); then
+		ips=("${verified_ips[@]}")
+	else
+		if [[ -n "$target_domain" ]]; then
+			log "warning: connectivity check failed for all IPs, using speedtest results directly"
+		fi
+		ips=("${all_ips[@]:0:IP_COUNT}")
+	fi
+
+	if ((${#ips[@]} < IP_COUNT)); then
+		log "warning: only ${#ips[@]} usable IP(s) found, filling with first IP to reach $IP_COUNT"
+		while ((${#ips[@]} < IP_COUNT)); do
+			ips+=("${ips[0]}")
+		done
+	fi
+
+	rotate_history_file "$IP_HISTORY_FILE"
 	printf '%s\n' "${ips[@]:0:IP_COUNT}" >>"$IP_HISTORY_FILE"
 	FAST_IPS=("${ips[@]:0:IP_COUNT}")
 	log "selected IPs: ${FAST_IPS[*]}"
@@ -423,6 +528,16 @@ process_openclash_block() {
 		return
 	fi
 
+	if [[ -n "$OPENCLASH_TRANSPORT_FILTER" ]]; then
+		local normalized_filter_net
+		normalized_filter_net="$(lower "${network:-}")"
+		if [[ -z "$normalized_filter_net" || ",${OPENCLASH_TRANSPORT_FILTER}," != *",${normalized_filter_net},"* ]]; then
+			log "skip OpenClash proxy '${name:-unknown}': network=${network:-unknown} not in OPENCLASH_TRANSPORT_FILTER (${OPENCLASH_TRANSPORT_FILTER})"
+			write_block_original
+			return
+		fi
+	fi
+
 	ip="${FAST_IPS[$((OPENCLASH_UPDATED % IP_COUNT))]}"
 	OPENCLASH_UPDATED=$((OPENCLASH_UPDATED + 1))
 
@@ -538,6 +653,8 @@ validate_config() {
 	fi
 	[[ "$MODE" == "passwall" || "$MODE" == "openclash" ]] || die "unsupported mode: $MODE; use passwall or openclash"
 	[[ "$IP_COUNT" =~ ^[1-9][0-9]*$ ]] || die "IP_COUNT must be a positive integer"
+	[[ "$IP_TYPE" == "ipv4" || "$IP_TYPE" == "ipv6" || "$IP_TYPE" == "both" ]] || die "IP_TYPE must be ipv4, ipv6, or both"
+	[[ "$SPEEDTEST_PROTOCOL" == "tcp" || "$SPEEDTEST_PROTOCOL" == "http" ]] || die "SPEEDTEST_PROTOCOL must be tcp or http"
 	[[ "$AUTO_UPDATE" == "true" || "$AUTO_UPDATE" == "false" ]] || die "AUTO_UPDATE must be true or false"
 
 	case "$MODE" in
@@ -548,6 +665,13 @@ validate_config() {
 			[[ -n "$OPENCLASH_CONFIG" ]] || die "OPENCLASH_CONFIG is empty"
 			[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || die "OPENCLASH_TARGET_DOMAIN is empty"
 			[[ -f "$OPENCLASH_CONFIG" ]] || die "OpenClash config not found: $OPENCLASH_CONFIG"
+			if [[ -n "$OPENCLASH_TRANSPORT_FILTER" ]]; then
+				local _item _items
+				IFS=',' read -r -a _items <<<"$OPENCLASH_TRANSPORT_FILTER"
+				for _item in "${_items[@]}"; do
+					[[ "$_item" == "ws" || "$_item" == "grpc" || "$_item" == "xhttp" || "$_item" == "h2" || "$_item" == "http" ]] || die "OPENCLASH_TRANSPORT_FILTER contains invalid value: $_item; allowed: ws, grpc, xhttp, h2, http"
+				done
+			fi
 			;;
 	esac
 }
