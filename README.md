@@ -44,74 +44,55 @@ chmod +x cf-openwrt-auto.sh
 ./cf-openwrt-auto.sh
 ```
 
-## 配置示例
+## 功能
 
-```sh
-# Config version / 配置文件版本:
-#   The script checks this against the minimum required config version.
-#   脚本会检查它是否满足最低配置版本要求；不要删除这一项。
-CONFIG_VERSION="1.1.0"
+### 优选 IP 数量
 
-# Mode / 运行模式:
-#   passwall  = update PassWall nodes / 修改 PassWall 节点
-#   openclash = update OpenClash YAML proxies / 修改 OpenClash YAML 里的代理节点
-MODE="passwall"
+`IP_COUNT` 控制保留多少个最快 IP，默认 4 个。如果测速结果不足，会用最快的第 1 个 IP 自动补齐。
 
-# Work directory / 工作目录:
-#   Empty means script directory / 留空表示使用脚本所在目录。
-#   cfst binary, cf_result.txt, and ip-all.txt will be stored here.
-#   cfst 二进制、测速结果、历史 IP 都会保存在这里。
-WORK_DIR=""
+### IP 类型
 
-# IP count / 优选 IP 数量:
-#   Keep the fastest 4 IPs by default / 默认保留 4 个最快 IP。
-#   If fewer IPs are found, the fastest one is reused / 不足时用最快 IP 补齐。
-IP_COUNT="4"
+`IP_TYPE` 支持三种模式：
 
-# CloudflareSpeedTest options / 测速参数:
-#   SPEEDTEST_DN  maps to cfst -dn / 下载测速数量
-#   SPEEDTEST_TLL maps to cfst -tll / 平均延迟上限
-SPEEDTEST_DN="10"
-SPEEDTEST_TLL="40"
+- `ipv4`：只测 IPv4 地址（使用 ip.txt）
+- `ipv6`：只测 IPv6 地址（使用 ipv6.txt）
+- `both`：同时测 IPv4 和 IPv6（先 ip.txt 再 ipv6.txt，合并结果）
 
-# PassWall target domain / PassWall 目标域名:
-#   The script scans `uci show passwall` and updates only nodes whose
-#   address equals this domain.
-#   脚本会扫描 `uci show passwall`，只修改 address 等于该域名的节点。
-PASSWALL_TARGET_DOMAIN="cdn.example.com"
+### 测速协议
 
-# OpenClash target / OpenClash 目标:
-#   OPENCLASH_CONFIG is the active YAML config path.
-#   OPENCLASH_CONFIG 是 OpenClash 当前使用的 YAML 配置文件路径。
-#   Only proxies whose server equals OPENCLASH_TARGET_DOMAIN are updated.
-#   只修改 server 等于 OPENCLASH_TARGET_DOMAIN 的代理节点。
-OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
-OPENCLASH_TARGET_DOMAIN="cdn.example.com"
+`SPEEDTEST_PROTOCOL` 支持两种测速方式：
 
-# Self update / 脚本自升级:
-#   true  = check this script version on startup and auto-upgrade if newer
-#           启动时检查脚本版本，有新版就自动升级
-#   false = never update this script automatically
-#           禁用脚本自动升级
-#   The local cf-openwrt-auto.conf is never overwritten by self-update.
-#   自升级只替换脚本，不会覆盖本地 cf-openwrt-auto.conf。
-AUTO_UPDATE="true"
-SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
+- `tcp`：TCPing 模式（默认），测 TCP 连接延迟，速度快
+- `http`：HTTPing 模式，测 HTTP 响应延迟，更贴近实际使用场景
 
-# Verbose / 调试输出:
-#   false = silent on success / 成功时静默
-#   true  = print progress to stderr / 输出过程日志到 stderr
-VERBOSE="false"
-```
+HTTPing 模式下可通过 `SPEEDTEST_CFCOLO` 按 Cloudflare 数据中心筛选，多个用逗号分隔（如 `HKG,NRT,LAX`），留空不筛选。
+
+`SPEEDTEST_DN` 和 `SPEEDTEST_TLL` 分别对应 cfst 的下载测速数量和平均延迟上限。
+
+### IP 连通性验证
+
+如果配置了目标域名（`PASSWALL_TARGET_DOMAIN` 或 `OPENCLASH_TARGET_DOMAIN`），脚本会在测速后逐个验证优选 IP 是否能通过该域名正常访问。不可达的 IP 会被跳过，确保写入配置的 IP 都是可用的。
+
+如果所有 IP 都验证失败，会回退使用测速结果中最快的 IP，并输出警告。
+
+### IP 历史记录
+
+每次运行后，优选 IP 会追加到 `ip-all.txt`。文件超过 1000 行时自动截断，只保留最近的记录。
+
+### 节点名称后缀
+
+PassWall 和 OpenClash 模式都支持节点名称后缀（`PASSWALL_NAME_SUFFIX` / `OPENCLASH_NAME_SUFFIX`），修改节点后会在原始名称后面追加后缀。支持占位符：
+
+- `{n}`：序号，从 1 开始
+- `{ip}`：优选 IP 地址
+
+留空则不修改节点名称。
+
+### OpenClash 传输协议过滤
+
+`OPENCLASH_TRANSPORT_FILTER` 可以只修改指定传输协议的代理节点，留空则修改所有支持的节点。可选值：`ws`、`grpc`、`xhttp`、`h2`、`http`，多个用逗号分隔。
 
 ## PassWall 模式
-
-设置：
-
-```sh
-MODE="passwall"
-PASSWALL_TARGET_DOMAIN="cdn.example.com"
-```
 
 脚本会读取：
 
@@ -119,22 +100,7 @@ PASSWALL_TARGET_DOMAIN="cdn.example.com"
 uci show passwall
 ```
 
-然后筛选所有 `address` 等于 `PASSWALL_TARGET_DOMAIN` 的节点。比如有 4 个 PassWall 节点都填了：
-
-```text
-address = cdn.example.com
-```
-
-测速得到 4 个 IP 后，会依次执行类似操作：
-
-```sh
-uci set passwall.<matched-section-1>.address=<fast-ip-1>
-uci set passwall.<matched-section-2>.address=<fast-ip-2>
-uci set passwall.<matched-section-3>.address=<fast-ip-3>
-uci set passwall.<matched-section-4>.address=<fast-ip-4>
-uci commit passwall
-/etc/init.d/passwall restart
-```
+然后筛选所有 `address` 等于 `PASSWALL_TARGET_DOMAIN` 的节点。测速得到 IP 后，会依次把匹配节点的 `address` 改成优选 IP，然后 `uci commit passwall` 并重启 PassWall 服务。
 
 如果只测速出 1 个可用 IP，会自动补齐，多个匹配节点都会写入同一个最快 IP。
 
@@ -142,61 +108,9 @@ PassWall 的配置保存在 UCI 中，运行中的进程需要重启 PassWall �
 
 ## OpenClash 模式
 
-设置：
-
-```sh
-MODE="openclash"
-OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
-OPENCLASH_TARGET_DOMAIN="cdn.example.com"
-```
-
 脚本会查找 `server` 等于 `OPENCLASH_TARGET_DOMAIN` 的代理节点，并把这些节点的 `server` 改成测速得到的 IP。`servername` 和 `Host` 会保留为原域名。
 
-写入 YAML 后，脚本会执行：
-
-```sh
-/etc/init.d/openclash restart
-```
-
-OpenClash 需要重启后才会重新读取修改后的配置文件。如果只改 YAML 而不重启，正在运行的 OpenClash 通常不会自动使用新 IP。
-
-示例节点：
-
-```yaml
-- name: xxxxx
-  type: vless
-  server: cdn.example.com
-  port: 443
-  uuid: xxxxx
-  client-fingerprint: chrome
-  tls: true
-  network: ws
-  ws-opts:
-    path: /xxx
-    headers:
-      Host: cdn.example.com
-  skip-cert-verify: false
-  servername: cdn.example.com
-```
-
-更新后类似：
-
-```yaml
-- name: xxxxx
-  type: vless
-  server: 104.18.1.1
-  port: 443
-  uuid: xxxxx
-  client-fingerprint: chrome
-  tls: true
-  network: ws
-  ws-opts:
-    path: /xxx
-    headers:
-      Host: cdn.example.com
-  skip-cert-verify: false
-  servername: cdn.example.com
-```
+写入 YAML 后，脚本会重启 OpenClash 服务。OpenClash 需要重启后才会重新读取修改后的配置文件。如果只改 YAML 而不重启，正在运行的 OpenClash 通常不会自动使用新 IP。
 
 ## OpenClash 协议判断
 
@@ -221,49 +135,21 @@ OpenClash 需要重启后才会重新读取修改后的配置文件。如果只�
 
 ## 版本与自升级
 
-脚本内置版本号 `SCRIPT_VERSION`。当配置里：
-
-```sh
-AUTO_UPDATE="true"
-```
-
-脚本启动后会从 `SELF_UPDATE_URL` 下载远端脚本，读取远端 `SCRIPT_VERSION`。如果远端版本高于本地版本，会先做 `bash -n` 语法检查，通过后替换当前脚本并重新执行。
+脚本内置版本号 `SCRIPT_VERSION`。当配置里 `AUTO_UPDATE="true"` 时，脚本启动后会从 `SELF_UPDATE_URL` 下载远端脚本，读取远端 `SCRIPT_VERSION`。如果远端版本高于本地版本，会先做 `bash -n` 语法检查，通过后替换当前脚本并重新执行。
 
 配置文件也有版本号 `CONFIG_VERSION`。脚本会检查它是否满足当前脚本的最低配置版本要求；如果缺失、格式不正确，或低于最低要求，会直接输出错误并退出，提示你根据 `cf-openwrt-auto.conf.example` 更新配置文件。
 
-自升级只会替换：
-
-```text
-cf-openwrt-auto.sh
-```
-
-不会修改：
-
-```text
-cf-openwrt-auto.conf
-```
-
-如果你用 Git 管理这个目录，`cf-openwrt-auto.conf` 也已经被 `.gitignore` 忽略。只要你没有手动把它 `git add -f` 进仓库，正常 `git pull` 不会覆盖本地配置。
+自升级只会替换 `cf-openwrt-auto.sh`，不会修改 `cf-openwrt-auto.conf`。如果你用 Git 管理这个目录，`cf-openwrt-auto.conf` 也已经被 `.gitignore` 忽略。只要你没有手动把它 `git add -f` 进仓库，正常 `git pull` 不会覆盖本地配置。
 
 ## 静默与调试
 
-默认：
-
-```sh
-VERBOSE="false"
-```
-
-成功运行不会输出内容，适合 cron 定时任务。失败会输出类似：
+默认 `VERBOSE="false"`，成功运行不会输出内容，适合 cron 定时任务。失败会输出类似：
 
 ```text
 [cloudflare-ip] ERROR: no PassWall nodes matched address: cdn.example.com
 ```
 
-手动排查时可以临时改成：
-
-```sh
-VERBOSE="true"
-```
+手动排查时可以临时改成 `VERBOSE="true"`。
 
 ## 定时运行
 
