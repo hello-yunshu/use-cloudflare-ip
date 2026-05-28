@@ -125,12 +125,14 @@ PASSWALL_NAME_SUFFIX=" [CF-{n}]"
 
 # OpenClash 目标：
 #   OPENCLASH_CONFIG 是 OpenClash 当前使用的 YAML 配置文件路径。
-#   只修改 server 等于 OPENCLASH_TARGET_DOMAIN 的代理节点。
+#   首次运行会用 server 等于 OPENCLASH_TARGET_DOMAIN 的代理节点作为模板。
+#   后续运行会优先按 [CF-1]、[CF-2] 这样的节点标记刷新并按 IP_COUNT 补齐节点。
 #   server 会改成优选 IP；servername / Host 会保留为域名。
 #
 # OpenClash target:
 #   OPENCLASH_CONFIG is the active YAML config path.
-#   Only proxies whose server equals OPENCLASH_TARGET_DOMAIN are updated.
+#   The first run uses proxies whose server equals OPENCLASH_TARGET_DOMAIN as templates.
+#   Later runs refresh and fill proxies up to IP_COUNT by markers such as [CF-1] and [CF-2].
 #   server is changed to a fast IP; servername and Host stay as the domain.
 
 OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
@@ -173,6 +175,21 @@ OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
 #     "ws,xhttp"   = only update WebSocket and XHTTP proxies
 
 OPENCLASH_TRANSPORT_FILTER=""
+
+# 测速前停止代理服务：
+#   代理服务运行时会干扰 CloudflareSpeedTest 的测速结果。
+#   启用后，脚本会在测速前停止当前模式的代理服务（OpenClash 或 PassWall），
+#   测速完成并更新配置后自动重启。
+#   如果测速过程中脚本报错退出，也会通过 EXIT trap 自动重启服务，避免网络中断。
+#
+# Stop proxy service before speed test:
+#   Running proxy services can interfere with CloudflareSpeedTest results.
+#   When enabled, the script stops the active mode's service (OpenClash or PassWall)
+#   before speed testing, and restarts it after updating the config.
+#   If the script exits with an error during testing, the service is automatically
+#   restarted via an EXIT trap to prevent network outage.
+
+STOP_SERVICE_BEFORE_SPEEDTEST="true"
 
 # 脚本自升级：
 #   true  = 启动时检查脚本版本，有新版就自动升级

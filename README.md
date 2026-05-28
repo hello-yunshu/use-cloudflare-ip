@@ -125,7 +125,7 @@ PassWall 的配置保存在 UCI 中，运行中的进程需要重启 PassWall �
 
 ## OpenClash 模式
 
-脚本会查找 `server` 等于 `OPENCLASH_TARGET_DOMAIN` 的代理节点，并把这些节点的 `server` 改成测速得到的 IP。`servername` 和 `Host` 会保留为原域名。
+脚本首次运行会查找 `server` 等于 `OPENCLASH_TARGET_DOMAIN` 的代理节点作为模板，并按配置里的 `IP_COUNT` 生成带 `[CF-1]`、`[CF-2]` 这类后缀的代理节点。后续运行会优先按这些标记刷新对应节点；如果只剩 `[CF-1]`，也会按 `IP_COUNT` 自动补齐缺少的节点。`server` 会改成测速得到的 IP，`servername` 和 `Host` 会保留为原域名。
 
 写入 YAML 后，脚本会重启 OpenClash 服务。OpenClash 需要重启后才会重新读取修改后的配置文件。如果只改 YAML 而不重启，正在运行的 OpenClash 通常不会自动使用新 IP。
 

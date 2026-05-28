@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.3.4"
+SCRIPT_VERSION="1.4.2"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -32,6 +32,9 @@ DOWNLOAD_RETRY_DELAY="5"
 VERBOSE="false"
 CLI_VERBOSE="false"
 GITHUB_MIRROR=""
+STOP_SERVICE_BEFORE_SPEEDTEST="true"
+_STOPPED_SERVICE=""
+_OPENCLASH_ENABLE_SAVED=""
 
 RELEASE_API="${RELEASE_API:-https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest}"
 RELEASE_DOWNLOAD_BASE="${RELEASE_DOWNLOAD_BASE:-https://github.com/XIU2/CloudflareSpeedTest/releases/download}"
@@ -469,8 +472,37 @@ restart_service() {
 	local service="$1"
 
 	[[ -x "/etc/init.d/${service}" ]] || die "service init script not found: $service"
+	if [[ "$service" == "openclash" && -n "$_OPENCLASH_ENABLE_SAVED" ]]; then
+		uci -q set "openclash.config.enable=$_OPENCLASH_ENABLE_SAVED"
+		uci -q commit openclash
+	fi
 	log "restarting service: $service"
 	"/etc/init.d/${service}" restart >/dev/null || die "failed to restart $service"
+}
+
+stop_service() {
+	local service="$1"
+
+	[[ -x "/etc/init.d/${service}" ]] || return 0
+	if [[ "$service" == "openclash" ]]; then
+		_OPENCLASH_ENABLE_SAVED="$(uci -q get openclash.config.enable || echo "1")"
+	fi
+	log "stopping service for speedtest: $service"
+	"/etc/init.d/${service}" stop >/dev/null || die "failed to stop $service"
+	_STOPPED_SERVICE="$service"
+}
+
+cleanup_stopped_service() {
+	if [[ -n "$_STOPPED_SERVICE" ]]; then
+		log "restarting stopped service on exit: $_STOPPED_SERVICE"
+		if [[ "$_STOPPED_SERVICE" == "openclash" && -n "$_OPENCLASH_ENABLE_SAVED" ]]; then
+			uci -q set "openclash.config.enable=$_OPENCLASH_ENABLE_SAVED"
+			uci -q commit openclash
+		fi
+		"/etc/init.d/${_STOPPED_SERVICE}" restart >/dev/null 2>&1 || true
+		_STOPPED_SERVICE=""
+		_OPENCLASH_ENABLE_SAVED=""
+	fi
 }
 
 update_passwall() {
@@ -536,6 +568,7 @@ trim_scalar() {
 	local value="$1"
 
 	value="${value%%#*}"
+	value="${value%$'\r'}"
 	value="${value#"${value%%[![:space:]]*}"}"
 	value="${value%"${value##*[![:space:]]}"}"
 	if [[ "$value" == \"*\" && "$value" == *\" ]]; then
@@ -547,7 +580,20 @@ trim_scalar() {
 }
 
 lower() {
-	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+	# BusyBox tr treats [:upper:]/[:lower:] as literal sets in some OpenWrt builds.
+	# shellcheck disable=SC2018,SC2019
+	printf '%s' "$1" | tr 'A-Z' 'a-z'
+}
+
+openclash_network_supported() {
+	case "$(lower "$1")" in
+		ws|xhttp|grpc|h2|http)
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
 }
 
 openclash_protocol_supported() {
@@ -555,16 +601,22 @@ openclash_protocol_supported() {
 
 	type="$(lower "$type")"
 	tls="$(lower "$tls")"
-	network="$(lower "$network")"
 
 	case "$type" in
 		vless|vmess|trojan)
-			[[ "$tls" == "true" || "$network" == "ws" || "$network" == "xhttp" || "$network" == "grpc" || "$network" == "h2" || "$network" == "http" ]]
 			;;
 		*)
 			return 1
 			;;
 	esac
+
+	case "$tls" in
+		"true")
+			return 0
+			;;
+	esac
+
+	openclash_network_supported "$network"
 }
 
 line_indent() {
@@ -587,26 +639,72 @@ expand_suffix() {
 	printf '%s' "$suffix"
 }
 
-process_openclash_block() {
-	local line idx
-	local name="" type="" server="" tls="" network=""
-	local name_idx=-1 server_idx=-1 tls_idx=-1 network_idx=-1 servername_idx=-1 ws_opts_idx=-1 xhttp_opts_idx=-1 headers_idx=-1 host_idx=-1
-	local prop_indent="" ip new_name
-	local updated=false
-	local normalized_network opts_idx opt_key
+openclash_variant_count() {
+	if [[ -n "$OPENCLASH_NAME_SUFFIX" ]]; then
+		printf '%s' "$IP_COUNT"
+	else
+		printf '1'
+	fi
+}
 
-	((${#BLOCK_LINES[@]} > 0)) || return
+openclash_generated_index() {
+	local proxy_name="$1"
+
+	if [[ "$proxy_name" =~ [[:space:]]\[CF-([0-9]+)\][[:space:]]*$ ]]; then
+		printf '%s' "${BASH_REMATCH[1]}"
+		return 0
+	fi
+	return 1
+}
+
+openclash_base_name() {
+	local proxy_name="$1"
+
+	if [[ "$proxy_name" =~ ^(.*)[[:space:]]\[CF-[0-9]+\][[:space:]]*$ ]]; then
+		printf '%s' "${BASH_REMATCH[1]}"
+	else
+		printf '%s' "$proxy_name"
+	fi
+}
+
+openclash_domain_matches() {
+	local server="$1" servername="$2" host="$3"
+
+	[[ "$server" == "$OPENCLASH_TARGET_DOMAIN" || "$servername" == "$OPENCLASH_TARGET_DOMAIN" || "$host" == "$OPENCLASH_TARGET_DOMAIN" ]]
+}
+
+remember_openclash_template() {
+	local base_name="$1"
+
+	[[ -z "${OPENCLASH_TEMPLATE_TEXT:-}" ]] || return 0
+	OPENCLASH_TEMPLATE_TEXT="$(printf '%s\n' "${BLOCK_LINES[@]}")"
+	OPENCLASH_TEMPLATE_BASE_NAME="$base_name"
+}
+
+restore_openclash_template() {
+	local line
+
+	BLOCK_LINES=()
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		BLOCK_LINES+=("$line")
+	done <<<"$OPENCLASH_TEMPLATE_TEXT"
+}
+
+emit_openclash_variant() {
+	local seq="$1" ip="$2" base_name="$3"
+	local line idx
+	local name="" tls="" network=""
+	local name_idx=-1 server_idx=-1 tls_idx=-1 network_idx=-1 servername_idx=-1 ws_opts_idx=-1 xhttp_opts_idx=-1 headers_idx=-1 host_idx=-1
+	local prop_indent="" new_name
+	local normalized_network opts_idx opt_key
+	local updated=false
 
 	for idx in "${!BLOCK_LINES[@]}"; do
 		line="${BLOCK_LINES[$idx]}"
 		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*(.+)$ ]]; then
 			name="$(trim_scalar "${BASH_REMATCH[1]}")"
 			name_idx="$idx"
-		elif [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]]; then
-			type="$(trim_scalar "${BASH_REMATCH[1]}")"
-			[[ -n "$prop_indent" ]] || prop_indent="$(line_indent "$line")"
 		elif [[ "$line" =~ ^[[:space:]]*server:[[:space:]]*(.+)$ ]]; then
-			server="$(trim_scalar "${BASH_REMATCH[1]}")"
 			server_idx="$idx"
 			[[ -n "$prop_indent" ]] || prop_indent="$(line_indent "$line")"
 		elif [[ "$line" =~ ^[[:space:]]*tls:[[:space:]]*(.+)$ ]]; then
@@ -631,34 +729,10 @@ process_openclash_block() {
 		fi
 	done
 
-	if [[ "$server" != "$OPENCLASH_TARGET_DOMAIN" ]]; then
-		write_block_original
-		return
-	fi
-
-	if ! openclash_protocol_supported "$type" "$tls" "$network"; then
-		log "skip OpenClash proxy '${name:-unknown}': type=${type:-unknown}, tls=${tls:-false}, network=${network:-unknown} is not supported"
-		write_block_original
-		return
-	fi
-
-	if [[ -n "$OPENCLASH_TRANSPORT_FILTER" ]]; then
-		local normalized_filter_net
-		normalized_filter_net="$(lower "${network:-}")"
-		if [[ -z "$normalized_filter_net" || ",${OPENCLASH_TRANSPORT_FILTER}," != *",${normalized_filter_net},"* ]]; then
-			log "skip OpenClash proxy '${name:-unknown}': network=${network:-unknown} not in OPENCLASH_TRANSPORT_FILTER (${OPENCLASH_TRANSPORT_FILTER})"
-			write_block_original
-			return
-		fi
-	fi
-
-	ip="${FAST_IPS[$((OPENCLASH_UPDATED % IP_COUNT))]}"
-	OPENCLASH_UPDATED=$((OPENCLASH_UPDATED + 1))
-
-	if [[ -n "$OPENCLASH_NAME_SUFFIX" && -n "$name" ]]; then
-		new_name="${name}$(expand_suffix "$OPENCLASH_NAME_SUFFIX" "$OPENCLASH_UPDATED" "$ip")"
+	if [[ -n "$OPENCLASH_NAME_SUFFIX" && -n "$base_name" ]]; then
+		new_name="${base_name}$(expand_suffix "$OPENCLASH_NAME_SUFFIX" "$seq" "$ip")"
 	else
-		new_name="$name"
+		new_name="$base_name"
 	fi
 
 	for idx in "${!BLOCK_LINES[@]}"; do
@@ -705,12 +779,93 @@ process_openclash_block() {
 		fi
 	done
 
+	OPENCLASH_UPDATED=$((OPENCLASH_UPDATED + 1))
+	OPENCLASH_SEEN[seq]=1
 	if [[ "$updated" == "true" ]]; then
 		if [[ "$new_name" != "$name" ]]; then
 			log "OpenClash proxy '${name:-unknown}' -> '${new_name}'; server -> ${ip}; domain kept as ${OPENCLASH_TARGET_DOMAIN}"
 		else
 			log "OpenClash proxy '${name:-unknown}' server -> ${ip}; domain kept as ${OPENCLASH_TARGET_DOMAIN}"
 		fi
+	fi
+}
+
+append_missing_openclash_variants() {
+	local seq ip variant_count
+
+	[[ -n "${OPENCLASH_TEMPLATE_TEXT:-}" ]] || return 0
+	variant_count="$(openclash_variant_count)"
+	for ((seq = 1; seq <= variant_count; seq++)); do
+		[[ -z "${OPENCLASH_SEEN[$seq]:-}" ]] || continue
+		restore_openclash_template
+		ip="${FAST_IPS[$(((seq - 1) % IP_COUNT))]}"
+		emit_openclash_variant "$seq" "$ip" "$OPENCLASH_TEMPLATE_BASE_NAME"
+	done
+}
+
+process_openclash_block() {
+	local line idx
+	local name="" type="" server="" tls="" network="" servername="" host=""
+	local generated_seq="" base_name variant_count
+
+	((${#BLOCK_LINES[@]} > 0)) || return
+
+	for idx in "${!BLOCK_LINES[@]}"; do
+		line="${BLOCK_LINES[$idx]}"
+		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*(.+)$ ]]; then
+			name="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]]; then
+			type="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*server:[[:space:]]*(.+)$ ]]; then
+			server="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*tls:[[:space:]]*(.+)$ ]]; then
+			tls="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*network:[[:space:]]*(.+)$ ]]; then
+			network="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*servername:[[:space:]]*(.*)$ ]]; then
+			servername="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*Host:[[:space:]]*(.*)$ ]]; then
+			host="$(trim_scalar "${BASH_REMATCH[1]}")"
+		fi
+	done
+
+	if [[ -z "$name" ]]; then
+		write_block_original
+		return
+	fi
+
+	if ! openclash_domain_matches "$server" "$servername" "$host"; then
+		write_block_original
+		return
+	fi
+
+	if ! openclash_protocol_supported "$type" "$tls" "$network"; then
+		log "skip OpenClash proxy '${name:-unknown}': type=${type:-unknown}, tls=${tls:-false}, network=${network:-unknown} is not supported"
+		write_block_original
+		return
+	fi
+
+	if [[ -n "$OPENCLASH_TRANSPORT_FILTER" ]]; then
+		local normalized_filter_net
+		normalized_filter_net="$(lower "${network:-}")"
+		if [[ -z "$normalized_filter_net" || ",${OPENCLASH_TRANSPORT_FILTER}," != *",${normalized_filter_net},"* ]]; then
+			log "skip OpenClash proxy '${name:-unknown}': network=${network:-unknown} not in OPENCLASH_TRANSPORT_FILTER (${OPENCLASH_TRANSPORT_FILTER})"
+			write_block_original
+			return
+		fi
+	fi
+
+	base_name="$(openclash_base_name "$name")"
+	remember_openclash_template "$base_name"
+	if generated_seq="$(openclash_generated_index "$name")"; then
+		if ((generated_seq < 1)); then
+			write_block_original
+			return
+		fi
+		emit_openclash_variant "$generated_seq" "${FAST_IPS[$(((generated_seq - 1) % IP_COUNT))]}" "$base_name"
+	else
+		variant_count="$(openclash_variant_count)"
+		log "OpenClash proxy '${name:-unknown}' selected as template; generating ${variant_count} marked variant(s)"
 	fi
 }
 
@@ -725,9 +880,13 @@ update_openclash() {
 	cp "$OPENCLASH_CONFIG" "$backup"
 	TMP_CONFIG="$(mktemp "${OPENCLASH_CONFIG}.tmp.XXXXXX")"
 	OPENCLASH_UPDATED=0
+	OPENCLASH_TEMPLATE_TEXT=""
+	OPENCLASH_TEMPLATE_BASE_NAME=""
+	OPENCLASH_SEEN=()
 	BLOCK_LINES=()
 
 	while IFS= read -r line || [[ -n "$line" ]]; do
+		line="${line%$'\r'}"
 		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*.+$ && ${#BLOCK_LINES[@]} -gt 0 ]]; then
 			process_openclash_block
 			BLOCK_LINES=("$line")
@@ -736,6 +895,7 @@ update_openclash() {
 		fi
 	done <"$OPENCLASH_CONFIG"
 	process_openclash_block
+	append_missing_openclash_variants
 
 	((OPENCLASH_UPDATED > 0)) || {
 		rm -f "$TMP_CONFIG"
@@ -777,6 +937,7 @@ validate_config() {
 	[[ "$DOWNLOAD_RETRIES" =~ ^[1-9][0-9]*$ ]] || die "DOWNLOAD_RETRIES must be a positive integer"
 	[[ "$DOWNLOAD_RETRY_DELAY" =~ ^[0-9]+$ ]] || die "DOWNLOAD_RETRY_DELAY must be a non-negative integer"
 	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
+	[[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" || "$STOP_SERVICE_BEFORE_SPEEDTEST" == "false" ]] || die "STOP_SERVICE_BEFORE_SPEEDTEST must be true or false"
 	if [[ -n "$GITHUB_MIRROR" ]]; then
 		[[ "$GITHUB_MIRROR" == http://* || "$GITHUB_MIRROR" == https://* ]] || die "GITHUB_MIRROR must start with http:// or https://"
 		[[ "$GITHUB_MIRROR" == */ ]] || die "GITHUB_MIRROR must end with /"
@@ -831,6 +992,15 @@ main() {
 	log "using work directory: $WORK_DIR"
 	prepare_work_dir
 	download_speedtest
+
+	if [[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" ]]; then
+		case "$MODE" in
+			passwall) stop_service passwall ;;
+			openclash) stop_service openclash ;;
+		esac
+		trap cleanup_stopped_service EXIT
+	fi
+
 	run_speedtest
 
 	case "$MODE" in
@@ -841,6 +1011,10 @@ main() {
 			update_openclash
 			;;
 	esac
+
+	_STOPPED_SERVICE=""
+	trap - EXIT
+
 	log "done"
 }
 
