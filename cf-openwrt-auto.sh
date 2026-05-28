@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.3.3"
+SCRIPT_VERSION="1.3.4"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -196,7 +196,8 @@ is_valid_ip() {
 }
 
 verify_ip() {
-	local ip="$1" domain="$2" resolve_ip="$ip" curl_proto=()
+	local ip="$1" domain="$2" curl_proto=()
+	local resolve_ip="$ip"
 	[[ -n "$domain" ]] || return 0
 	[[ "$ip" == *:* ]] && resolve_ip="[${ip}]"
 	case "$IP_TYPE" in
@@ -282,7 +283,7 @@ install_speedtest_archive() {
 	if ! tar -tzf "$archive" >/dev/null 2>&1; then
 		die "local CloudflareSpeedTest archive is not a valid tar.gz: $archive"
 	fi
-	tar -xzf "$archive" >/dev/null || die "failed to extract CloudflareSpeedTest archive: $archive"
+	tar -xzf "$archive" || die "failed to extract CloudflareSpeedTest archive: $archive"
 	[[ -f "$BINARY_NAME" ]] || die "archive did not contain $BINARY_NAME"
 	chmod +x "$BINARY_NAME"
 	if [[ -n "$version" ]]; then
@@ -369,6 +370,7 @@ download_speedtest() {
 			die "failed to save CloudflareSpeedTest archive: $archive"
 		}
 		install_speedtest_archive "$archive" "$version"
+		log "CloudflareSpeedTest $version installed successfully"
 	else
 		log "CloudflareSpeedTest $version already exists"
 	fi
