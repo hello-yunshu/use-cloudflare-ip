@@ -8,18 +8,18 @@
 
 先在 OpenWrt 上安装基础依赖。
 
-OpenWrt 23.05+ 使用 apk：
+OpenWrt 25.12+ 使用 apk：
 
 ```sh
 apk update
-apk add bash curl wget tar jq ca-bundle ca-certificates
+apk add bash curl tar jq ca-bundle ca-certificates
 ```
 
-旧版 OpenWrt 使用 opkg：
+OpenWrt 24.10 及更早版本使用 opkg：
 
 ```sh
 opkg update
-opkg install bash curl wget tar jq ca-bundle ca-certificates
+opkg install bash curl tar jq ca-bundle ca-certificates
 ```
 
 还需要满足：

@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.3.0"
+SCRIPT_VERSION="1.3.1"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -244,10 +244,9 @@ prepare_work_dir() {
 }
 
 download_speedtest() {
-	local tag version old_version asset archive
+	local tag version old_version asset archive url tmp_archive
 
 	need_cmd curl
-	need_cmd wget
 	need_cmd tar
 	ensure_jq
 
@@ -260,11 +259,23 @@ download_speedtest() {
 
 	asset="${BINARY_NAME}_linux_${tag}.tar.gz"
 	archive="${BINARY_NAME}_linux_${tag}.tar.gz"
+	url="${RELEASE_DOWNLOAD_BASE}/${version}/${asset}"
 
 	if [[ ! -x "$BINARY_NAME" || "$version" != "$old_version" ]]; then
 		log "downloading CloudflareSpeedTest $version for $tag"
-		rm -f "$archive"
-		wget -q -O "$archive" "${RELEASE_DOWNLOAD_BASE}/${version}/${asset}"
+		tmp_archive="$(mktemp "${archive}.XXXXXX")" || die "failed to create temporary archive"
+		if ! curl -fsSL "$url" -o "$tmp_archive"; then
+			rm -f "$tmp_archive"
+			die "failed to download CloudflareSpeedTest asset: $url"
+		fi
+		if ! tar -tzf "$tmp_archive" >/dev/null 2>&1; then
+			rm -f "$tmp_archive"
+			die "downloaded CloudflareSpeedTest asset is not a valid tar.gz: $url"
+		fi
+		mv "$tmp_archive" "$archive" || {
+			rm -f "$tmp_archive"
+			die "failed to save CloudflareSpeedTest archive: $archive"
+		}
 		tar -xzf "$archive" >/dev/null
 		[[ -f "$BINARY_NAME" ]] || die "archive did not contain $BINARY_NAME"
 		chmod +x "$BINARY_NAME"
