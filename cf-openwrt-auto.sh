@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.3.1"
+SCRIPT_VERSION="1.3.2"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -28,10 +28,12 @@ OPENCLASH_TRANSPORT_FILTER=""
 AUTO_UPDATE="true"
 SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
 VERBOSE="false"
+CLI_VERBOSE="false"
 
 RELEASE_API="${RELEASE_API:-https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest}"
 RELEASE_DOWNLOAD_BASE="${RELEASE_DOWNLOAD_BASE:-https://github.com/XIU2/CloudflareSpeedTest/releases/download}"
 BINARY_NAME="cfst"
+GITHUB_USER_AGENT="cf-openwrt-auto/${SCRIPT_VERSION}"
 
 log() {
 	[[ "$VERBOSE" == "true" ]] || return 0
@@ -98,7 +100,8 @@ self_update() {
 	}
 
 	tmp="$(mktemp "${TMPDIR:-/tmp}/cf-openwrt-auto.XXXXXX")" || return 0
-	if ! curl -fsSL "$SELF_UPDATE_URL" -o "$tmp"; then
+	log "checking script update: $SELF_UPDATE_URL"
+	if ! curl -fsSL -A "$GITHUB_USER_AGENT" -o "$tmp" "$SELF_UPDATE_URL"; then
 		rm -f "$tmp"
 		log "skip self update: failed to fetch $SELF_UPDATE_URL"
 		return 0
@@ -128,7 +131,10 @@ self_update() {
 	fi
 
 	log "updated script from $SCRIPT_VERSION to $remote_version"
-	exec "$SCRIPT_PATH" "$@"
+	if [[ "$CLI_VERBOSE" == "true" ]]; then
+		exec "$SCRIPT_PATH" --verbose
+	fi
+	exec "$SCRIPT_PATH"
 }
 
 ensure_jq() {
@@ -244,14 +250,19 @@ prepare_work_dir() {
 }
 
 download_speedtest() {
-	local tag version old_version asset archive url tmp_archive
+	local tag version old_version asset archive url tmp_archive release_json
 
 	need_cmd curl
 	need_cmd tar
 	ensure_jq
 
 	tag="$(detect_arch_tag)"
-	version="$(curl -fsSL "$RELEASE_API" | jq -r '.tag_name // empty')"
+	log "detected architecture tag: $tag"
+	log "checking CloudflareSpeedTest release: $RELEASE_API"
+	if ! release_json="$(curl -fsSL -A "$GITHUB_USER_AGENT" "$RELEASE_API")"; then
+		die "failed to fetch CloudflareSpeedTest release metadata: $RELEASE_API"
+	fi
+	version="$(printf '%s\n' "$release_json" | jq -r '.tag_name // empty')"
 	[[ -n "$version" && "$version" != "null" ]] || die "failed to get latest CloudflareSpeedTest version"
 
 	old_version=""
@@ -264,7 +275,7 @@ download_speedtest() {
 	if [[ ! -x "$BINARY_NAME" || "$version" != "$old_version" ]]; then
 		log "downloading CloudflareSpeedTest $version for $tag"
 		tmp_archive="$(mktemp "${archive}.XXXXXX")" || die "failed to create temporary archive"
-		if ! curl -fsSL "$url" -o "$tmp_archive"; then
+		if ! curl -fsSL -A "$GITHUB_USER_AGENT" -o "$tmp_archive" "$url"; then
 			rm -f "$tmp_archive"
 			die "failed to download CloudflareSpeedTest asset: $url"
 		fi
@@ -280,6 +291,8 @@ download_speedtest() {
 		[[ -f "$BINARY_NAME" ]] || die "archive did not contain $BINARY_NAME"
 		chmod +x "$BINARY_NAME"
 		printf '%s\n' "$version" >"${BINARY_NAME}_version.txt"
+	else
+		log "CloudflareSpeedTest $version already exists"
 	fi
 }
 
@@ -304,6 +317,7 @@ run_speedtest() {
 	for cfst_file in "${cfst_files[@]}"; do
 		local partial_result
 		partial_result="$(mktemp "${RESULT_FILE}.XXXXXX")"
+		log "running speedtest with $cfst_file"
 		"./${BINARY_NAME}" -f "$cfst_file" -dn "$SPEEDTEST_DN" -tll "$SPEEDTEST_TLL" "${cfst_proto_args[@]}" -o "$partial_result" >/dev/null || true
 		result_files+=("$partial_result")
 	done
@@ -338,6 +352,7 @@ run_speedtest() {
 	esac
 
 	if [[ -n "$target_domain" ]]; then
+		log "verifying selected IPs against $target_domain"
 		for ip in "${all_ips[@]}"; do
 			((${#verified_ips[@]} >= IP_COUNT)) && break
 			if verify_ip "$ip" "$target_domain"; then
@@ -374,6 +389,7 @@ restart_service() {
 	local service="$1"
 
 	[[ -x "/etc/init.d/${service}" ]] || die "service init script not found: $service"
+	log "restarting service: $service"
 	"/etc/init.d/${service}" restart >/dev/null || die "failed to restart $service"
 }
 
@@ -385,6 +401,7 @@ update_passwall() {
 		sections+=("$section")
 	done < <(find_passwall_sections)
 	((${#sections[@]} > 0)) || die "no PassWall nodes matched address: $PASSWALL_TARGET_DOMAIN"
+	log "matched PassWall node count: ${#sections[@]}"
 
 	idx=0
 	for section in "${sections[@]}"; do
@@ -622,6 +639,7 @@ update_openclash() {
 
 	[[ -f "$OPENCLASH_CONFIG" ]] || die "OpenClash config not found: $OPENCLASH_CONFIG"
 	[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || die "OPENCLASH_TARGET_DOMAIN is empty"
+	log "updating OpenClash config: $OPENCLASH_CONFIG"
 
 	backup="${OPENCLASH_CONFIG}.bak.$(date +%Y%m%d%H%M%S)"
 	cp "$OPENCLASH_CONFIG" "$backup"
@@ -653,11 +671,14 @@ update_openclash() {
 usage() {
 	cat <<'EOF'
 Usage:
-  cf-openwrt-auto.sh
+  cf-openwrt-auto.sh [--verbose]
 
 Config:
   Copy cf-openwrt-auto.conf.example to cf-openwrt-auto.conf in the same
   directory as this script, then edit that config file.
+
+Options:
+  -v, --verbose  Print progress logs to stderr for manual terminal runs.
 EOF
 }
 
@@ -673,6 +694,7 @@ validate_config() {
 	[[ "$IP_TYPE" == "ipv4" || "$IP_TYPE" == "ipv6" || "$IP_TYPE" == "both" ]] || die "IP_TYPE must be ipv4, ipv6, or both"
 	[[ "$SPEEDTEST_PROTOCOL" == "tcp" || "$SPEEDTEST_PROTOCOL" == "http" ]] || die "SPEEDTEST_PROTOCOL must be tcp or http"
 	[[ "$AUTO_UPDATE" == "true" || "$AUTO_UPDATE" == "false" ]] || die "AUTO_UPDATE must be true or false"
+	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
 
 	case "$MODE" in
 		passwall)
@@ -694,19 +716,33 @@ validate_config() {
 }
 
 main() {
-	if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-		usage
-		return 0
-	fi
-	(($# == 0)) || die "unexpected argument: $1; edit MODE in cf-openwrt-auto.conf"
+	while (($# > 0)); do
+		case "$1" in
+			-h|--help)
+				usage
+				return 0
+				;;
+			-v|--verbose)
+				CLI_VERBOSE="true"
+				;;
+			*)
+				die "unexpected argument: $1; edit MODE in cf-openwrt-auto.conf"
+				;;
+		esac
+		shift
+	done
 
 	load_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
 	normalize_mode "$MODE"
 	validate_config
+	log "starting cf-openwrt-auto $SCRIPT_VERSION"
+	log "mode=$MODE ip_type=$IP_TYPE ip_count=$IP_COUNT protocol=$SPEEDTEST_PROTOCOL"
 	self_update "$@"
 	need_cmd awk
 	need_cmd sed
 	need_cmd tr
+	log "using work directory: $WORK_DIR"
 	prepare_work_dir
 	download_speedtest
 	run_speedtest
@@ -719,6 +755,7 @@ main() {
 			update_openclash
 			;;
 	esac
+	log "done"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

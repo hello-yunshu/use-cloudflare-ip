@@ -190,9 +190,13 @@ SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-i
 # 调试输出：
 #   false = 成功时静默
 #   true  = 输出过程日志到 stderr
+#   手动排查时也可以不改配置，直接运行：
+#     ./cf-openwrt-auto.sh --verbose
 #
 # Verbose:
 #   false = silent on success
 #   true  = print progress to stderr
+#   For manual debugging, you can also run:
+#     ./cf-openwrt-auto.sh --verbose
 
 VERBOSE="false"

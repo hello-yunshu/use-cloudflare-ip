@@ -160,6 +160,14 @@ PassWall 的配置保存在 UCI 中，运行中的进程需要重启 PassWall �
 
 手动排查时可以临时改成 `VERBOSE="true"`。
 
+也可以不改配置，直接在终端这样运行：
+
+```sh
+./cf-openwrt-auto.sh --verbose
+```
+
+开启后会输出自升级检查、CloudflareSpeedTest 版本检查、下载、测速、连通性验证、配置更新和服务重启等步骤。
+
 ## 定时运行
 
 配置文件和脚本在同一目录，定时任务只需要执行脚本本身：
