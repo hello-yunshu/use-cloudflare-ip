@@ -31,6 +31,7 @@ DOWNLOAD_RETRIES="3"
 DOWNLOAD_RETRY_DELAY="5"
 VERBOSE="false"
 CLI_VERBOSE="false"
+GITHUB_MIRROR=""
 
 RELEASE_API="${RELEASE_API:-https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest}"
 RELEASE_DOWNLOAD_BASE="${RELEASE_DOWNLOAD_BASE:-https://github.com/XIU2/CloudflareSpeedTest/releases/download}"
@@ -51,7 +52,7 @@ curl_fetch() {
 	local output="$1" url="$2" attempt
 
 	for ((attempt = 1; attempt <= DOWNLOAD_RETRIES; attempt++)); do
-		if curl -fsSL -A "$GITHUB_USER_AGENT" -o "$output" "$url"; then
+		if curl -fsSL --connect-timeout 30 --max-time 600 -A "$GITHUB_USER_AGENT" -o "$output" "$url"; then
 			return 0
 		fi
 		((attempt < DOWNLOAD_RETRIES)) || break
@@ -60,6 +61,14 @@ curl_fetch() {
 	done
 
 	return 1
+}
+
+mirror_url() {
+	if [[ -n "$GITHUB_MIRROR" && "$1" == https://*github.com/* ]]; then
+		printf '%s%s\n' "$GITHUB_MIRROR" "$1"
+	else
+		printf '%s\n' "$1"
+	fi
 }
 
 load_config() {
@@ -118,7 +127,7 @@ self_update() {
 
 	tmp="$(mktemp "${TMPDIR:-/tmp}/cf-openwrt-auto.XXXXXX")" || return 0
 	log "checking script update: $SELF_UPDATE_URL"
-	if ! curl_fetch "$tmp" "$SELF_UPDATE_URL"; then
+	if ! curl_fetch "$tmp" "$(mirror_url "$SELF_UPDATE_URL")"; then
 		rm -f "$tmp"
 		log "skip self update: failed to fetch $SELF_UPDATE_URL"
 		return 0
@@ -282,7 +291,7 @@ install_speedtest_archive() {
 }
 
 download_speedtest() {
-	local tag version old_version asset archive url tmp_archive release_json release_tmp
+	local tag version old_version asset archive url download_url tmp_archive release_json release_tmp file_size
 
 	need_cmd curl
 	need_cmd tar
@@ -315,12 +324,16 @@ download_speedtest() {
 	old_version=""
 	[[ -f "${BINARY_NAME}_version.txt" ]] && old_version="$(<"${BINARY_NAME}_version.txt")"
 
-	url="${RELEASE_DOWNLOAD_BASE}/${version}/${asset}"
+	url="$(printf '%s\n' "$release_json" | jq -r --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url // empty' | head -n 1)"
+	if [[ -z "$url" || "$url" == "null" ]]; then
+		url="${RELEASE_DOWNLOAD_BASE}/${version}/${asset}"
+	fi
+	download_url="$(mirror_url "$url")"
 
 	if [[ ! -x "$BINARY_NAME" || "$version" != "$old_version" ]]; then
 		log "downloading CloudflareSpeedTest $version for $tag"
 		tmp_archive="$(mktemp "${archive}.XXXXXX")" || die "failed to create temporary archive"
-		if ! curl_fetch "$tmp_archive" "$url"; then
+		if ! curl_fetch "$tmp_archive" "$download_url"; then
 			rm -f "$tmp_archive"
 			if [[ -f "$archive" ]]; then
 				log "download failed, falling back to local archive"
@@ -334,6 +347,11 @@ download_speedtest() {
 			die "failed to download CloudflareSpeedTest asset: $url"
 		fi
 		if ! tar -tzf "$tmp_archive" >/dev/null 2>&1; then
+			file_size="$(wc -c < "$tmp_archive" 2>/dev/null || printf 'unknown')"
+			if head -c 512 "$tmp_archive" 2>/dev/null | grep -qi '<!doctype\|<html'; then
+				rm -f "$tmp_archive"
+				die "downloaded file is HTML instead of tar.gz (likely network interception or proxy); size=${file_size} bytes; url=$url"
+			fi
 			rm -f "$tmp_archive"
 			if [[ -f "$archive" ]]; then
 				log "downloaded archive is invalid, falling back to local archive"
@@ -344,7 +362,7 @@ download_speedtest() {
 				log "downloaded archive is invalid, using existing $BINARY_NAME"
 				return
 			fi
-			die "downloaded CloudflareSpeedTest asset is not a valid tar.gz: $url"
+			die "downloaded CloudflareSpeedTest asset is not a valid tar.gz (size=${file_size} bytes): $url"
 		fi
 		mv "$tmp_archive" "$archive" || {
 			rm -f "$tmp_archive"
@@ -757,6 +775,10 @@ validate_config() {
 	[[ "$DOWNLOAD_RETRIES" =~ ^[1-9][0-9]*$ ]] || die "DOWNLOAD_RETRIES must be a positive integer"
 	[[ "$DOWNLOAD_RETRY_DELAY" =~ ^[0-9]+$ ]] || die "DOWNLOAD_RETRY_DELAY must be a non-negative integer"
 	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
+	if [[ -n "$GITHUB_MIRROR" ]]; then
+		[[ "$GITHUB_MIRROR" == http://* || "$GITHUB_MIRROR" == https://* ]] || die "GITHUB_MIRROR must start with http:// or https://"
+		[[ "$GITHUB_MIRROR" == */ ]] || die "GITHUB_MIRROR must end with /"
+	fi
 
 	case "$MODE" in
 		passwall)

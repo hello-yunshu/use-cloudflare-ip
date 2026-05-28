@@ -198,6 +198,29 @@ SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-i
 DOWNLOAD_RETRIES="3"
 DOWNLOAD_RETRY_DELAY="5"
 
+# GitHub 下载镜像：
+#   如果路由器无法直接访问 GitHub 下载（常见于中国大陆网络），
+#   可以设置 GitHub 镜像加速下载。镜像 URL 会自动拼接到原始 GitHub 下载链接前面。
+#   留空表示不使用镜像，直接从 GitHub 下载。
+#   示例：
+#     ""                          = 不使用镜像
+#     "https://ghp.ci/"           = 使用 ghp.ci 镜像
+#     "https://gh-proxy.com/"     = 使用 gh-proxy.com 镜像
+#   仅对 GitHub 下载链接（cfst 二进制、脚本自升级）生效，不影响 API 查询。
+#
+# GitHub download mirror:
+#   If the router cannot access GitHub downloads directly (common in mainland China),
+#   set a GitHub mirror to accelerate downloads. The mirror URL is prepended to the
+#   original GitHub download URL.
+#   Leave empty to download directly from GitHub.
+#   Examples:
+#     ""                          = no mirror
+#     "https://ghp.ci/"           = use ghp.ci mirror
+#     "https://gh-proxy.com/"     = use gh-proxy.com mirror
+#   Only applies to GitHub download URLs (cfst binary, script self-update), not API queries.
+
+GITHUB_MIRROR=""
+
 # 调试输出：
 #   false = 成功时静默
 #   true  = 输出过程日志到 stderr
