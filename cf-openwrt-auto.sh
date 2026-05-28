@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.3.2"
+SCRIPT_VERSION="1.3.3"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -27,6 +27,8 @@ OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
 OPENCLASH_TRANSPORT_FILTER=""
 AUTO_UPDATE="true"
 SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
+DOWNLOAD_RETRIES="3"
+DOWNLOAD_RETRY_DELAY="5"
 VERBOSE="false"
 CLI_VERBOSE="false"
 
@@ -43,6 +45,21 @@ log() {
 die() {
 	printf '[cloudflare-ip] ERROR: %s\n' "$*" >&2
 	exit 1
+}
+
+curl_fetch() {
+	local output="$1" url="$2" attempt
+
+	for ((attempt = 1; attempt <= DOWNLOAD_RETRIES; attempt++)); do
+		if curl -fsSL -A "$GITHUB_USER_AGENT" -o "$output" "$url"; then
+			return 0
+		fi
+		((attempt < DOWNLOAD_RETRIES)) || break
+		log "download failed, retrying in ${DOWNLOAD_RETRY_DELAY}s (${attempt}/${DOWNLOAD_RETRIES}): $url"
+		sleep "$DOWNLOAD_RETRY_DELAY"
+	done
+
+	return 1
 }
 
 load_config() {
@@ -101,7 +118,7 @@ self_update() {
 
 	tmp="$(mktemp "${TMPDIR:-/tmp}/cf-openwrt-auto.XXXXXX")" || return 0
 	log "checking script update: $SELF_UPDATE_URL"
-	if ! curl -fsSL -A "$GITHUB_USER_AGENT" -o "$tmp" "$SELF_UPDATE_URL"; then
+	if ! curl_fetch "$tmp" "$SELF_UPDATE_URL"; then
 		rm -f "$tmp"
 		log "skip self update: failed to fetch $SELF_UPDATE_URL"
 		return 0
@@ -249,48 +266,91 @@ prepare_work_dir() {
 	cd "$WORK_DIR" || die "failed to enter work directory: $WORK_DIR"
 }
 
+install_speedtest_archive() {
+	local archive="$1" version="${2:-}"
+
+	log "using local CloudflareSpeedTest archive: $archive"
+	if ! tar -tzf "$archive" >/dev/null 2>&1; then
+		die "local CloudflareSpeedTest archive is not a valid tar.gz: $archive"
+	fi
+	tar -xzf "$archive" >/dev/null || die "failed to extract CloudflareSpeedTest archive: $archive"
+	[[ -f "$BINARY_NAME" ]] || die "archive did not contain $BINARY_NAME"
+	chmod +x "$BINARY_NAME"
+	if [[ -n "$version" ]]; then
+		printf '%s\n' "$version" >"${BINARY_NAME}_version.txt"
+	fi
+}
+
 download_speedtest() {
-	local tag version old_version asset archive url tmp_archive release_json
+	local tag version old_version asset archive url tmp_archive release_json release_tmp
 
 	need_cmd curl
 	need_cmd tar
 	ensure_jq
 
 	tag="$(detect_arch_tag)"
+	asset="${BINARY_NAME}_linux_${tag}.tar.gz"
+	archive="${BINARY_NAME}_linux_${tag}.tar.gz"
 	log "detected architecture tag: $tag"
 	log "checking CloudflareSpeedTest release: $RELEASE_API"
-	if ! release_json="$(curl -fsSL -A "$GITHUB_USER_AGENT" "$RELEASE_API")"; then
+	release_tmp="$(mktemp "${BINARY_NAME}_release.XXXXXX")" || die "failed to create temporary release metadata file"
+	if ! curl_fetch "$release_tmp" "$RELEASE_API"; then
+		rm -f "$release_tmp"
+		if [[ -f "$archive" ]]; then
+			log "release metadata unavailable, falling back to local archive"
+			install_speedtest_archive "$archive"
+			return
+		fi
+		if [[ -x "$BINARY_NAME" ]]; then
+			log "release metadata unavailable, using existing $BINARY_NAME"
+			return
+		fi
 		die "failed to fetch CloudflareSpeedTest release metadata: $RELEASE_API"
 	fi
+	release_json="$(<"$release_tmp")"
+	rm -f "$release_tmp"
 	version="$(printf '%s\n' "$release_json" | jq -r '.tag_name // empty')"
 	[[ -n "$version" && "$version" != "null" ]] || die "failed to get latest CloudflareSpeedTest version"
 
 	old_version=""
 	[[ -f "${BINARY_NAME}_version.txt" ]] && old_version="$(<"${BINARY_NAME}_version.txt")"
 
-	asset="${BINARY_NAME}_linux_${tag}.tar.gz"
-	archive="${BINARY_NAME}_linux_${tag}.tar.gz"
 	url="${RELEASE_DOWNLOAD_BASE}/${version}/${asset}"
 
 	if [[ ! -x "$BINARY_NAME" || "$version" != "$old_version" ]]; then
 		log "downloading CloudflareSpeedTest $version for $tag"
 		tmp_archive="$(mktemp "${archive}.XXXXXX")" || die "failed to create temporary archive"
-		if ! curl -fsSL -A "$GITHUB_USER_AGENT" -o "$tmp_archive" "$url"; then
+		if ! curl_fetch "$tmp_archive" "$url"; then
 			rm -f "$tmp_archive"
+			if [[ -f "$archive" ]]; then
+				log "download failed, falling back to local archive"
+				install_speedtest_archive "$archive" "$version"
+				return
+			fi
+			if [[ -x "$BINARY_NAME" ]]; then
+				log "download failed, using existing $BINARY_NAME"
+				return
+			fi
 			die "failed to download CloudflareSpeedTest asset: $url"
 		fi
 		if ! tar -tzf "$tmp_archive" >/dev/null 2>&1; then
 			rm -f "$tmp_archive"
+			if [[ -f "$archive" ]]; then
+				log "downloaded archive is invalid, falling back to local archive"
+				install_speedtest_archive "$archive" "$version"
+				return
+			fi
+			if [[ -x "$BINARY_NAME" ]]; then
+				log "downloaded archive is invalid, using existing $BINARY_NAME"
+				return
+			fi
 			die "downloaded CloudflareSpeedTest asset is not a valid tar.gz: $url"
 		fi
 		mv "$tmp_archive" "$archive" || {
 			rm -f "$tmp_archive"
 			die "failed to save CloudflareSpeedTest archive: $archive"
 		}
-		tar -xzf "$archive" >/dev/null
-		[[ -f "$BINARY_NAME" ]] || die "archive did not contain $BINARY_NAME"
-		chmod +x "$BINARY_NAME"
-		printf '%s\n' "$version" >"${BINARY_NAME}_version.txt"
+		install_speedtest_archive "$archive" "$version"
 	else
 		log "CloudflareSpeedTest $version already exists"
 	fi
@@ -694,6 +754,8 @@ validate_config() {
 	[[ "$IP_TYPE" == "ipv4" || "$IP_TYPE" == "ipv6" || "$IP_TYPE" == "both" ]] || die "IP_TYPE must be ipv4, ipv6, or both"
 	[[ "$SPEEDTEST_PROTOCOL" == "tcp" || "$SPEEDTEST_PROTOCOL" == "http" ]] || die "SPEEDTEST_PROTOCOL must be tcp or http"
 	[[ "$AUTO_UPDATE" == "true" || "$AUTO_UPDATE" == "false" ]] || die "AUTO_UPDATE must be true or false"
+	[[ "$DOWNLOAD_RETRIES" =~ ^[1-9][0-9]*$ ]] || die "DOWNLOAD_RETRIES must be a positive integer"
+	[[ "$DOWNLOAD_RETRY_DELAY" =~ ^[0-9]+$ ]] || die "DOWNLOAD_RETRY_DELAY must be a non-negative integer"
 	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
 
 	case "$MODE" in

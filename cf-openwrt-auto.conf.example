@@ -187,6 +187,17 @@ OPENCLASH_TRANSPORT_FILTER=""
 AUTO_UPDATE="true"
 SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
 
+# 下载重试：
+#   GitHub 在路由器网络上偶尔会 TLS 失败或返回 403。
+#   脚本会按下面次数重试自升级、版本查询和 cfst 下载。
+#
+# Download retries:
+#   GitHub may fail with TLS errors or 403 on router networks.
+#   These values control retries for self-update, release metadata, and cfst downloads.
+
+DOWNLOAD_RETRIES="3"
+DOWNLOAD_RETRY_DELAY="5"
+
 # 调试输出：
 #   false = 成功时静默
 #   true  = 输出过程日志到 stderr

@@ -32,6 +32,14 @@ opkg install bash curl tar jq ca-bundle ca-certificates
 
 脚本里的架构映射按 CloudflareSpeedTest 当前 Linux 发布包对齐：`386`、`amd64`、`arm64`、`armv5`、`armv6`、`armv7`、`mips`、`mips64`、`mipsle`、`mips64le`。
 
+如果路由器访问 GitHub 不稳定，也可以手动下载对应架构的压缩包，例如：
+
+```text
+cfst_linux_amd64.tar.gz
+```
+
+把它放到 `WORK_DIR` 目录里即可；`WORK_DIR` 默认就是脚本所在目录。脚本下载失败时会自动使用这个本地包。如果目录里已经有可执行的 `cfst`，GitHub 临时不可用时也会继续使用现有 `cfst` 运行。
+
 ## 文件
 
 - `cf-openwrt-auto.sh`：执行脚本。
@@ -167,6 +175,13 @@ PassWall 的配置保存在 UCI 中，运行中的进程需要重启 PassWall �
 ```
 
 开启后会输出自升级检查、CloudflareSpeedTest 版本检查、下载、测速、连通性验证、配置更新和服务重启等步骤。
+
+GitHub 下载相关步骤默认会重试 3 次，每次间隔 5 秒；可以在配置里调整：
+
+```sh
+DOWNLOAD_RETRIES="3"
+DOWNLOAD_RETRY_DELAY="5"
+```
 
 ## 定时运行
 
