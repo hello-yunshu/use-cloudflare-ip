@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.5.0"
+SCRIPT_VERSION="1.5.1"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -35,6 +35,7 @@ VERBOSE="false"
 CLI_VERBOSE="false"
 GITHUB_MIRROR=""
 STOP_SERVICE_BEFORE_SPEEDTEST="true"
+STARTUP_DELAY=""
 _STOPPED_SERVICE=""
 _OPENCLASH_ENABLE_SAVED=""
 
@@ -1048,6 +1049,9 @@ validate_config() {
 	[[ "$DOWNLOAD_RETRY_DELAY" =~ ^[0-9]+$ ]] || die "DOWNLOAD_RETRY_DELAY must be a non-negative integer"
 	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
 	[[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" || "$STOP_SERVICE_BEFORE_SPEEDTEST" == "false" ]] || die "STOP_SERVICE_BEFORE_SPEEDTEST must be true or false"
+	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
+		[[ "$STARTUP_DELAY" =~ ^[0-9]+$ ]] || die "STARTUP_DELAY must be a non-negative integer, 0, or random"
+	fi
 	if [[ -n "$GITHUB_MIRROR" ]]; then
 		[[ "$GITHUB_MIRROR" == http://* || "$GITHUB_MIRROR" == https://* ]] || die "GITHUB_MIRROR must start with http:// or https://"
 		[[ "$GITHUB_MIRROR" == */ ]] || die "GITHUB_MIRROR must end with /"
@@ -1104,6 +1108,17 @@ main() {
 	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
 	normalize_mode "$MODE"
 	validate_config
+
+	if [[ -z "$STARTUP_DELAY" || "$STARTUP_DELAY" == "random" ]]; then
+		STARTUP_DELAY=$((RANDOM % 301))
+		log "startup delay (random): ${STARTUP_DELAY}s"
+	elif ((STARTUP_DELAY > 0)); then
+		log "startup delay: ${STARTUP_DELAY}s"
+	fi
+	if ((STARTUP_DELAY > 0)); then
+		sleep "$STARTUP_DELAY"
+	fi
+
 	CFST_DIR="${WORK_DIR}/cfst"
 	[[ -z "$RESULT_FILE" ]] && RESULT_FILE="${CFST_DIR}/cf_result.txt"
 	[[ -z "$IP_HISTORY_FILE" ]] && IP_HISTORY_FILE="${CFST_DIR}/ip-all.txt"
