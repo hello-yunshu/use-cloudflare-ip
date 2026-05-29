@@ -503,9 +503,24 @@ stop_service() {
 	[[ -x "/etc/init.d/${service}" ]] || return 0
 	if [[ "$service" == "openclash" ]]; then
 		_OPENCLASH_ENABLE_SAVED="$(uci -q get openclash.config.enable || echo "1")"
+		uci -q set openclash.config.enable=0
+		uci -q commit openclash
 	fi
 	log "stopping service for speedtest: $service"
-	"/etc/init.d/${service}" stop >/dev/null || die "failed to stop $service"
+	"/etc/init.d/${service}" stop >/dev/null 2>&1 || die "failed to stop $service"
+	if [[ "$service" == "openclash" ]]; then
+		local i clash_pids
+		for i in $(seq 1 15); do
+			clash_pids="$(pidof clash 2>/dev/null)" || clash_pids=""
+			[[ -z "$clash_pids" ]] && break
+			sleep 1
+		done
+		clash_pids="$(pidof clash 2>/dev/null)" || clash_pids=""
+		if [[ -n "$clash_pids" ]]; then
+			log "openclash core still running after stop, force killing"
+			kill -9 $clash_pids 2>/dev/null || true
+		fi
+	fi
 	_STOPPED_SERVICE="$service"
 }
 
