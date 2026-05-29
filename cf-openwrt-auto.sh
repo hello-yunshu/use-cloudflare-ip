@@ -375,9 +375,9 @@ download_speedtest() {
 		fi
 		if ! tar -tzf "$tmp_archive" >/dev/null 2>&1; then
 			file_size="$(wc -c < "$tmp_archive" 2>/dev/null || printf 'unknown')"
+			local invalid_download_error="downloaded CloudflareSpeedTest asset is not a valid tar.gz (size=${file_size} bytes): $url"
 			if head -c 512 "$tmp_archive" 2>/dev/null | grep -qi '<!doctype\|<html'; then
-				rm -f "$tmp_archive"
-				die "downloaded file is HTML instead of tar.gz (likely network interception or proxy); size=${file_size} bytes; url=$url"
+				invalid_download_error="downloaded file is HTML instead of tar.gz (likely network interception or proxy); size=${file_size} bytes; url=$url"
 			fi
 			rm -f "$tmp_archive"
 			if [[ -f "$archive" ]]; then
@@ -389,7 +389,7 @@ download_speedtest() {
 				log "downloaded archive is invalid, using existing $BINARY_NAME"
 				return
 			fi
-			die "downloaded CloudflareSpeedTest asset is not a valid tar.gz (size=${file_size} bytes): $url"
+			die "$invalid_download_error"
 		fi
 		mv "$tmp_archive" "$archive" || {
 			rm -f "$tmp_archive"
@@ -403,7 +403,7 @@ download_speedtest() {
 }
 
 run_speedtest() {
-	local ip all_ips=() verified_ips=() ips=() target_domain cfst_files=() result_files=()
+	local ip all_ips=() verified_ips=() ips=() cfst_files=() result_files=()
 	local cfst_proto_args=()
 
 	case "$SPEEDTEST_PROTOCOL" in
@@ -542,6 +542,7 @@ stop_service() {
 		clash_pids="$(pidof clash 2>/dev/null)" || clash_pids=""
 		if [[ -n "$clash_pids" ]]; then
 			log "openclash core still running after stop, force killing"
+			# shellcheck disable=SC2086
 			kill -9 $clash_pids 2>/dev/null || true
 		fi
 	fi
@@ -1113,7 +1114,7 @@ main() {
 	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
 		_max_delay="$STARTUP_DELAY"
 	fi
-	if ((_max_delay > 0)); then
+	if ((_max_delay > 0)) && [[ "$CLI_VERBOSE" != "true" ]]; then
 		STARTUP_DELAY=$((RANDOM % (_max_delay + 1)))
 		log "startup delay (0~${_max_delay}s): ${STARTUP_DELAY}s"
 		sleep "$STARTUP_DELAY"
