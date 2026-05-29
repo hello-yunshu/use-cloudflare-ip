@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 
 set -Eeuo pipefail
 
 repo_dir="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=cf-openwrt-auto.sh
 . "$repo_dir/cf-openwrt-auto.sh"
 
 restart_service() {
@@ -77,7 +79,29 @@ assert_blank_before '  - name: VLESS-xhttp [CF-4]' "$OPENCLASH_CONFIG"
 grep -q 'server: uicbrmo.hey.run' "$OPENCLASH_CONFIG" || fail "ws proxy should stay unchanged"
 [[ "$(grep -c 'servername: uicbrmo.hey.run' "$OPENCLASH_CONFIG")" == "4" ]] || fail "servername should stay as the domain on all generated proxies"
 [[ "$(grep -c 'Host: uicbrmo.hey.run' "$OPENCLASH_CONFIG")" == "4" ]] || fail "xhttp Host should stay as the domain on all generated proxies"
+[[ "$(find "$tmp_dir" -name 'clash-proxies.yaml.bak.*' | wc -l | tr -d ' ')" == "1" ]] || fail "successful update should create one backup"
+grep -q 'server: uicbrmo.hey.run' "$(find "$tmp_dir" -name 'clash-proxies.yaml.bak.*' | head -n 1)" || fail "backup should contain the pre-update config"
 
+rm -f "$tmp_dir"/no-match.yaml.bak.*
+OPENCLASH_CONFIG="$tmp_dir/no-match.yaml"
+cat >"$OPENCLASH_CONFIG" <<'YAML'
+proxies:
+  - name: VLESS-xhttp
+    type: vless
+    server: no-match.example.com
+    port: 443
+    tls: true
+    network: xhttp
+YAML
+
+if ( update_openclash ) 2>/dev/null; then
+	fail "OpenClash update should fail when no proxy matches target domain"
+fi
+if compgen -G "$tmp_dir/no-match.yaml.bak.*" >/dev/null; then
+	fail "failed update should not create a backup"
+fi
+
+OPENCLASH_CONFIG="$tmp_dir/clash-proxies.yaml"
 cat >"$OPENCLASH_CONFIG" <<'YAML'
 proxies:
   - name: VLESS-ws [CF-1]

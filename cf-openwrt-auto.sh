@@ -234,6 +234,7 @@ rotate_openclash_backups() {
 		i=$((i + 1))
 		((i > keep)) && rm -f "$file"
 	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+	return 0
 }
 
 normalize_mode() {
@@ -918,15 +919,12 @@ process_openclash_block() {
 }
 
 update_openclash() {
-	local line backup
+	local line backup backup_ts backup_seq=0
 
 	[[ -f "$OPENCLASH_CONFIG" ]] || die "OpenClash config not found: $OPENCLASH_CONFIG"
 	[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || die "OPENCLASH_TARGET_DOMAIN is empty"
 	log "updating OpenClash config: $OPENCLASH_CONFIG"
 
-	backup="${OPENCLASH_CONFIG}.bak.$(date +%Y%m%d%H%M%S)"
-	cp "$OPENCLASH_CONFIG" "$backup"
-	rotate_openclash_backups "$OPENCLASH_CONFIG" "$OPENCLASH_BACKUP_COUNT"
 	TMP_CONFIG="$(mktemp "${OPENCLASH_CONFIG}.tmp.XXXXXX")"
 	OPENCLASH_UPDATED=0
 	OPENCLASH_TEMPLATE_TEXT=""
@@ -953,6 +951,14 @@ update_openclash() {
 		die "no supported OpenClash proxy matched server: $OPENCLASH_TARGET_DOMAIN"
 	}
 
+	backup_ts="$(date +%Y%m%d%H%M%S)"
+	backup="${OPENCLASH_CONFIG}.bak.${backup_ts}"
+	while [[ -e "$backup" ]]; do
+		backup_seq=$((backup_seq + 1))
+		backup="${OPENCLASH_CONFIG}.bak.${backup_ts}.${backup_seq}"
+	done
+	cp "$OPENCLASH_CONFIG" "$backup"
+	rotate_openclash_backups "$OPENCLASH_CONFIG" "$OPENCLASH_BACKUP_COUNT"
 	mv "$TMP_CONFIG" "$OPENCLASH_CONFIG"
 	log "OpenClash config updated, backup saved to $backup"
 
