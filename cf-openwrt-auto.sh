@@ -1050,7 +1050,7 @@ validate_config() {
 	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
 	[[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" || "$STOP_SERVICE_BEFORE_SPEEDTEST" == "false" ]] || die "STOP_SERVICE_BEFORE_SPEEDTEST must be true or false"
 	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
-		[[ "$STARTUP_DELAY" =~ ^[0-9]+$ ]] || die "STARTUP_DELAY must be a non-negative integer, 0, or random"
+		[[ "$STARTUP_DELAY" =~ ^[0-9]+$ ]] || die "STARTUP_DELAY must be a non-negative integer or random"
 	fi
 	if [[ -n "$GITHUB_MIRROR" ]]; then
 		[[ "$GITHUB_MIRROR" == http://* || "$GITHUB_MIRROR" == https://* ]] || die "GITHUB_MIRROR must start with http:// or https://"
@@ -1109,13 +1109,13 @@ main() {
 	normalize_mode "$MODE"
 	validate_config
 
-	if [[ -z "$STARTUP_DELAY" || "$STARTUP_DELAY" == "random" ]]; then
-		STARTUP_DELAY=$((RANDOM % 301))
-		log "startup delay (random): ${STARTUP_DELAY}s"
-	elif ((STARTUP_DELAY > 0)); then
-		log "startup delay: ${STARTUP_DELAY}s"
+	local _max_delay=300
+	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
+		_max_delay="$STARTUP_DELAY"
 	fi
-	if ((STARTUP_DELAY > 0)); then
+	if ((_max_delay > 0)); then
+		STARTUP_DELAY=$((RANDOM % (_max_delay + 1)))
+		log "startup delay (0~${_max_delay}s): ${STARTUP_DELAY}s"
 		sleep "$STARTUP_DELAY"
 	fi
 

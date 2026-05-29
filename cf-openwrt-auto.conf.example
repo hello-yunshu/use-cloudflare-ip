@@ -224,17 +224,17 @@ OPENCLASH_BACKUP_COUNT="3"
 STOP_SERVICE_BEFORE_SPEEDTEST="true"
 
 # 启动延迟：
-#   脚本启动后等待的秒数，适合多台路由器同时运行定时任务时错开启动时间。
+#   脚本启动后随机等待的秒数上限，适合多台路由器同时运行定时任务时错开启动时间。
 #   留空或 "random" = 随机等待 0~300 秒（5 分钟内）
 #   "0"             = 不等待，立即开始
-#   具体数字        = 固定等待秒数
+#   具体数字        = 随机等待 0~该数字秒
 #
 # Startup delay:
-#   Seconds to wait after the script starts. Useful for staggering startup
-#   when multiple routers run the same cron job simultaneously.
+#   Upper bound of random delay after the script starts. Useful for staggering
+#   startup when multiple routers run the same cron job simultaneously.
 #   Empty or "random" = random delay 0~300 seconds (within 5 minutes)
 #   "0"               = no delay, start immediately
-#   Specific number   = fixed delay in seconds
+#   Specific number   = random delay 0~that number of seconds
 
 STARTUP_DELAY=""
 
