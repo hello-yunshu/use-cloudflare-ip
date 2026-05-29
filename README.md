@@ -90,7 +90,20 @@ HTTPing 模式下可通过 `SPEEDTEST_CFCOLO` 按 Cloudflare 数据中心筛选�
 
 如果配置了目标域名（`PASSWALL_TARGET_DOMAIN` 或 `OPENCLASH_TARGET_DOMAIN`），脚本会在测速后逐个验证优选 IP 是否能通过该域名正常访问。不可达的 IP 会被跳过，确保写入配置的 IP 都是可用的。
 
+如果配置了多个域名，IP 必须对所有域名都可达才会被选用。
+
 如果所有 IP 都验证失败，会回退使用测速结果中最快的 IP，并输出警告。
+
+### 多域名支持
+
+`PASSWALL_TARGET_DOMAIN` 和 `OPENCLASH_TARGET_DOMAIN` 支持多个域名，用逗号分隔：
+
+```sh
+PASSWALL_TARGET_DOMAIN="cdn1.example.com,cdn2.example.com"
+OPENCLASH_TARGET_DOMAIN="cdn1.example.com,cdn2.example.com"
+```
+
+每个域名的处理方式相同。单域名配置无需任何修改，完全向后兼容。
 
 ### IP 历史记录
 
@@ -117,7 +130,7 @@ PassWall 和 OpenClash 模式都支持节点名称后缀（`PASSWALL_NAME_SUFFIX
 uci show passwall
 ```
 
-然后筛选所有 `address` 等于 `PASSWALL_TARGET_DOMAIN` 的节点。测速得到 IP 后，会依次把匹配节点的 `address` 改成优选 IP，然后 `uci commit passwall` 并重启 PassWall 服务。
+然后筛选所有 `address` 等于 `PASSWALL_TARGET_DOMAIN` 中任一域名的节点。测速得到 IP 后，会依次把匹配节点的 `address` 改成优选 IP，然后 `uci commit passwall` 并重启 PassWall 服务。
 
 如果只测速出 1 个可用 IP，会自动补齐，多个匹配节点都会写入同一个最快 IP。
 
@@ -125,7 +138,7 @@ PassWall 的配置保存在 UCI 中，运行中的进程需要重启 PassWall �
 
 ## OpenClash 模式
 
-脚本首次运行会查找 `server` 等于 `OPENCLASH_TARGET_DOMAIN` 的代理节点作为模板，并按配置里的 `IP_COUNT` 生成带 `[CF-1]`、`[CF-2]` 这类后缀的代理节点。后续运行会优先按这些标记刷新对应节点；如果只剩 `[CF-1]`，也会按 `IP_COUNT` 自动补齐缺少的节点。`server` 会改成测速得到的 IP，`servername` 和 `Host` 会保留为原域名。
+脚本首次运行会查找 `server` 等于 `OPENCLASH_TARGET_DOMAIN` 中任一域名的代理节点作为模板，并按配置里的 `IP_COUNT` 生成带 `[CF-1]`、`[CF-2]` 这类后缀的代理节点。后续运行会优先按这些标记刷新对应节点；如果只剩 `[CF-1]`，也会按 `IP_COUNT` 自动补齐缺少的节点。`server` 会改成测速得到的 IP，`servername` 和 `Host` 会保留为该节点匹配到的原域名。
 
 写入 YAML 后，脚本会重启 OpenClash 服务。OpenClash 需要重启后才会重新读取修改后的配置文件。如果只改 YAML 而不重启，正在运行的 OpenClash 通常不会自动使用新 IP。
 

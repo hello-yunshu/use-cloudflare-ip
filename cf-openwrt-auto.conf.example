@@ -99,10 +99,18 @@ SPEEDTEST_TLL="40"
 # PassWall 目标域名：
 #   脚本会扫描 `uci show passwall`。
 #   只修改 address 等于该域名的节点。
+#   支持多个域名，用逗号分隔。每个域名的处理方式相同。
+#   示例：
+#     "cdn.example.com"                = 单域名
+#     "cdn1.example.com,cdn2.example.com" = 多域名
 #
 # PassWall target domain:
 #   The script scans `uci show passwall`.
 #   Only nodes whose address equals this domain are updated.
+#   Multiple domains are supported, separated by commas. Each domain is processed the same way.
+#   Examples:
+#     "cdn.example.com"                = single domain
+#     "cdn1.example.com,cdn2.example.com" = multiple domains
 
 PASSWALL_TARGET_DOMAIN="cdn.example.com"
 
@@ -131,12 +139,21 @@ PASSWALL_NAME_SUFFIX=" [CF-{n}]"
 #   首次运行会用 server 等于 OPENCLASH_TARGET_DOMAIN 的代理节点作为模板。
 #   后续运行会优先按 [CF-1]、[CF-2] 这样的节点标记刷新并按 IP_COUNT 补齐节点。
 #   server 会改成优选 IP；servername / Host 会保留为域名。
+#   支持多个域名，用逗号分隔。每个域名独立匹配代理节点并生成各自的变体。
+#   示例：
+#     "cdn.example.com"                = 单域名
+#     "cdn1.example.com,cdn2.example.com" = 多域名
 #
 # OpenClash target:
 #   OPENCLASH_CONFIG is the active YAML config path.
 #   The first run uses proxies whose server equals OPENCLASH_TARGET_DOMAIN as templates.
 #   Later runs refresh and fill proxies up to IP_COUNT by markers such as [CF-1] and [CF-2].
 #   server is changed to a fast IP; servername and Host stay as the domain.
+#   Multiple domains are supported, separated by commas. Each domain is matched independently
+#   and generates its own set of variants.
+#   Examples:
+#     "cdn.example.com"                = single domain
+#     "cdn1.example.com,cdn2.example.com" = multiple domains
 
 OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
 OPENCLASH_TARGET_DOMAIN="cdn.example.com"

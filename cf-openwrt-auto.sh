@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.4.2"
+SCRIPT_VERSION="1.5.0"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -37,6 +37,11 @@ GITHUB_MIRROR=""
 STOP_SERVICE_BEFORE_SPEEDTEST="true"
 _STOPPED_SERVICE=""
 _OPENCLASH_ENABLE_SAVED=""
+
+declare -A OPENCLASH_TEMPLATE_TEXT=()
+declare -A OPENCLASH_TEMPLATE_BASE_NAME=()
+declare -A OPENCLASH_SEEN=()
+OPENCLASH_MATCHED_DOMAIN=""
 
 RELEASE_API="${RELEASE_API:-https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest}"
 RELEASE_DOWNLOAD_BASE="${RELEASE_DOWNLOAD_BASE:-https://github.com/XIU2/CloudflareSpeedTest/releases/download}"
@@ -446,16 +451,24 @@ run_speedtest() {
 
 	((${#all_ips[@]} > 0)) || die "no valid IPs found in speedtest results"
 
+	local target_domains=()
 	case "$MODE" in
-		passwall) target_domain="$PASSWALL_TARGET_DOMAIN" ;;
-		openclash) target_domain="$OPENCLASH_TARGET_DOMAIN" ;;
+		passwall) IFS=',' read -r -a target_domains <<< "$PASSWALL_TARGET_DOMAIN" ;;
+		openclash) IFS=',' read -r -a target_domains <<< "$OPENCLASH_TARGET_DOMAIN" ;;
 	esac
 
-	if [[ -n "$target_domain" ]]; then
-		log "verifying selected IPs against $target_domain"
+	if ((${#target_domains[@]} > 0)); then
+		log "verifying selected IPs against ${target_domains[*]}"
 		for ip in "${all_ips[@]}"; do
 			((${#verified_ips[@]} >= IP_COUNT)) && break
-			if verify_ip "$ip" "$target_domain"; then
+			local all_pass=true domain
+			for domain in "${target_domains[@]}"; do
+				if ! verify_ip "$ip" "$domain"; then
+					all_pass=false
+					break
+				fi
+			done
+			if $all_pass; then
 				verified_ips+=("$ip")
 			else
 				log "skip unreachable IP: $ip"
@@ -466,7 +479,7 @@ run_speedtest() {
 	if ((${#verified_ips[@]} > 0)); then
 		ips=("${verified_ips[@]}")
 	else
-		if [[ -n "$target_domain" ]]; then
+		if ((${#target_domains[@]} > 0)); then
 			log "warning: connectivity check failed for all IPs, using speedtest results directly"
 		fi
 		ips=("${all_ips[@]:0:IP_COUNT}")
@@ -495,6 +508,16 @@ restart_service() {
 	fi
 	log "restarting service: $service"
 	"/etc/init.d/${service}" restart >/dev/null || die "failed to restart $service"
+	if [[ "$service" == "openclash" ]]; then
+		local i
+		for i in $(seq 1 30); do
+			pidof clash >/dev/null 2>&1 && break
+			sleep 1
+		done
+		if ! pidof clash >/dev/null 2>&1; then
+			log "warning: openclash core not running after restart (start_fail may have been triggered)"
+		fi
+	fi
 }
 
 stop_service() {
@@ -582,17 +605,20 @@ uci_unquote() {
 }
 
 find_passwall_sections() {
-	local line key value section
+	local line key value section domain _domains=()
 
+	IFS=',' read -r -a _domains <<< "$PASSWALL_TARGET_DOMAIN"
 	while IFS= read -r line; do
 		[[ "$line" == passwall.*.address=* ]] || continue
 		key="${line%%=*}"
 		value="$(uci_unquote "${line#*=}")"
-		[[ "$value" == "$PASSWALL_TARGET_DOMAIN" ]] || continue
-
-		section="${key#passwall.}"
-		section="${section%.address}"
-		[[ -n "$section" ]] && printf '%s\n' "$section"
+		for domain in "${_domains[@]}"; do
+			[[ "$value" == "$domain" ]] || continue
+			section="${key#passwall.}"
+			section="${section%.address}"
+			[[ -n "$section" ]] && printf '%s\n' "$section"
+			break
+		done
 	done < <(uci show passwall)
 }
 
@@ -731,30 +757,37 @@ openclash_base_name() {
 }
 
 openclash_domain_matches() {
-	local server="$1" servername="$2" host="$3"
+	local server="$1" servername="$2" host="$3" domain _domains=()
 
-	[[ "$server" == "$OPENCLASH_TARGET_DOMAIN" || "$servername" == "$OPENCLASH_TARGET_DOMAIN" || "$host" == "$OPENCLASH_TARGET_DOMAIN" ]]
+	IFS=',' read -r -a _domains <<< "$OPENCLASH_TARGET_DOMAIN"
+	for domain in "${_domains[@]}"; do
+		if [[ "$server" == "$domain" || "$servername" == "$domain" || "$host" == "$domain" ]]; then
+			OPENCLASH_MATCHED_DOMAIN="$domain"
+			return 0
+		fi
+	done
+	return 1
 }
 
 remember_openclash_template() {
-	local base_name="$1"
+	local base_name="$1" domain="$2"
 
-	[[ -z "${OPENCLASH_TEMPLATE_TEXT:-}" ]] || return 0
-	OPENCLASH_TEMPLATE_TEXT="$(printf '%s\n' "${BLOCK_LINES[@]}")"
-	OPENCLASH_TEMPLATE_BASE_NAME="$base_name"
+	[[ -z "${OPENCLASH_TEMPLATE_TEXT[$domain]:-}" ]] || return 0
+	OPENCLASH_TEMPLATE_TEXT[$domain]="$(printf '%s\n' "${BLOCK_LINES[@]}")"
+	OPENCLASH_TEMPLATE_BASE_NAME[$domain]="$base_name"
 }
 
 restore_openclash_template() {
-	local line
+	local domain="$1" line
 
 	BLOCK_LINES=()
 	while IFS= read -r line || [[ -n "$line" ]]; do
 		BLOCK_LINES+=("$line")
-	done <<<"$OPENCLASH_TEMPLATE_TEXT"
+	done <<<"${OPENCLASH_TEMPLATE_TEXT[$domain]}"
 }
 
 emit_openclash_variant() {
-	local seq="$1" ip="$2" base_name="$3"
+	local seq="$1" ip="$2" base_name="$3" domain="$4"
 	local line idx
 	local name="" tls="" network=""
 	local name_idx=-1 server_idx=-1 tls_idx=-1 network_idx=-1 servername_idx=-1 ws_opts_idx=-1 xhttp_opts_idx=-1 headers_idx=-1 host_idx=-1
@@ -808,15 +841,15 @@ emit_openclash_variant() {
 			write_openclash_line "$(printf '%sserver: %s' "$prop_indent" "$ip")"
 			updated=true
 		elif ((idx == servername_idx)); then
-			write_openclash_line "$(printf '%sservername: %s' "$prop_indent" "$OPENCLASH_TARGET_DOMAIN")"
+			write_openclash_line "$(printf '%sservername: %s' "$prop_indent" "$domain")"
 		elif ((idx == host_idx)); then
-			write_openclash_line "$(printf '%sHost: %s' "$(line_indent "$line")" "$OPENCLASH_TARGET_DOMAIN")"
+			write_openclash_line "$(printf '%sHost: %s' "$(line_indent "$line")" "$domain")"
 		else
 			write_openclash_line "$line"
 		fi
 
 		if ((idx == tls_idx && servername_idx < 0)) && [[ "$(lower "$tls")" == "true" ]]; then
-			write_openclash_line "$(printf '%sservername: %s' "$prop_indent" "$OPENCLASH_TARGET_DOMAIN")"
+			write_openclash_line "$(printf '%sservername: %s' "$prop_indent" "$domain")"
 		fi
 
 		normalized_network="$(lower "$network")"
@@ -830,40 +863,43 @@ emit_openclash_variant() {
 			fi
 
 			if ((idx == headers_idx && host_idx < 0)); then
-				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN")"
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$domain")"
 			elif ((idx == opts_idx && headers_idx < 0)); then
 				write_openclash_line "$(printf '%sheaders:' "${prop_indent}  ")"
-				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN")"
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$domain")"
 			elif ((idx == network_idx && opts_idx < 0)); then
 				write_openclash_line "$(printf '%s%s:' "$prop_indent" "$opt_key")"
 				write_openclash_line "$(printf '%sheaders:' "${prop_indent}  ")"
-				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN")"
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$domain")"
 			fi
 		fi
 	done
 
 	OPENCLASH_WROTE_PROXY=true
 	OPENCLASH_UPDATED=$((OPENCLASH_UPDATED + 1))
-	OPENCLASH_SEEN[seq]=1
+	OPENCLASH_SEEN["${domain}:${seq}"]=1
 	if [[ "$updated" == "true" ]]; then
 		if [[ "$new_name" != "$name" ]]; then
-			log "OpenClash proxy '${name:-unknown}' -> '${new_name}'; server -> ${ip}; domain kept as ${OPENCLASH_TARGET_DOMAIN}"
+			log "OpenClash proxy '${name:-unknown}' -> '${new_name}'; server -> ${ip}; domain kept as ${domain}"
 		else
-			log "OpenClash proxy '${name:-unknown}' server -> ${ip}; domain kept as ${OPENCLASH_TARGET_DOMAIN}"
+			log "OpenClash proxy '${name:-unknown}' server -> ${ip}; domain kept as ${domain}"
 		fi
 	fi
 }
 
 append_missing_openclash_variants() {
-	local seq ip variant_count
+	local domain seq ip variant_count _domains=()
 
-	[[ -n "${OPENCLASH_TEMPLATE_TEXT:-}" ]] || return 0
-	variant_count="$(openclash_variant_count)"
-	for ((seq = 1; seq <= variant_count; seq++)); do
-		[[ -z "${OPENCLASH_SEEN[$seq]:-}" ]] || continue
-		restore_openclash_template
-		ip="${FAST_IPS[$(((seq - 1) % IP_COUNT))]}"
-		emit_openclash_variant "$seq" "$ip" "$OPENCLASH_TEMPLATE_BASE_NAME"
+	IFS=',' read -r -a _domains <<< "$OPENCLASH_TARGET_DOMAIN"
+	for domain in "${_domains[@]}"; do
+		[[ -n "${OPENCLASH_TEMPLATE_TEXT[$domain]:-}" ]] || continue
+		variant_count="$(openclash_variant_count)"
+		for ((seq = 1; seq <= variant_count; seq++)); do
+			[[ -z "${OPENCLASH_SEEN[${domain}:${seq}]:-}" ]] || continue
+			restore_openclash_template "$domain"
+			ip="${FAST_IPS[$(((seq - 1) % IP_COUNT))]}"
+			emit_openclash_variant "$seq" "$ip" "${OPENCLASH_TEMPLATE_BASE_NAME[$domain]}" "$domain"
+		done
 	done
 }
 
@@ -903,6 +939,8 @@ process_openclash_block() {
 		return
 	fi
 
+	local matched_domain="$OPENCLASH_MATCHED_DOMAIN"
+
 	if ! openclash_protocol_supported "$type" "$tls" "$network"; then
 		log "skip OpenClash proxy '${name:-unknown}': type=${type:-unknown}, tls=${tls:-false}, network=${network:-unknown} is not supported"
 		write_block_original
@@ -920,16 +958,16 @@ process_openclash_block() {
 	fi
 
 	base_name="$(openclash_base_name "$name")"
-	remember_openclash_template "$base_name"
+	remember_openclash_template "$base_name" "$matched_domain"
 	if generated_seq="$(openclash_generated_index "$name")"; then
 		if ((generated_seq < 1)); then
 			write_block_original
 			return
 		fi
-		emit_openclash_variant "$generated_seq" "${FAST_IPS[$(((generated_seq - 1) % IP_COUNT))]}" "$base_name"
+		emit_openclash_variant "$generated_seq" "${FAST_IPS[$(((generated_seq - 1) % IP_COUNT))]}" "$base_name" "$matched_domain"
 	else
 		variant_count="$(openclash_variant_count)"
-		log "OpenClash proxy '${name:-unknown}' selected as template; generating ${variant_count} marked variant(s)"
+		log "OpenClash proxy '${name:-unknown}' selected as template for ${matched_domain}; generating ${variant_count} marked variant(s)"
 	fi
 }
 
@@ -942,8 +980,8 @@ update_openclash() {
 
 	TMP_CONFIG="$(mktemp "${OPENCLASH_CONFIG}.tmp.XXXXXX")"
 	OPENCLASH_UPDATED=0
-	OPENCLASH_TEMPLATE_TEXT=""
-	OPENCLASH_TEMPLATE_BASE_NAME=""
+	OPENCLASH_TEMPLATE_TEXT=()
+	OPENCLASH_TEMPLATE_BASE_NAME=()
 	OPENCLASH_SEEN=()
 	OPENCLASH_WROTE_PROXY=false
 	OPENCLASH_LAST_LINE_BLANK=true
@@ -1018,12 +1056,22 @@ validate_config() {
 	case "$MODE" in
 		passwall)
 			[[ -n "$PASSWALL_TARGET_DOMAIN" ]] || die "PASSWALL_TARGET_DOMAIN is empty"
+			local _domain _domains=()
+			IFS=',' read -r -a _domains <<< "$PASSWALL_TARGET_DOMAIN"
+			for _domain in "${_domains[@]}"; do
+				[[ "$_domain" == *.* ]] || die "PASSWALL_TARGET_DOMAIN contains invalid domain: $_domain"
+			done
 			;;
 		openclash)
 			[[ -n "$OPENCLASH_CONFIG" ]] || die "OPENCLASH_CONFIG is empty"
 			[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || die "OPENCLASH_TARGET_DOMAIN is empty"
 			[[ -f "$OPENCLASH_CONFIG" ]] || die "OpenClash config not found: $OPENCLASH_CONFIG"
 			[[ "$OPENCLASH_BACKUP_COUNT" =~ ^[1-9][0-9]*$ ]] || die "OPENCLASH_BACKUP_COUNT must be a positive integer"
+			local _domain _domains=()
+			IFS=',' read -r -a _domains <<< "$OPENCLASH_TARGET_DOMAIN"
+			for _domain in "${_domains[@]}"; do
+				[[ "$_domain" == *.* ]] || die "OPENCLASH_TARGET_DOMAIN contains invalid domain: $_domain"
+			done
 			if [[ -n "$OPENCLASH_TRANSPORT_FILTER" ]]; then
 				local _item _items
 				IFS=',' read -r -a _items <<<"$OPENCLASH_TRANSPORT_FILTER"
