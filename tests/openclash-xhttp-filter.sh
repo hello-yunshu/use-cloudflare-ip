@@ -14,6 +14,21 @@ fail() {
 	exit 1
 }
 
+assert_blank_before() {
+	local pattern="$1" file="$2"
+
+	awk -v pattern="$pattern" '
+		index($0, pattern) {
+			if (NR == 1 || previous != "") {
+				exit 1
+			}
+			found = 1
+		}
+		{ previous = $0 }
+		END { if (!found) exit 2 }
+	' "$file" || fail "expected a blank line before: $pattern"
+}
+
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
@@ -55,6 +70,10 @@ grep -q 'server: 172.64.229.52' "$OPENCLASH_CONFIG" || fail "xhttp CF-2 proxy wa
 grep -q 'server: 162.159.33.150' "$OPENCLASH_CONFIG" || fail "xhttp CF-3 proxy was not generated"
 grep -q 'server: 162.159.39.96' "$OPENCLASH_CONFIG" || fail "xhttp CF-4 proxy was not generated"
 [[ "$(grep -F -c 'name: VLESS-xhttp [CF-' "$OPENCLASH_CONFIG")" == "4" ]] || fail "xhttp proxy should be expanded to four marked proxies"
+assert_blank_before '  - name: VLESS-xhttp [CF-1]' "$OPENCLASH_CONFIG"
+assert_blank_before '  - name: VLESS-xhttp [CF-2]' "$OPENCLASH_CONFIG"
+assert_blank_before '  - name: VLESS-xhttp [CF-3]' "$OPENCLASH_CONFIG"
+assert_blank_before '  - name: VLESS-xhttp [CF-4]' "$OPENCLASH_CONFIG"
 grep -q 'server: uicbrmo.hey.run' "$OPENCLASH_CONFIG" || fail "ws proxy should stay unchanged"
 [[ "$(grep -c 'servername: uicbrmo.hey.run' "$OPENCLASH_CONFIG")" == "4" ]] || fail "servername should stay as the domain on all generated proxies"
 [[ "$(grep -c 'Host: uicbrmo.hey.run' "$OPENCLASH_CONFIG")" == "4" ]] || fail "xhttp Host should stay as the domain on all generated proxies"
@@ -115,6 +134,7 @@ update_openclash
 [[ "$(grep -F -c 'name: VLESS-xhttp [CF-' "$OPENCLASH_CONFIG")" == "2" ]] || fail "initial unmarked xhttp proxy should expand to IP_COUNT marked proxies"
 grep -q 'name: VLESS-xhttp \[CF-1\]' "$OPENCLASH_CONFIG" || fail "CF-1 should be generated from unmarked template"
 grep -q 'name: VLESS-xhttp \[CF-2\]' "$OPENCLASH_CONFIG" || fail "CF-2 should be generated from unmarked template"
+assert_blank_before '  - name: VLESS-xhttp [CF-2]' "$OPENCLASH_CONFIG"
 ! grep -q 'name: VLESS-xhttp \[CF-3\]' "$OPENCLASH_CONFIG" || fail "proxy expansion should not exceed IP_COUNT"
 
 printf 'ok openclash xhttp filter\n'

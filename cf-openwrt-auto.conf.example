@@ -38,11 +38,14 @@ MODE="passwall"
 
 # 工作目录：
 #   留空表示使用脚本所在目录。
-#   cfst 二进制、测速结果 cf_result.txt、历史 IP ip-all.txt 都会保存在这里。
+#   cfst 二进制、测速 IP 列表、下载的压缩包等会保存在工作目录下的 cfst/ 子目录中。
+#   测速结果 cf_result.txt 和历史 IP ip-all.txt 也在 cfst/ 子目录中。
 #
 # Work directory:
 #   Leave empty to use the script directory.
-#   cfst binary, cf_result.txt, and ip-all.txt will be stored here.
+#   The cfst binary, IP lists, downloaded archives, etc. are stored in a
+#   cfst/ subdirectory under the work directory.
+#   cf_result.txt and ip-all.txt are also stored in the cfst/ subdirectory.
 
 WORK_DIR=""
 
@@ -175,6 +178,18 @@ OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
 #     "ws,xhttp"   = only update WebSocket and XHTTP proxies
 
 OPENCLASH_TRANSPORT_FILTER=""
+
+# OpenClash 配置备份保留数量：
+#   每次更新 OpenClash 配置时会自动备份原文件（后缀 .bak.时间戳）。
+#   此选项控制最多保留多少个备份，超出时自动删除最旧的备份。
+#   设为 1 则只保留最新一份备份。
+#
+# OpenClash config backup count:
+#   Each OpenClash config update creates a backup (suffix .bak.timestamp).
+#   This option controls how many backups to keep; oldest are deleted first.
+#   Set to 1 to keep only the latest backup.
+
+OPENCLASH_BACKUP_COUNT="3"
 
 # 测速前停止代理服务：
 #   代理服务运行时会干扰 CloudflareSpeedTest 的测速结果。

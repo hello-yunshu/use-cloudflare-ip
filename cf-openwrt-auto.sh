@@ -11,10 +11,11 @@ CONFIG_FILE="${CONFIG_FILE:-${SCRIPT_DIR}/cf-openwrt-auto.conf}"
 MODE="passwall"
 CONFIG_VERSION=""
 WORK_DIR="$SCRIPT_DIR"
+CFST_DIR=""
 IP_COUNT="4"
 IP_TYPE="ipv4"
-RESULT_FILE="cf_result.txt"
-IP_HISTORY_FILE="ip-all.txt"
+RESULT_FILE=""
+IP_HISTORY_FILE=""
 SPEEDTEST_DN="10"
 SPEEDTEST_TLL="40"
 SPEEDTEST_PROTOCOL="tcp"
@@ -25,6 +26,7 @@ OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
 OPENCLASH_TARGET_DOMAIN=""
 OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
 OPENCLASH_TRANSPORT_FILTER=""
+OPENCLASH_BACKUP_COUNT="3"
 AUTO_UPDATE="true"
 SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
 DOWNLOAD_RETRIES="3"
@@ -221,6 +223,19 @@ rotate_history_file() {
 	tail -n "$max_lines" "$file" > "$tmp" && mv "$tmp" "$file"
 }
 
+rotate_openclash_backups() {
+	local config="$1" keep="$2"
+	local config_dir config_base i=0 file
+	config_dir="$(dirname "$config")"
+	config_base="$(basename "$config")"
+
+	while IFS= read -r file; do
+		[[ -f "$file" ]] || continue
+		i=$((i + 1))
+		((i > keep)) && rm -f "$file"
+	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+}
+
 normalize_mode() {
 	case "${1:-$MODE}" in
 		passwall|openclash)
@@ -276,6 +291,7 @@ detect_arch_tag() {
 
 prepare_work_dir() {
 	mkdir -p "$WORK_DIR"
+	mkdir -p "$CFST_DIR"
 	cd "$WORK_DIR" || die "failed to enter work directory: $WORK_DIR"
 }
 
@@ -286,11 +302,11 @@ install_speedtest_archive() {
 	if ! tar -tzf "$archive" >/dev/null 2>&1; then
 		die "local CloudflareSpeedTest archive is not a valid tar.gz: $archive"
 	fi
-	tar -xzf "$archive" || die "failed to extract CloudflareSpeedTest archive: $archive"
-	[[ -f "$BINARY_NAME" ]] || die "archive did not contain $BINARY_NAME"
-	chmod +x "$BINARY_NAME"
+	tar -xzf "$archive" -C "$CFST_DIR" || die "failed to extract CloudflareSpeedTest archive: $archive"
+	[[ -f "${CFST_DIR}/${BINARY_NAME}" ]] || die "archive did not contain $BINARY_NAME"
+	chmod +x "${CFST_DIR}/${BINARY_NAME}"
 	if [[ -n "$version" ]]; then
-		printf '%s\n' "$version" >"${BINARY_NAME}_version.txt"
+		printf '%s\n' "$version" >"${CFST_DIR}/${BINARY_NAME}_version.txt"
 	fi
 }
 
@@ -303,10 +319,10 @@ download_speedtest() {
 
 	tag="$(detect_arch_tag)"
 	asset="${BINARY_NAME}_linux_${tag}.tar.gz"
-	archive="${BINARY_NAME}_linux_${tag}.tar.gz"
+	archive="${CFST_DIR}/${BINARY_NAME}_linux_${tag}.tar.gz"
 	log "detected architecture tag: $tag"
 	log "checking CloudflareSpeedTest release: $RELEASE_API"
-	release_tmp="$(mktemp "${BINARY_NAME}_release.XXXXXX")" || die "failed to create temporary release metadata file"
+	release_tmp="$(mktemp "${TMPDIR:-/tmp}/${BINARY_NAME}_release.XXXXXX")" || die "failed to create temporary release metadata file"
 	if ! curl_fetch "$release_tmp" "$RELEASE_API"; then
 		rm -f "$release_tmp"
 		if [[ -f "$archive" ]]; then
@@ -314,7 +330,7 @@ download_speedtest() {
 			install_speedtest_archive "$archive"
 			return
 		fi
-		if [[ -x "$BINARY_NAME" ]]; then
+		if [[ -x "${CFST_DIR}/${BINARY_NAME}" ]]; then
 			log "release metadata unavailable, using existing $BINARY_NAME"
 			return
 		fi
@@ -326,7 +342,7 @@ download_speedtest() {
 	[[ -n "$version" && "$version" != "null" ]] || die "failed to get latest CloudflareSpeedTest version"
 
 	old_version=""
-	[[ -f "${BINARY_NAME}_version.txt" ]] && old_version="$(<"${BINARY_NAME}_version.txt")"
+	[[ -f "${CFST_DIR}/${BINARY_NAME}_version.txt" ]] && old_version="$(<"${CFST_DIR}/${BINARY_NAME}_version.txt")"
 
 	url="$(printf '%s\n' "$release_json" | jq -r --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url // empty' | head -n 1)"
 	if [[ -z "$url" || "$url" == "null" ]]; then
@@ -334,7 +350,7 @@ download_speedtest() {
 	fi
 	download_url="$(mirror_url "$url")"
 
-	if [[ ! -x "$BINARY_NAME" || "$version" != "$old_version" ]]; then
+	if [[ ! -x "${CFST_DIR}/${BINARY_NAME}" || "$version" != "$old_version" ]]; then
 		log "downloading CloudflareSpeedTest $version for $tag"
 		tmp_archive="$(mktemp "${archive}.XXXXXX")" || die "failed to create temporary archive"
 		if ! curl_fetch "$tmp_archive" "$download_url"; then
@@ -344,7 +360,7 @@ download_speedtest() {
 				install_speedtest_archive "$archive" "$version"
 				return
 			fi
-			if [[ -x "$BINARY_NAME" ]]; then
+			if [[ -x "${CFST_DIR}/${BINARY_NAME}" ]]; then
 				log "download failed, using existing $BINARY_NAME"
 				return
 			fi
@@ -362,7 +378,7 @@ download_speedtest() {
 				install_speedtest_archive "$archive" "$version"
 				return
 			fi
-			if [[ -x "$BINARY_NAME" ]]; then
+			if [[ -x "${CFST_DIR}/${BINARY_NAME}" ]]; then
 				log "downloaded archive is invalid, using existing $BINARY_NAME"
 				return
 			fi
@@ -391,9 +407,9 @@ run_speedtest() {
 	esac
 
 	case "$IP_TYPE" in
-		ipv4) cfst_files=("ip.txt") ;;
-		ipv6) cfst_files=("ipv6.txt") ;;
-		both) cfst_files=("ip.txt" "ipv6.txt") ;;
+		ipv4) cfst_files=("${CFST_DIR}/ip.txt") ;;
+		ipv6) cfst_files=("${CFST_DIR}/ipv6.txt") ;;
+		both) cfst_files=("${CFST_DIR}/ip.txt" "${CFST_DIR}/ipv6.txt") ;;
 	esac
 
 	rm -f "$RESULT_FILE"
@@ -401,7 +417,7 @@ run_speedtest() {
 		local partial_result
 		partial_result="$(mktemp "${RESULT_FILE}.XXXXXX")"
 		log "running speedtest with $cfst_file"
-		"./${BINARY_NAME}" -f "$cfst_file" -dn "$SPEEDTEST_DN" -tll "$SPEEDTEST_TLL" "${cfst_proto_args[@]}" -o "$partial_result" >/dev/null || true
+		"${CFST_DIR}/${BINARY_NAME}" -f "$cfst_file" -dn "$SPEEDTEST_DN" -tll "$SPEEDTEST_TLL" "${cfst_proto_args[@]}" -o "$partial_result" >/dev/null || true
 		result_files+=("$partial_result")
 	done
 
@@ -624,12 +640,43 @@ line_indent() {
 	printf '%s' "${line%%[![:space:]]*}"
 }
 
+write_openclash_line() {
+	local line="$1"
+
+	printf '%s\n' "$line" >>"$TMP_CONFIG"
+	if [[ "$line" =~ ^[[:space:]]*$ ]]; then
+		OPENCLASH_LAST_LINE_BLANK=true
+	else
+		OPENCLASH_LAST_LINE_BLANK=false
+	fi
+}
+
+write_openclash_proxy_separator() {
+	if [[ "${OPENCLASH_WROTE_PROXY:-false}" == "true" && "${OPENCLASH_LAST_LINE_BLANK:-false}" != "true" ]]; then
+		printf '\n' >>"$TMP_CONFIG"
+		OPENCLASH_LAST_LINE_BLANK=true
+	fi
+}
+
 write_block_original() {
 	local line
+	local is_proxy=false
 
 	for line in "${BLOCK_LINES[@]}"; do
-		printf '%s\n' "$line" >>"$TMP_CONFIG"
+		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*.+$ ]]; then
+			is_proxy=true
+			break
+		fi
 	done
+
+	[[ "$is_proxy" == "true" ]] && write_openclash_proxy_separator
+
+	for line in "${BLOCK_LINES[@]}"; do
+		write_openclash_line "$line"
+	done
+	if [[ "$is_proxy" == "true" ]]; then
+		OPENCLASH_WROTE_PROXY=true
+	fi
 }
 
 expand_suffix() {
@@ -735,23 +782,25 @@ emit_openclash_variant() {
 		new_name="$base_name"
 	fi
 
+	write_openclash_proxy_separator
+
 	for idx in "${!BLOCK_LINES[@]}"; do
 		line="${BLOCK_LINES[$idx]}"
 		if ((idx == name_idx)) && [[ "$new_name" != "$name" ]]; then
-			printf '%s- name: %s\n' "$(line_indent "$line")" "$new_name" >>"$TMP_CONFIG"
+			write_openclash_line "$(printf '%s- name: %s' "$(line_indent "$line")" "$new_name")"
 		elif ((idx == server_idx)); then
-			printf '%sserver: %s\n' "$prop_indent" "$ip" >>"$TMP_CONFIG"
+			write_openclash_line "$(printf '%sserver: %s' "$prop_indent" "$ip")"
 			updated=true
 		elif ((idx == servername_idx)); then
-			printf '%sservername: %s\n' "$prop_indent" "$OPENCLASH_TARGET_DOMAIN" >>"$TMP_CONFIG"
+			write_openclash_line "$(printf '%sservername: %s' "$prop_indent" "$OPENCLASH_TARGET_DOMAIN")"
 		elif ((idx == host_idx)); then
-			printf '%sHost: %s\n' "$(line_indent "$line")" "$OPENCLASH_TARGET_DOMAIN" >>"$TMP_CONFIG"
+			write_openclash_line "$(printf '%sHost: %s' "$(line_indent "$line")" "$OPENCLASH_TARGET_DOMAIN")"
 		else
-			printf '%s\n' "$line" >>"$TMP_CONFIG"
+			write_openclash_line "$line"
 		fi
 
 		if ((idx == tls_idx && servername_idx < 0)) && [[ "$(lower "$tls")" == "true" ]]; then
-			printf '%sservername: %s\n' "$prop_indent" "$OPENCLASH_TARGET_DOMAIN" >>"$TMP_CONFIG"
+			write_openclash_line "$(printf '%sservername: %s' "$prop_indent" "$OPENCLASH_TARGET_DOMAIN")"
 		fi
 
 		normalized_network="$(lower "$network")"
@@ -765,20 +814,19 @@ emit_openclash_variant() {
 			fi
 
 			if ((idx == headers_idx && host_idx < 0)); then
-				printf '%sHost: %s\n' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN" >>"$TMP_CONFIG"
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN")"
 			elif ((idx == opts_idx && headers_idx < 0)); then
-				printf '%sheaders:\n' "${prop_indent}  " >>"$TMP_CONFIG"
-				printf '%sHost: %s\n' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN" >>"$TMP_CONFIG"
+				write_openclash_line "$(printf '%sheaders:' "${prop_indent}  ")"
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN")"
 			elif ((idx == network_idx && opts_idx < 0)); then
-				{
-					printf '%s%s:\n' "$prop_indent" "$opt_key"
-					printf '%sheaders:\n' "${prop_indent}  "
-					printf '%sHost: %s\n' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN"
-				} >>"$TMP_CONFIG"
+				write_openclash_line "$(printf '%s%s:' "$prop_indent" "$opt_key")"
+				write_openclash_line "$(printf '%sheaders:' "${prop_indent}  ")"
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$OPENCLASH_TARGET_DOMAIN")"
 			fi
 		fi
 	done
 
+	OPENCLASH_WROTE_PROXY=true
 	OPENCLASH_UPDATED=$((OPENCLASH_UPDATED + 1))
 	OPENCLASH_SEEN[seq]=1
 	if [[ "$updated" == "true" ]]; then
@@ -878,11 +926,14 @@ update_openclash() {
 
 	backup="${OPENCLASH_CONFIG}.bak.$(date +%Y%m%d%H%M%S)"
 	cp "$OPENCLASH_CONFIG" "$backup"
+	rotate_openclash_backups "$OPENCLASH_CONFIG" "$OPENCLASH_BACKUP_COUNT"
 	TMP_CONFIG="$(mktemp "${OPENCLASH_CONFIG}.tmp.XXXXXX")"
 	OPENCLASH_UPDATED=0
 	OPENCLASH_TEMPLATE_TEXT=""
 	OPENCLASH_TEMPLATE_BASE_NAME=""
 	OPENCLASH_SEEN=()
+	OPENCLASH_WROTE_PROXY=false
+	OPENCLASH_LAST_LINE_BLANK=true
 	BLOCK_LINES=()
 
 	while IFS= read -r line || [[ -n "$line" ]]; do
@@ -951,6 +1002,7 @@ validate_config() {
 			[[ -n "$OPENCLASH_CONFIG" ]] || die "OPENCLASH_CONFIG is empty"
 			[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || die "OPENCLASH_TARGET_DOMAIN is empty"
 			[[ -f "$OPENCLASH_CONFIG" ]] || die "OpenClash config not found: $OPENCLASH_CONFIG"
+			[[ "$OPENCLASH_BACKUP_COUNT" =~ ^[1-9][0-9]*$ ]] || die "OPENCLASH_BACKUP_COUNT must be a positive integer"
 			if [[ -n "$OPENCLASH_TRANSPORT_FILTER" ]]; then
 				local _item _items
 				IFS=',' read -r -a _items <<<"$OPENCLASH_TRANSPORT_FILTER"
@@ -983,6 +1035,9 @@ main() {
 	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
 	normalize_mode "$MODE"
 	validate_config
+	CFST_DIR="${WORK_DIR}/cfst"
+	[[ -z "$RESULT_FILE" ]] && RESULT_FILE="${CFST_DIR}/cf_result.txt"
+	[[ -z "$IP_HISTORY_FILE" ]] && IP_HISTORY_FILE="${CFST_DIR}/ip-all.txt"
 	log "starting cf-openwrt-auto $SCRIPT_VERSION"
 	log "mode=$MODE ip_type=$IP_TYPE ip_count=$IP_COUNT protocol=$SPEEDTEST_PROTOCOL"
 	self_update "$@"
