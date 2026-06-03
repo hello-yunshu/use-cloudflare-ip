@@ -18,6 +18,12 @@ var callRefreshEnv = rpc.declare({
 	expect: { '': {} }
 });
 
+var callDownloadCfst = rpc.declare({
+	object: 'cf_ip',
+	method: 'download-cfst',
+	expect: { '': {} }
+});
+
 var callRun = rpc.declare({
 	object: 'cf_ip',
 	method: 'run',
@@ -317,7 +323,7 @@ return view.extend({
 			lastResultBadge = E('span', { 'class': 'cfi-badge orange' }, '\u23F3 ' + _('Running'));
 		} else if (lastResult === 'success' || (typeof lastResult === 'string' && lastResult.indexOf('success') === 0)) {
 			lastResultBadge = E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + lastResult);
-		} else if (lastResult === '-') {
+		} else if (lastResult === '-' || lastResult === 'unknown') {
 			lastResultBadge = E('span', { 'class': 'cfi-badge gray' }, '\u26A0 ' + '-');
 		} else {
 			lastResultBadge = E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + lastResult);
@@ -395,7 +401,33 @@ return view.extend({
 				badge = makeEnvBadge(val);
 			}
 
-			var td = E('td', { 'class': 'td' }, badge);
+			var tdContent = [badge];
+			if (item.cfst) {
+				var cfstBtnLabel = val ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST');
+				tdContent.push(E('button', {
+					'class': 'cbi-button cbi-button-apply',
+					'style': 'margin-left:0.8em;padding:0.2em 0.6em;font-size:0.85em',
+					'click': function() {
+						var btn = this;
+						utils.setBusy(btn, _('Downloading...'));
+						return callDownloadCfst().then(function(result) {
+							result = result || {};
+							if (result.success === false) {
+								ui.addNotification(null, E('p', _('CFST download failed: ') + (result.error || 'unknown')), 'error');
+							} else {
+								ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
+								utils.reloadSoon(1500);
+							}
+						}).catch(function(e) {
+							ui.addNotification(null, E('p', _('CFST download failed: ') + e.message), 'error');
+						}).finally(function() {
+							utils.resetBusy(btn);
+						});
+					}
+				}, cfstBtnLabel));
+			}
+
+			var td = E('td', { 'class': 'td' }, tdContent);
 			envTds.push({ td: td, item: item });
 			envTable.appendChild(E('tr', { 'class': 'tr' }, [
 				E('th', { 'class': 'th' }, item.label),
@@ -435,6 +467,31 @@ return view.extend({
 
 						while (entry.td.firstChild) entry.td.removeChild(entry.td.firstChild);
 						entry.td.appendChild(newBadge);
+
+						if (it.cfst) {
+							var newCfstBtnLabel = newVal ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST');
+							entry.td.appendChild(E('button', {
+								'class': 'cbi-button cbi-button-apply',
+								'style': 'margin-left:0.8em;padding:0.2em 0.6em;font-size:0.85em',
+								'click': function() {
+									var btn = this;
+									utils.setBusy(btn, _('Downloading...'));
+									return callDownloadCfst().then(function(result) {
+										result = result || {};
+										if (result.success === false) {
+											ui.addNotification(null, E('p', _('CFST download failed: ') + (result.error || 'unknown')), 'error');
+										} else {
+											ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
+											utils.reloadSoon(1500);
+										}
+									}).catch(function(e) {
+										ui.addNotification(null, E('p', _('CFST download failed: ') + e.message), 'error');
+									}).finally(function() {
+										utils.resetBusy(btn);
+									});
+								}
+							}, newCfstBtnLabel));
+						}
 					}
 
 					var newMissing = result.missing_deps || [];
@@ -460,11 +517,11 @@ return view.extend({
 		var depSection = buildDepSection(missingDeps, data.package_manager || 'opkg');
 		container.appendChild(depSection);
 
-		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--subtext-color, #666);font-size:0.85em;border-top:1px solid var(--border-color)' });
-		footer.innerHTML = 'Cloudflare IP Optimization v' + scriptVersion +
-			' &middot; <a href="https://github.com/hello-yunshu/use-cloudflare-ip" target="_blank" rel="noopener" style="color:var(--main-color, #0069d9);text-decoration:none">GitHub</a>';
-		container.appendChild(footer);
 
-		return container;
+		return utils.appendFooter(container, {
+			project: 'Cloudflare IP Optimization',
+			version: scriptVersion,
+			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
+		});
 	}
 });

@@ -17,3 +17,59 @@
 	border: 1px solid var(--border-color);
 	font-family: monospace; font-size: 0.9em;
 }
+
+.ys-tool-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.8em 1em;
+	margin-top: 2em;
+	padding: 1em 0 0;
+	border-top: 1px solid var(--border-color);
+	color: var(--subtext-color, #666);
+	font-size: 0.875em;
+}
+.ys-tool-footer-brand,
+.ys-tool-footer-links {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5em;
+}
+.ys-tool-footer-mark {
+	padding: 0.18em 0.5em;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--main-color, #0069d9) 10%, transparent);
+	color: var(--main-color, #0069d9);
+	font-size: 0.72em;
+	font-weight: 700;
+	line-height: 1.6;
+	text-transform: uppercase;
+}
+.ys-tool-footer-title {
+	color: inherit;
+	font-weight: 600;
+}
+.ys-tool-footer-version {
+	color: var(--subtext-color, #666);
+}
+.ys-tool-footer-link {
+	padding: 0.18em 0.55em;
+	border: 1px solid color-mix(in srgb, var(--main-color, #0069d9) 28%, var(--border-color));
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--main-color, #0069d9) 5%, transparent);
+	color: var(--main-color, #0069d9);
+	line-height: 1.6;
+	text-decoration: none;
+}
+.ys-tool-footer-link:hover {
+	background: color-mix(in srgb, var(--main-color, #0069d9) 12%, transparent);
+	text-decoration: none;
+}
+@media (max-width: 600px) {
+	.ys-tool-footer {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+}

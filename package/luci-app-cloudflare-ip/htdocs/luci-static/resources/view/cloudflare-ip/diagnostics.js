@@ -32,6 +32,11 @@ var css = `
 	.cfi-ip-table {
 		width: 100%;
 	}
+	.cfi-ip-table th:first-child,
+	.cfi-ip-table td:first-child {
+		width: 3em;
+		text-align: center;
+	}
 	.cfi-ip-table td {
 		font-family: monospace;
 	}
@@ -144,7 +149,7 @@ return view.extend({
 
 		logSection.appendChild(logArea);
 
-		if (status.error) {
+		if (status.error && status.error !== 'Status file not found') {
 			logSection.appendChild(E('div', { 'class': 'alert-message danger', 'style': 'margin-top:1em' },
 				E('p', {}, '\u2718 ' + _('Last Error: ') + status.error)));
 		}
@@ -162,13 +167,13 @@ return view.extend({
 
 			res = res || {};
 			if (res.success === false) {
-				ipTableBody.appendChild(E('tr', {}, E('td', { 'colspan': '2', 'style': 'color:var(--danger-color)' }, res.error || _('Failed to load IP history'))));
+				ipTableBody.appendChild(E('tr', { 'class': 'tr' }, E('td', { 'class': 'td', 'colspan': '2', 'style': 'color:var(--danger-color)' }, res.error || _('Failed to load IP history'))));
 				return;
 			}
 
 			var ips = res.ips || [];
 			if (!ips.length) {
-				ipTableBody.appendChild(E('tr', {}, E('td', { 'colspan': '2', 'style': 'color:var(--subtext-color);font-style:italic' }, _('No IP history available'))));
+				ipTableBody.appendChild(E('tr', { 'class': 'tr' }, E('td', { 'class': 'td', 'colspan': '2', 'style': 'color:var(--subtext-color);font-style:italic' }, _('No IP history available'))));
 				return;
 			}
 
@@ -274,6 +279,9 @@ return view.extend({
 			E('p', {}, _('Warning: The operations above modify the running service or its files. Use with caution.'))));
 		container.appendChild(dangerSection);
 
-		return container;
+		return utils.appendFooter(container, {
+			project: 'Cloudflare IP Optimization',
+			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
+		});
 	}
 });

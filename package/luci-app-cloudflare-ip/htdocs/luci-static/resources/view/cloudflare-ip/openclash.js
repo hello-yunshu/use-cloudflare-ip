@@ -97,6 +97,9 @@ return view.extend({
 			});
 		};
 
-		return m.render();
+		return utils.renderWithFooter(m.render(), {
+			project: 'Cloudflare IP Optimization',
+			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
+		});
 	}
 });

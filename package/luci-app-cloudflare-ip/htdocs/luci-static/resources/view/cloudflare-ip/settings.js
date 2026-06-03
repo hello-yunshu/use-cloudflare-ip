@@ -52,10 +52,10 @@ return view.extend({
 		if (openclashInstalled)
 			o.value('openclash', 'OpenClash');
 		if (!passwallInstalled && !openclashInstalled) {
-			o.value('passwall', 'PassWall');
-			o.value('openclash', 'OpenClash');
+			o.value('none', _('None (No proxy service detected)'));
+			o.description = _('PassWall or OpenClash is not installed. Please install one before using this service.');
 		}
-		o.default = passwallInstalled ? 'passwall' : (openclashInstalled ? 'openclash' : 'passwall');
+		o.default = passwallInstalled ? 'passwall' : (openclashInstalled ? 'openclash' : 'none');
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'ip_count', _('IP Count'),
@@ -134,6 +134,9 @@ return view.extend({
 			});
 		};
 
-		return m.render();
+		return utils.renderWithFooter(m.render(), {
+			project: 'Cloudflare IP Optimization',
+			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
+		});
 	}
 });

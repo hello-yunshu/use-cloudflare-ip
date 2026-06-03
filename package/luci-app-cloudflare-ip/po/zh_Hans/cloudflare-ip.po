@@ -454,3 +454,24 @@ msgstr "随机延迟上限（秒）。多台路由器同时运行时可错开启
 
 msgid "Both"
 msgstr "双栈"
+
+msgid "Download CFST"
+msgstr "下载 CFST"
+
+msgid "Update CFST"
+msgstr "更新 CFST"
+
+msgid "Downloading..."
+msgstr "下载中..."
+
+msgid "CFST download failed: "
+msgstr "CFST 下载失败："
+
+msgid "CFST updated successfully."
+msgstr "CFST 更新成功。"
+
+msgid "None (No proxy service detected)"
+msgstr "无（未检测到代理服务）"
+
+msgid "PassWall or OpenClash is not installed. Please install one before using this service."
+msgstr "未安装 PassWall 或 OpenClash，请先安装其中之一再使用此服务。"

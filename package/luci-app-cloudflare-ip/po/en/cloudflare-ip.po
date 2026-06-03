@@ -454,3 +454,24 @@ msgstr "Random delay upper bound in seconds. Useful for staggering startup on mu
 
 msgid "Both"
 msgstr "Both"
+
+msgid "Download CFST"
+msgstr "Download CFST"
+
+msgid "Update CFST"
+msgstr "Update CFST"
+
+msgid "Downloading..."
+msgstr "Downloading..."
+
+msgid "CFST download failed: "
+msgstr "CFST download failed: "
+
+msgid "CFST updated successfully."
+msgstr "CFST updated successfully."
+
+msgid "None (No proxy service detected)"
+msgstr "None (No proxy service detected)"
+
+msgid "PassWall or OpenClash is not installed. Please install one before using this service."
+msgstr "PassWall or OpenClash is not installed. Please install one before using this service."

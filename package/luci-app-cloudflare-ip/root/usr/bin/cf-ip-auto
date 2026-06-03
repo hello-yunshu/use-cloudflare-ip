@@ -1328,7 +1328,7 @@ cmd_status() {
 	if [[ -f "$STATUS_FILE" ]]; then
 		status_data="$(cat "$STATUS_FILE")"
 	else
-		status_data="$(printf '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"%s","error":"Status file not found"}\n' "$SCRIPT_VERSION")"
+		status_data="$(printf '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"%s","error":""}\n' "$SCRIPT_VERSION")"
 	fi
 
 	# Refresh env cache silently (like upnp-bridge-relay's do_full_status)
@@ -1557,6 +1557,19 @@ cmd_ip_history() {
 	fi
 }
 
+cmd_download_cfst() {
+	JSON_MODE=true
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	mkdir -p "$CFST_DIR"
+	download_speedtest
+
+	local cfst_ver=""
+	[[ -f "${CFST_DIR}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${CFST_DIR}/${BINARY_NAME}_version.txt")"
+	json_result "success" "true" "cfst_version" "$cfst_ver"
+}
+
 cmd_self_update() {
 	JSON_MODE=true
 	load_uci_config
@@ -1667,6 +1680,7 @@ Options:
   --read-log      Read and output the log file as JSON
   --clear-log     Clear the log file, output JSON result
   --ip-history    Read and output IP history as JSON
+  --download-cfst Download or update CloudflareSpeedTest, output JSON result
   --self-update   Run self-update check, output JSON result
   --daemon        Run in daemon loop mode (for procd)
   -v, --verbose   Enable verbose output
@@ -1691,6 +1705,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 			--read-log) CLI_ACTION="read-log" ;;
 			--clear-log) CLI_ACTION="clear-log" ;;
 			--ip-history) CLI_ACTION="ip-history" ;;
+			--download-cfst) CLI_ACTION="download-cfst" ;;
 			--self-update) CLI_ACTION="self-update" ;;
 			--daemon) CLI_ACTION="daemon" ;;
 			-v|--verbose) CLI_VERBOSE="true" ;;
@@ -1709,6 +1724,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 		read-log) cmd_read_log ;;
 		clear-log) cmd_clear_log ;;
 		ip-history) cmd_ip_history ;;
+		download-cfst) cmd_download_cfst ;;
 		self-update) cmd_self_update ;;
 		daemon) cmd_daemon ;;
 		"")

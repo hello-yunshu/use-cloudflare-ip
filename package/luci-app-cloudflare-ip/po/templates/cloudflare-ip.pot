@@ -454,3 +454,24 @@ msgstr ""
 
 msgid "Both"
 msgstr ""
+
+msgid "Download CFST"
+msgstr ""
+
+msgid "Update CFST"
+msgstr ""
+
+msgid "Downloading..."
+msgstr ""
+
+msgid "CFST download failed: "
+msgstr ""
+
+msgid "CFST updated successfully."
+msgstr ""
+
+msgid "None (No proxy service detected)"
+msgstr ""
+
+msgid "PassWall or OpenClash is not installed. Please install one before using this service."
+msgstr ""
