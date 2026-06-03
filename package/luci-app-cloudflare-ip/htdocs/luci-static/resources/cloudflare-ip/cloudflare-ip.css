@@ -35,26 +35,31 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5em;
+	gap: 0.35em;
 }
 .ys-tool-footer-mark {
 	padding: 0.18em 0.5em;
 	border-radius: 4px;
 	background: color-mix(in srgb, var(--main-color, #0069d9) 10%, transparent);
 	color: var(--main-color, #0069d9);
-	font-size: 0.72em;
+	font-size: 0.86em;
 	font-weight: 700;
 	line-height: 1.6;
-	text-transform: uppercase;
 }
 .ys-tool-footer-title {
 	color: inherit;
 	font-weight: 600;
 }
+.ys-tool-footer-separator {
+	color: color-mix(in srgb, var(--subtext-color, #666) 65%, transparent);
+}
 .ys-tool-footer-version {
 	color: var(--subtext-color, #666);
 }
 .ys-tool-footer-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35em;
 	padding: 0.18em 0.55em;
 	border: 1px solid color-mix(in srgb, var(--main-color, #0069d9) 28%, var(--border-color));
 	border-radius: 4px;
@@ -66,6 +71,18 @@
 .ys-tool-footer-link:hover {
 	background: color-mix(in srgb, var(--main-color, #0069d9) 12%, transparent);
 	text-decoration: none;
+}
+.ys-tool-footer-icon {
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+	flex: 0 0 auto;
+}
+.ys-tool-footer-icon.x {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.4;
+	stroke-linecap: round;
 }
 @media (max-width: 600px) {
 	.ys-tool-footer {

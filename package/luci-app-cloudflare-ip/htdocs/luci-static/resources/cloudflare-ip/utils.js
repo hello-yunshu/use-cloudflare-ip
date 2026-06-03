@@ -79,13 +79,48 @@ function loadSharedCSS() {
 	}
 }
 
-function footerLink(href, label) {
+function iconSvg(name) {
+	if (name === 'github') {
+		return E('svg', {
+			'class': 'ys-tool-footer-icon github',
+			'viewBox': '0 0 24 24',
+			'aria-hidden': 'true'
+		}, E('path', {
+			'd': 'M12 2C6.48 2 2 6.58 2 12.26c0 4.53 2.87 8.37 6.84 9.73.5.09.68-.22.68-.49v-1.9c-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.35 1.12 2.92.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.36 9.36 0 0 1 12 6.97c.85 0 1.71.12 2.51.34 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.49A10.24 10.24 0 0 0 22 12.26C22 6.58 17.52 2 12 2z'
+		}));
+	}
+
+	if (name === 'x') {
+		return E('svg', {
+			'class': 'ys-tool-footer-icon x',
+			'viewBox': '0 0 24 24',
+			'aria-hidden': 'true'
+		}, [
+			E('path', { 'd': 'M5 5l14 14' }),
+			E('path', { 'd': 'M19 5L5 19' })
+		]);
+	}
+
+	return null;
+}
+
+function footerSeparator() {
+	return E('span', { 'class': 'ys-tool-footer-separator' }, ' · ');
+}
+
+function footerLink(href, label, icon) {
+	var children = [];
+	var iconNode = iconSvg(icon);
+	if (iconNode)
+		children.push(iconNode, ' ');
+	children.push(E('span', {}, label));
+
 	return E('a', {
 		'class': 'ys-tool-footer-link',
 		'href': href,
 		'target': '_blank',
 		'rel': 'noopener noreferrer'
-	}, label);
+	}, children);
 }
 
 function renderFooter(options) {
@@ -96,14 +131,18 @@ function renderFooter(options) {
 
 	return E('footer', { 'class': 'ys-tool-footer' }, [
 		E('div', { 'class': 'ys-tool-footer-brand' }, [
-			E('span', { 'class': 'ys-tool-footer-mark' }, 'Yunshu Lab'),
+			E('span', { 'class': 'ys-tool-footer-mark' }, '云云舒'),
+			footerSeparator(),
 			E('span', { 'class': 'ys-tool-footer-title' }, project),
+			version ? footerSeparator() : '',
 			version ? E('span', { 'class': 'ys-tool-footer-version' }, version) : ''
 		]),
 		E('div', { 'class': 'ys-tool-footer-links' }, [
 			footerLink(repoUrl, 'Project'),
-			footerLink('https://github.com/hello-yunshu', 'GitHub'),
-			footerLink('https://x.com/yunyunyshu', 'X @yunyunyshu')
+			footerSeparator(),
+			footerLink('https://github.com/hello-yunshu', 'GitHub', 'github'),
+			footerSeparator(),
+			footerLink('https://x.com/yunyunyshu', 'X', 'x')
 		])
 	]);
 }
