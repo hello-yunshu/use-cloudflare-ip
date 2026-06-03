@@ -41,7 +41,7 @@ CLI_VERBOSE="false"
 GITHUB_MIRROR=""
 STOP_SERVICE_BEFORE_SPEEDTEST="true"
 STARTUP_DELAY=""
-CRON_INTERVAL="360"
+CRON_INTERVAL="6h"
 ENABLED="false"
 _STOPPED_SERVICE=""
 _OPENCLASH_ENABLE_SAVED=""
@@ -143,12 +143,19 @@ load_uci_config() {
 	val="$(uci -q get cf_ip.main.verbose)" && VERBOSE="$val"
 	val="$(uci -q get cf_ip.main.work_dir)" && WORK_DIR="$val"
 	val="$(uci -q get cf_ip.main.cron_interval)" && CRON_INTERVAL="$val"
+	val="$(uci -q get cf_ip.main.cron_custom)" && CRON_CUSTOM="$val"
 
 	# Convert UCI bool values (0/1) to true/false
 	case "$ENABLED" in 1|on|true|enabled) ENABLED="true" ;; *) ENABLED="false" ;; esac
 	case "$STOP_SERVICE_BEFORE_SPEEDTEST" in 1|on|true|enabled) STOP_SERVICE_BEFORE_SPEEDTEST="true" ;; *) STOP_SERVICE_BEFORE_SPEEDTEST="false" ;; esac
 	case "$AUTO_UPDATE" in 1|on|true|enabled) AUTO_UPDATE="true" ;; *) AUTO_UPDATE="false" ;; esac
 	case "$VERBOSE" in 1|on|true|enabled) VERBOSE="true" ;; *) VERBOSE="false" ;; esac
+
+	# If cron_interval is "custom", use cron_custom instead
+	if [ "$CRON_INTERVAL" = "custom" ]; then
+		CRON_INTERVAL="${CRON_CUSTOM:-6h}"
+	fi
+	CRON_CUSTOM=""
 
 	# Passwall section (cf_ip.passwall.*)
 	val="$(uci -q get cf_ip.passwall.target_domain)" && PASSWALL_TARGET_DOMAIN="$val"
@@ -1222,7 +1229,7 @@ validate_config() {
 	[[ "$AUTO_UPDATE" == "true" || "$AUTO_UPDATE" == "false" ]] || die "AUTO_UPDATE must be true or false"
 	[[ "$DOWNLOAD_RETRIES" =~ ^[1-9][0-9]*$ ]] || die "DOWNLOAD_RETRIES must be a positive integer"
 	[[ "$DOWNLOAD_RETRY_DELAY" =~ ^[0-9]+$ ]] || die "DOWNLOAD_RETRY_DELAY must be a non-negative integer"
-	[[ "$CRON_INTERVAL" =~ ^[1-9][0-9]*$ ]] || die "CRON_INTERVAL must be a positive integer"
+	[[ -n "$CRON_INTERVAL" ]] || die "cron_interval: must not be empty"
 	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
 	[[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" || "$STOP_SERVICE_BEFORE_SPEEDTEST" == "false" ]] || die "STOP_SERVICE_BEFORE_SPEEDTEST must be true or false"
 	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
@@ -1619,7 +1626,183 @@ cmd_self_update() {
 }
 
 cron_interval_seconds() {
-	printf '%s\n' $((CRON_INTERVAL * 60))
+	local input="$1" h=0 m=0 s=0
+	input="${input// /}"
+
+	# Detect cron format: 5 space/whitespace-separated numeric/wildcard fields
+	# Original input (before space removal) had spaces
+	local original="$1"
+	if [[ "$original" =~ ^[0-9\*/,]+[[:space:]][0-9\*/,]+[[:space:]][0-9\*/,]+[[:space:]][0-9\*/,]+[[:space:]][0-9\*/,]+$ ]]; then
+		_parse_cron_seconds "$original"
+		return $?
+	fi
+
+	# Bare number = seconds
+	if [[ "$input" =~ ^[0-9]+$ ]]; then
+		printf '%s\n' "$input"
+		return 0
+	fi
+
+	# Duration format: Nh Nm Ns
+	[[ "$input" =~ ([0-9]+)h ]] && h="${BASH_REMATCH[1]}"
+	[[ "$input" =~ ([0-9]+)m ]] && m="${BASH_REMATCH[1]}"
+	[[ "$input" =~ ([0-9]+)s ]] && s="${BASH_REMATCH[1]}"
+
+	local total=$((h * 3600 + m * 60 + s))
+	[[ "$total" -gt 0 ]] || die "cron_interval: invalid format '$1'; use e.g. 6h, 30m, 1h30m, or 0 */6 * * *"
+	printf '%s\n' "$total"
+}
+
+# Parse crontab expression (5 fields: m h dom mon dow) and return seconds until next match
+_parse_cron_seconds() {
+	local min="${1%% *}" rest="${1#* }"
+	local hour="${rest%% *}" rest="${rest#* }"
+	local dom="${rest%% *}" rest="${rest#* }"
+	local mon="${rest%% *}"
+	local dow="${rest##* }"
+
+	# Pattern: */N * * * *  — every N minutes
+	if [[ "$min" == \*/[1-9]* && "$hour" == "*" && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
+		local n="${min#*/}"
+		local now_min=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		local now_sec=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local elapsed=$((now_min % n))
+		if [ "$elapsed" -eq 0 ] && [ "$now_sec" -lt 5 ]; then
+			printf '%s\n' $((n * 60))
+		elif [ "$elapsed" -eq 0 ]; then
+			printf '%s\n' $((n * 60 - now_sec + 5))
+		else
+			printf '%s\n' $(((n - elapsed) * 60 - now_sec))
+		fi
+		return 0
+	fi
+
+	# Pattern: M */N * * *  — every N hours at minute M
+	if [[ "$min" =~ ^[0-9]+$ && "$hour" == \*/[1-9]* && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
+		local n="${hour#*/}"
+		local now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
+		local now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		local now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local now_secs=$((now_h * 3600 + now_m * 60 + now_s))
+		local elapsed=$((now_h / n))
+		local next_h=$(((elapsed + 1) * n))
+		if [ "$next_h" -ge 24 ]; then
+			next_h=0
+		fi
+		local target_secs=$((next_h * 3600 + min * 60))
+		if [ "$target_secs" -le "$now_secs" ]; then
+			target_secs=$((target_secs + 86400))
+		fi
+		printf '%s\n' $((target_secs - now_secs))
+		return 0
+	fi
+
+	# Pattern: M H * * *  — daily at HH:MM (supports comma-separated lists)
+	# Also handles: M1,M2 H * * *  or  M H1,H2 * * *  or  M1,M2 H1,H2 * * *
+	if [[ "$min" =~ ^[0-9,]+$ && "$hour" =~ ^[0-9,]+$ && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
+		_next_comma_times "$min" "$hour"
+		return 0
+	fi
+
+	# Pattern: * */N * * *  — every N hours
+	if [[ "$min" == "*" && "$hour" == \*/[1-9]* && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
+		local n="${hour#*/}"
+		local now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
+		local now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		local now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local now_secs=$((now_h * 3600 + now_m * 60 + now_s))
+		local next_interval=$((((now_h / n) + 1) * n))
+		local target_secs
+		if [ "$next_interval" -ge 24 ]; then
+			target_secs=$((0 * 3600))
+			printf '%s\n' $((86400 - now_secs))
+		else
+			target_secs=$((next_interval * 3600))
+			printf '%s\n' $((target_secs - now_secs))
+		fi
+		return 0
+	fi
+
+	die "cron_interval: unsupported cron expression '$1'; supported: */N * * * *, M */N * * *, M H * * * (comma-separated lists supported)"
+}
+
+# Convert cron_interval (duration or cron expression) to a standard cron expression
+# suitable for use with /etc/crontabs/root. Returns 0 and prints the expression on success.
+to_cron_expression() {
+	local input="$1"
+
+	# Already a cron expression (contains whitespace → 5-field format)
+	if [[ "$input" =~ [[:space:]] ]]; then
+		printf '%s\n' "$input"
+		return 0
+	fi
+
+	# Duration format: compute seconds, then convert to cron
+	local seconds mins
+	seconds="$(cron_interval_seconds "$input")" 2>/dev/null || return 1
+	mins=$((seconds / 60))
+
+	# Sub-hour intervals: if minutes evenly divides 60
+	if [[ $((60 % mins)) -eq 0 && "$mins" -le 60 && "$mins" -gt 0 ]]; then
+		printf '*/%d * * * *\n' "$mins"
+		return 0
+	fi
+
+	# Hourly intervals: if seconds is a multiple of 3600
+	if [[ $((seconds % 3600)) -eq 0 ]]; then
+		local hours=$((seconds / 3600))
+		printf '0 */%d * * *\n' "$hours"
+		return 0
+	fi
+
+	# Unrepresentable (e.g. 1h30m = 5400s → 90min → doesn't divide 60 or 3600 evenly)
+	return 1
+}
+
+# Given comma-separated minutes and hours (M H * * *),
+# return seconds until the next matching time today or tomorrow
+_next_comma_times() {
+	local mins="$1" hours="$2" IFS=','
+	local now_h now_m now_s now_secs min_hour best=-1 candidate
+
+	now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
+	now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+	now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+	now_secs=$((now_h * 3600 + now_m * 60 + now_s))
+
+	for h in $hours; do
+		[[ "$h" =~ ^[0-9]+$ ]] || continue
+		for m in $mins; do
+			[[ "$m" =~ ^[0-9]+$ ]] || continue
+			candidate=$((h * 3600 + m * 60))
+			# Today's candidate
+			if [ "$candidate" -gt "$now_secs" ]; then
+				if [ "$best" -eq -1 ] || [ "$candidate" -lt "$best" ]; then
+					best=$candidate
+				fi
+			fi
+		done
+	done
+
+	if [ "$best" -ne -1 ]; then
+		printf '%s\n' $((best - now_secs))
+		return 0
+	fi
+
+	# No time left today — use tomorrow's earliest
+	best=-1
+	for h in $hours; do
+		[[ "$h" =~ ^[0-9]+$ ]] || continue
+		for m in $mins; do
+			[[ "$m" =~ ^[0-9]+$ ]] || continue
+			candidate=$((h * 3600 + m * 60))
+			if [ "$best" -eq -1 ] || [ "$candidate" -lt "$best" ]; then
+				best=$candidate
+			fi
+		done
+	done
+
+	printf '%s\n' $((86400 - now_secs + best))
 }
 
 cmd_daemon() {
@@ -1633,8 +1816,8 @@ cmd_daemon() {
 	trap 'log "received signal, exiting"; write_status false "stopped"; exit 0' TERM INT
 
 	local sleep_seconds
-	sleep_seconds="$(cron_interval_seconds)"
-	log "starting daemon mode, interval=${CRON_INTERVAL}m"
+	sleep_seconds="$(cron_interval_seconds "$CRON_INTERVAL")"
+	log "starting daemon mode, interval=${CRON_INTERVAL} (${sleep_seconds}s)"
 	write_status true "running"
 
 	# Apply startup delay once at daemon start
@@ -1658,10 +1841,34 @@ cmd_daemon() {
 			log "daemon: run failed"
 		fi
 		rm -f "$_daemon_ips_file"
-		sleep_seconds="$(cron_interval_seconds)"
-		log "daemon: sleeping ${sleep_seconds}s (${CRON_INTERVAL}m)"
+		sleep_seconds="$(cron_interval_seconds "$CRON_INTERVAL")"
+		log "daemon: sleeping ${sleep_seconds}s (interval=${CRON_INTERVAL})"
 		sleep "$sleep_seconds"
 	done
+}
+
+cmd_to_cron() {
+	local interval="${CLI_ARG1:-}"
+	local custom="${CLI_ARG2:-}"
+
+	[ -z "$interval" ] && { load_uci_config; interval="$CRON_INTERVAL"; }
+
+	if [ "$interval" = "custom" ]; then
+		interval="${custom:-6h}"
+	fi
+
+	to_cron_expression "$interval" || {
+		echo "ERROR: cannot convert schedule to cron expression" >&2
+		exit 1
+	}
+}
+
+cmd_write_status() {
+	mkdir -p /tmp/cf_ip
+	cat > /tmp/cf_ip/status.json <<'STATUSEOF'
+{"running":true,"last_result":"scheduled","last_run":"","best_ips":[]}
+STATUSEOF
+	log "status: crontab-managed mode initialized"
 }
 
 # ========== Usage ==========
@@ -1683,6 +1890,8 @@ Options:
   --download-cfst Download or update CloudflareSpeedTest, output JSON result
   --self-update   Run self-update check, output JSON result
   --daemon        Run in daemon loop mode (for procd)
+  --to-cron       Convert the configured cron_interval to a crontab expression
+  --write-status  Write initial status for crontab-managed mode
   -v, --verbose   Enable verbose output
   -h, --help      Show this help message
 
@@ -1708,6 +1917,8 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 			--download-cfst) CLI_ACTION="download-cfst" ;;
 			--self-update) CLI_ACTION="self-update" ;;
 			--daemon) CLI_ACTION="daemon" ;;
+			--to-cron) CLI_ACTION="to-cron"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; [ $# -gt 0 ] && CLI_ARG2="$1" && shift; continue ;;
+			--write-status) CLI_ACTION="write-status" ;;
 			-v|--verbose) CLI_VERBOSE="true" ;;
 			-h|--help) usage; exit 0 ;;
 			*) die "unexpected argument: $1; use --help for usage" ;;
@@ -1727,6 +1938,8 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 		download-cfst) cmd_download_cfst ;;
 		self-update) cmd_self_update ;;
 		daemon) cmd_daemon ;;
+		to-cron) cmd_to_cron ;;
+		write-status) cmd_write_status ;;
 		"")
 			# Traditional mode: load UCI config and run main flow
 			load_uci_config

@@ -14,10 +14,24 @@ return view.extend({
 	title: _('Cloudflare IP - PassWall'),
 
 	load: function() {
-		return uci.load('cf_ip');
+		return Promise.all([
+			uci.load('cf_ip'),
+			callStatus().catch(function() { return {}; })
+		]);
 	},
 
-	render: function() {
+	render: function(data) {
+		var env = data[1] || {};
+
+		if (!env.passwall_installed) {
+			return E('div', { 'class': 'cbi-map' }, [
+				E('div', { 'class': 'cbi-section' },
+					E('h3', {}, _('PassWall Not Found')),
+					E('p', {}, _('PassWall is not installed. Please install PassWall before using this feature.'))
+				)
+			]);
+		}
+
 		utils.loadSharedCSS();
 
 		var m = new form.Map('cf_ip', _('Cloudflare IP - PassWall'));

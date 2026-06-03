@@ -9,6 +9,7 @@
 
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
+var callDownloadCfst = rpc.declare({ object: 'cf_ip', method: 'download-cfst', expect: { '': {} } });
 
 return view.extend({
 	load: function() {
@@ -22,6 +23,8 @@ return view.extend({
 		var env = data[1] || {};
 		var passwallInstalled = env.passwall_installed || false;
 		var openclashInstalled = env.openclash_installed || false;
+		var cfstInstalled = env.cfst_installed || false;
+		var cfstVersion = env.cfst_version || '';
 
 		var m, s, o;
 
@@ -36,11 +39,23 @@ return view.extend({
 		o.default = '0';
 		o.rmempty = false;
 
-		o = s.option(form.Value, 'cron_interval', _('Run Interval (minutes)'),
-			_('How often the service runs speed tests. Recommended: 360 (6 hours). Avoid below 60.'));
-		o.datatype = 'range(30,1440)';
-		o.placeholder = '360';
+		o = s.option(form.ListValue, 'cron_interval', _('Run Schedule'),
+			_('Select how often the speed test runs. The service computes the next run time automatically.'));
+		o.value('6h', _('Every 6 hours (recommended)'));
+		o.value('1h', _('Every hour'));
+		o.value('30m', _('Every 30 minutes'));
+		o.value('15m', _('Every 15 minutes'));
+		o.value('0 3 * * *', _('Daily at 3:00 AM'));
+		o.value('0 3,15 * * *', _('Daily at 3:00 AM & 3:00 PM'));
+		o.value('0 */6 * * *', _('Every 6 hours at :00'));
+		o.value('custom', _('Custom...'));
+		o.default = '6h';
 		o.rmempty = false;
+
+		o = s.option(form.Value, 'cron_custom', _('Custom Schedule'),
+			_('Enter a duration (e.g. 6h, 30m, 1h30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *).'));
+		o.placeholder = '6h';
+		o.depends('cron_interval', 'custom');
 
 		s = m.section(form.TypedSection, 'service', _('Speed Test'));
 		s.anonymous = true;
@@ -101,6 +116,11 @@ return view.extend({
 		o.default = '1';
 		o.rmempty = false;
 
+		o = s.option(form.Flag, 'cfst_persist', _('Keep CFST Across Upgrades'),
+			_('Preserve CFST binary during OpenWrt sysupgrade so it survives system upgrades.'));
+		o.default = '1';
+		o.rmempty = false;
+
 		m.handleSave = function(ev) {
 			var tasks = [];
 			document.getElementById('maincontent')
@@ -134,7 +154,51 @@ return view.extend({
 			});
 		};
 
-		return utils.renderWithFooter(m.render(), {
+		var formNode = m.render();
+
+		/* CFST Section */
+		var cfstSection = E('div', { 'class': 'cbi-section cfi-section' });
+		cfstSection.appendChild(E('h3', {}, _('CFST (CloudflareSpeedTest)')));
+
+		var cfstRow = E('div', { 'style': 'display:flex;align-items:center;gap:0.8em;padding:0.5em 0' });
+
+		var cfstBadge = cfstInstalled
+			? E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + (cfstVersion || _('Installed')))
+			: E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + _('Not Installed'));
+		cfstRow.appendChild(cfstBadge);
+
+		var cfstBtn = E('button', {
+			'class': 'cbi-button cbi-button-apply',
+			'click': function() {
+				var btn = this;
+				var isInstalled = cfstInstalled;
+				utils.setBusy(btn, isInstalled ? _('Updating...') : _('Downloading...'));
+				return callDownloadCfst().then(function(result) {
+					result = result || {};
+					if (result.success === false) {
+						ui.addNotification(null, E('p', _('CFST operation failed: ') + (result.error || 'unknown')), 'error');
+					} else {
+						ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
+						utils.reloadSoon(1500);
+					}
+				}).catch(function(e) {
+					ui.addNotification(null, E('p', _('CFST operation failed: ') + e.message), 'error');
+				}).finally(function() {
+					utils.resetBusy(btn);
+				});
+			}
+		}, cfstInstalled ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST'));
+		cfstRow.appendChild(cfstBtn);
+		cfstSection.appendChild(cfstRow);
+
+		cfstSection.appendChild(E('p', { 'style': 'color:var(--subtext-color,#666);font-size:0.85em;margin-top:0.3em' },
+			_('CloudflareSpeedTest (CFST) is the core speed test tool. It will be automatically downloaded when the service starts.')));
+
+		var container = E('div', {});
+		container.appendChild(formNode);
+		container.appendChild(cfstSection);
+
+		return utils.renderWithFooter(container, {
 			project: 'Cloudflare IP Optimization',
 			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
 		});

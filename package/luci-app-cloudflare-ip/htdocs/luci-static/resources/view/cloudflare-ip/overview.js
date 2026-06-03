@@ -18,12 +18,6 @@ var callRefreshEnv = rpc.declare({
 	expect: { '': {} }
 });
 
-var callDownloadCfst = rpc.declare({
-	object: 'cf_ip',
-	method: 'download-cfst',
-	expect: { '': {} }
-});
-
 var callRun = rpc.declare({
 	object: 'cf_ip',
 	method: 'run',
@@ -297,7 +291,7 @@ return view.extend({
 						utils.resetBusy(btn);
 					});
 				}
-			}, '\u26A1 ' + _('Run Now')));
+			}, '\u26A1 ' + _('Run Speedtest')));
 		}
 
 		controlSection.appendChild(btnGroup);
@@ -402,30 +396,6 @@ return view.extend({
 			}
 
 			var tdContent = [badge];
-			if (item.cfst) {
-				var cfstBtnLabel = val ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST');
-				tdContent.push(E('button', {
-					'class': 'cbi-button cbi-button-apply',
-					'style': 'margin-left:0.8em;padding:0.2em 0.6em;font-size:0.85em',
-					'click': function() {
-						var btn = this;
-						utils.setBusy(btn, _('Downloading...'));
-						return callDownloadCfst().then(function(result) {
-							result = result || {};
-							if (result.success === false) {
-								ui.addNotification(null, E('p', _('CFST download failed: ') + (result.error || 'unknown')), 'error');
-							} else {
-								ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
-								utils.reloadSoon(1500);
-							}
-						}).catch(function(e) {
-							ui.addNotification(null, E('p', _('CFST download failed: ') + e.message), 'error');
-						}).finally(function() {
-							utils.resetBusy(btn);
-						});
-					}
-				}, cfstBtnLabel));
-			}
 
 			var td = E('td', { 'class': 'td' }, tdContent);
 			envTds.push({ td: td, item: item });
@@ -467,31 +437,6 @@ return view.extend({
 
 						while (entry.td.firstChild) entry.td.removeChild(entry.td.firstChild);
 						entry.td.appendChild(newBadge);
-
-						if (it.cfst) {
-							var newCfstBtnLabel = newVal ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST');
-							entry.td.appendChild(E('button', {
-								'class': 'cbi-button cbi-button-apply',
-								'style': 'margin-left:0.8em;padding:0.2em 0.6em;font-size:0.85em',
-								'click': function() {
-									var btn = this;
-									utils.setBusy(btn, _('Downloading...'));
-									return callDownloadCfst().then(function(result) {
-										result = result || {};
-										if (result.success === false) {
-											ui.addNotification(null, E('p', _('CFST download failed: ') + (result.error || 'unknown')), 'error');
-										} else {
-											ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
-											utils.reloadSoon(1500);
-										}
-									}).catch(function(e) {
-										ui.addNotification(null, E('p', _('CFST download failed: ') + e.message), 'error');
-									}).finally(function() {
-										utils.resetBusy(btn);
-									});
-								}
-							}, newCfstBtnLabel));
-						}
 					}
 
 					var newMissing = result.missing_deps || [];

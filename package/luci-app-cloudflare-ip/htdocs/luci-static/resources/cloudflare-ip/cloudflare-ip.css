@@ -17,6 +17,7 @@
 	border: 1px solid var(--border-color);
 	font-family: monospace; font-size: 0.9em;
 }
+.cfi-no-hover:hover { background: none !important; }
 
 .ys-tool-footer {
 	display: flex;
@@ -79,17 +80,11 @@
 	text-decoration: none;
 }
 .ys-tool-footer-icon {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+	display: inline-block;
 	width: 1em;
 	height: 1em;
 	flex: 0 0 auto;
-}
-.ys-tool-footer-icon svg {
-	display: block;
-	width: 1em;
-	height: 1em;
+	vertical-align: -0.125em;
 }
 @media (max-width: 600px) {
 	.ys-tool-footer {

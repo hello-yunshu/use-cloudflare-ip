@@ -9,6 +9,7 @@
 
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
+var callSelfUpdate = rpc.declare({ object: 'cf_ip', method: 'self-update', expect: { '': {} } });
 
 return view.extend({
 	title: _('Cloudflare IP - Advanced'),
@@ -37,6 +38,26 @@ return view.extend({
 		o.rmempty = false;
 		o.datatype = 'string';
 		o.depends('auto_update', '1');
+
+		o = s.option(form.Button, '_self_update', _('Update Script Now'),
+			_('Manually check for and install the latest script version.'));
+		o.inputtitle = _('Update Script');
+		o.inputstyle = 'apply';
+		o.onclick = function() {
+			return callSelfUpdate().then(function(res) {
+				res = res || {};
+				if (res.success === false) {
+					ui.addNotification(null, E('p', _('Self-update failed: ') + (res.error || 'unknown')), 'error');
+				} else if (res.updated) {
+					ui.addNotification(null, E('p', _('Script updated to version %s.').format(res.new_version || res.version || '')), 'info');
+					utils.reloadSoon(2000);
+				} else {
+					ui.addNotification(null, E('p', _('Script is already up to date.')), 'info');
+				}
+			}).catch(function(e) {
+				ui.addNotification(null, E('p', _('Self-update failed: ') + e.message), 'error');
+			});
+		};
 
 		/* Download */
 		s = m.section(form.TypedSection, 'service', _('Download'));

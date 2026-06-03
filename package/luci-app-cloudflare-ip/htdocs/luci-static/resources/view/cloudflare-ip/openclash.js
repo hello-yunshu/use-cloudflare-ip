@@ -14,10 +14,24 @@ return view.extend({
 	title: _('Cloudflare IP - OpenClash'),
 
 	load: function() {
-		return uci.load('cf_ip');
+		return Promise.all([
+			uci.load('cf_ip'),
+			callStatus().catch(function() { return {}; })
+		]);
 	},
 
-	render: function() {
+	render: function(data) {
+		var env = data[1] || {};
+
+		if (!env.openclash_installed) {
+			return E('div', { 'class': 'cbi-map' }, [
+				E('div', { 'class': 'cbi-section' },
+					E('h3', {}, _('OpenClash Not Found')),
+					E('p', {}, _('OpenClash is not installed. Please install OpenClash before using this feature.'))
+				)
+			]);
+		}
+
 		utils.loadSharedCSS();
 
 		var m = new form.Map('cf_ip', _('Cloudflare IP - OpenClash'));

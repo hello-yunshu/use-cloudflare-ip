@@ -8,8 +8,6 @@ var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': 
 var callReadLog = rpc.declare({ object: 'cf_ip', method: 'read-log', expect: { '': {} } });
 var callClearLog = rpc.declare({ object: 'cf_ip', method: 'clear-log', expect: { '': {} } });
 var callIpHistory = rpc.declare({ object: 'cf_ip', method: 'ip-history', expect: { '': {} } });
-var callSelfUpdate = rpc.declare({ object: 'cf_ip', method: 'self-update', expect: { '': {} } });
-var callRun = rpc.declare({ object: 'cf_ip', method: 'run', expect: { '': {} } });
 
 var css = `
 	.cfi-log-area {
@@ -25,10 +23,6 @@ var css = `
 	.cfi-log-area.is-empty,
 	.cfi-log-area.is-loading { color: var(--subtext-color); font-style: italic; }
 	.cfi-log-area.is-error { color: var(--danger-color); }
-	.cfi-danger-zone {
-		margin-bottom: 1.5em;
-		border-left: 5px solid var(--danger-color, #d94b4b);
-	}
 	.cfi-ip-table {
 		width: 100%;
 	}
@@ -66,7 +60,7 @@ return view.extend({
 		var container = E('div', { 'class': 'cbi-map cfi-dashboard' });
 		container.appendChild(E('style', {}, css));
 
-		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Cloudflare IP - Logs & Maintenance')));
+		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Cloudflare IP - Diagnostics')));
 
 		/* Recent Logs */
 		var logSection = E('div', { 'class': 'cbi-section cfi-section' });
@@ -173,7 +167,7 @@ return view.extend({
 
 			var ips = res.ips || [];
 			if (!ips.length) {
-				ipTableBody.appendChild(E('tr', { 'class': 'tr' }, E('td', { 'class': 'td', 'colspan': '2', 'style': 'color:var(--subtext-color);font-style:italic' }, _('No IP history available'))));
+				ipTableBody.appendChild(E('tr', { 'class': 'tr cfi-no-hover' }, E('td', { 'class': 'td', 'colspan': '2', 'style': 'color:var(--subtext-color);font-style:italic' }, _('No IP history available'))));
 				return;
 			}
 
@@ -213,71 +207,6 @@ return view.extend({
 			ipTableBody
 		]));
 		container.appendChild(ipSection);
-
-		/* Maintenance */
-		var maintSection = E('div', { 'class': 'cbi-section cfi-section' });
-		maintSection.appendChild(E('h3', {}, _('Maintenance')));
-
-		var maintBtnBar = E('div', { 'class': 'cfi-btn-group' });
-
-		maintBtnBar.appendChild(E('button', {
-			'class': 'cbi-button cbi-button-apply',
-			'click': function() {
-				var btn = this;
-				utils.setBusy(btn, _('Checking...'));
-				return callSelfUpdate().then(function(res) {
-					res = res || {};
-					if (res.success === false) {
-						ui.addNotification(null, E('p', _('Self-update failed: ') + (res.error || 'unknown')), 'error');
-						} else if (res.updated) {
-							ui.addNotification(null, E('p', _('Script updated to version %s.').format(res.new_version || res.version || '')), 'info');
-							utils.reloadSoon(2000);
-					} else {
-						ui.addNotification(null, E('p', _('Script is already up to date.')), 'info');
-					}
-				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Self-update failed: ') + e.message), 'error');
-				}).finally(function() {
-					utils.resetBusy(btn);
-				});
-			}
-		}, '\u21BB ' + _('Check Update')));
-
-		maintBtnBar.appendChild(E('button', {
-			'class': 'cbi-button cbi-button-apply',
-			'click': function() {
-				var btn = this;
-				utils.setBusy(btn, _('Running...'));
-				return callRun().then(function(res) {
-					res = res || {};
-					if (res.success === false) {
-						ui.addNotification(null, E('p', _('Speed test failed: ') + (res.error || 'unknown')), 'error');
-					} else {
-						var ips = res.best_ips || [];
-						if (ips.length > 0) {
-							ui.addNotification(null, E('p', _('Speed test completed: found %d best IPs.').format(ips.length)), 'info');
-						} else {
-							ui.addNotification(null, E('p', _('Speed test completed but no best IPs found.')), 'warning');
-						}
-						utils.reloadSoon(2500);
-					}
-				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Speed test failed: ') + e.message), 'error');
-				}).finally(function() {
-					utils.resetBusy(btn);
-				});
-			}
-		}, '\u26A1 ' + _('Run Now')));
-
-		maintSection.appendChild(maintBtnBar);
-		container.appendChild(maintSection);
-
-		/* Danger Zone */
-		var dangerSection = E('div', { 'class': 'cbi-section cfi-danger-zone' });
-		dangerSection.appendChild(E('h3', {}, _('Danger Zone')));
-		dangerSection.appendChild(E('div', { 'class': 'alert-message warning', 'style': 'margin-bottom:0.5em' },
-			E('p', {}, _('Warning: The operations above modify the running service or its files. Use with caution.'))));
-		container.appendChild(dangerSection);
 
 		return utils.appendFooter(container, {
 			project: 'Cloudflare IP Optimization',

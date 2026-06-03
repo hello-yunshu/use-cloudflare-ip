@@ -13,7 +13,7 @@ define Package/luci-app-cloudflare-ip
   SECTION:=luci
   CATEGORY:=LuCI
   TITLE:=Cloudflare IP - Optimize Cloudflare IPs for PassWall/OpenClash on OpenWrt
-  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates
+  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates +cron
   PKGARCH:=all
 endef
 
@@ -65,6 +65,8 @@ define Package/luci-app-cloudflare-ip/install
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/htdocs/luci-static/resources/cloudflare-ip/*.js $(PKG_BUILD_DIR)/htdocs/luci-static/resources/cloudflare-ip/*.css $(1)/www/luci-static/resources/cloudflare-ip/
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/root/usr/share/luci/menu.d/luci-app-cloudflare-ip.json $(1)/usr/share/luci/menu.d/
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/root/usr/lib/lua/luci/controller/cloudflare-ip.lua $(1)/usr/lib/lua/luci/controller/
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/root/usr/share/rpcd/acl.d/luci-app-cloudflare-ip.json $(1)/usr/share/rpcd/acl.d/
 	if [ -n "$$$$(ls $(PKG_BUILD_DIR)/lmo/*.lmo 2>/dev/null)" ]; then \

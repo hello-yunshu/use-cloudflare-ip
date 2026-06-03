@@ -5,8 +5,38 @@ START=99
 STOP=10
 USE_PROCD=1
 
+CRONTAB_MARKER_START="# --- cf-ip-auto managed entries start ---"
+CRONTAB_MARKER_END="# --- cf-ip-auto managed entries end ---"
+CRONTAB_FILE="/etc/crontabs/root"
+
+cf_ip_cron_ensure() {
+	# Ensure cron is enabled and running
+	/etc/init.d/cron enable 2>/dev/null || /etc/init.d/crond enable 2>/dev/null || true
+	/etc/init.d/cron start 2>/dev/null || /etc/init.d/crond start 2>/dev/null || true
+}
+
+cf_ip_cron_add() {
+	local expr="$1"
+	cf_ip_cron_ensure
+	# Remove any existing cf-ip-auto managed section
+	sed -i "/^${CRONTAB_MARKER_START}$/,/^${CRONTAB_MARKER_END}$/d" "$CRONTAB_FILE" 2>/dev/null || true
+	# Ensure crontab dir exists
+	mkdir -p /etc/crontabs
+	# Append new managed entry
+	printf '\n%s\n%s /usr/bin/cf-ip-auto --run >/dev/null 2>&1\n%s\n' \
+		"$CRONTAB_MARKER_START" "$expr" "$CRONTAB_MARKER_END" >> "$CRONTAB_FILE"
+	/etc/init.d/cron reload 2>/dev/null || /etc/init.d/crond reload 2>/dev/null || true
+	logger -t cf_ip -p daemon.info "crontab: scheduled with expression '${expr}'"
+}
+
+cf_ip_cron_remove() {
+	sed -i "/^${CRONTAB_MARKER_START}$/,/^${CRONTAB_MARKER_END}$/d" "$CRONTAB_FILE" 2>/dev/null || true
+	/etc/init.d/cron reload 2>/dev/null || /etc/init.d/crond reload 2>/dev/null || true
+	logger -t cf_ip -p daemon.info "crontab: removed scheduled entries"
+}
+
 start_service() {
-	local enabled
+	local enabled cfst_persist cron_interval cron_custom startup_delay
 	config_load cf_ip
 	config_get_bool enabled main enabled 0
 
@@ -19,18 +49,45 @@ start_service() {
 
 	mkdir -p /tmp/cf_ip
 
-	procd_open_instance
-	procd_set_param command /usr/bin/cf-ip-auto --daemon
-	procd_set_param respawn 3600 5 5
-	procd_set_param stderr 1
-	procd_set_param stdout 1
-	procd_set_param pidfile /var/run/cf_ip.pid
-	procd_set_param file /etc/config/cf_ip
-	procd_set_param log "cf_ip"
-	procd_close_instance
+	# Handle CFST sysupgrade persistence
+	config_get_bool cfst_persist main cfst_persist 1
+	if [ "$cfst_persist" -eq 1 ]; then
+		grep -qxF '/usr/bin/cfst' /etc/sysupgrade.conf 2>/dev/null || echo '/usr/bin/cfst' >> /etc/sysupgrade.conf
+	else
+		sed -i '\|^/usr/bin/cfst$|d' /etc/sysupgrade.conf 2>/dev/null || true
+	fi
+
+	# Pre-download/update CFST in background
+	(cf-ip-auto --download-cfst >/dev/null 2>&1) &
+
+	# Get schedule configuration
+	config_get cron_interval main cron_interval "6h"
+	config_get cron_custom main cron_custom ""
+	config_get startup_delay main startup_delay ""
+
+	# Resolve to cron expression via cf-ip-auto
+	local cron_expr
+	cron_expr="$(cf-ip-auto --to-cron "$cron_interval" "$cron_custom")" || {
+		logger -t cf_ip -p daemon.err "crontab: failed to convert schedule to cron expression, falling back to daemon"
+		# Fallback: start as traditional daemon — will be replaced on next config save
+		return 1
+	}
+
+	# Schedule via crontab
+	cf_ip_cron_add "$cron_expr"
+
+	# Handle startup delay: schedule an immediate one-shot run after delay
+	if [ -n "$startup_delay" ] && [ "$startup_delay" -gt 0 ] 2>/dev/null; then
+		(sleep "$startup_delay" && /usr/bin/cf-ip-auto --run >/dev/null 2>&1) &
+		logger -t cf_ip -p daemon.info "startup: first run delayed by ${startup_delay} seconds"
+	fi
+
+	# Write initial status for crontab-managed mode
+	cf-ip-auto --write-status
 }
 
 stop_service() {
+	cf_ip_cron_remove
 	if [ -f /tmp/cf_ip/status.json ]; then
 		sed -i 's/"running":true/"running":false/' /tmp/cf_ip/status.json 2>/dev/null
 	fi
@@ -54,7 +111,9 @@ validate_cf_ip() {
 		'startup_delay:string' 'auto_update:bool' \
 		'self_update_url:string' 'download_retries:uinteger' \
 		'download_retry_delay:uinteger' 'github_mirror:string' \
-		'verbose:bool' 'work_dir:string' 'cron_interval:uinteger'
+		'verbose:bool' 'work_dir:string' 'cron_interval:string' \
+		'cron_custom:string' \
+		'cfst_persist:bool'
 
 	uci_validate_section cf_ip passwall passwall \
 		'target_domain:string' 'name_suffix:string'

@@ -35,7 +35,7 @@ msgstr ""
 msgid "Failed to apply configuration: "
 msgstr ""
 
-msgid "Cloudflare IP - Logs & Maintenance"
+msgid "Cloudflare IP - Diagnostics"
 msgstr ""
 
 msgid "Recent Logs"
@@ -98,7 +98,16 @@ msgstr ""
 msgid "Script is already up to date."
 msgstr ""
 
-msgid "Check Update"
+msgid "Update Script"
+msgstr ""
+
+msgid "Update Script Now"
+msgstr ""
+
+msgid "Manually check for and install the latest script version."
+msgstr ""
+
+msgid "Run Speedtest"
 msgstr ""
 
 msgid "Running..."
@@ -111,9 +120,6 @@ msgid "Speed test completed: found %d best IPs."
 msgstr ""
 
 msgid "Speed test completed but no best IPs found."
-msgstr ""
-
-msgid "Run Now"
 msgstr ""
 
 msgid "Danger Zone"

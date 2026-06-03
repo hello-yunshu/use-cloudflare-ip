@@ -35,8 +35,8 @@ msgstr "配置已应用，服务就绪。"
 msgid "Failed to apply configuration: "
 msgstr "应用配置失败："
 
-msgid "Cloudflare IP - Logs & Maintenance"
-msgstr "Cloudflare IP - 日志与维护"
+msgid "Cloudflare IP - Diagnostics"
+msgstr "Cloudflare IP - 诊断"
 
 msgid "Recent Logs"
 msgstr "最近日志"
@@ -98,8 +98,17 @@ msgstr "脚本已更新至版本 %s。"
 msgid "Script is already up to date."
 msgstr "脚本已是最新版本。"
 
-msgid "Check Update"
-msgstr "检查更新"
+msgid "Update Script"
+msgstr "更新脚本"
+
+msgid "Update Script Now"
+msgstr "立即更新脚本"
+
+msgid "Manually check for and install the latest script version."
+msgstr "手动检查并安装最新脚本版本。"
+
+msgid "Run Speedtest"
+msgstr "立即测速"
 
 msgid "Running..."
 msgstr "运行中..."
@@ -112,9 +121,6 @@ msgstr "测速完成：找到 %d 个优选 IP。"
 
 msgid "Speed test completed but no best IPs found."
 msgstr "测速完成但未找到优选 IP。"
-
-msgid "Run Now"
-msgstr "立即运行"
 
 msgid "Danger Zone"
 msgstr "危险区域"

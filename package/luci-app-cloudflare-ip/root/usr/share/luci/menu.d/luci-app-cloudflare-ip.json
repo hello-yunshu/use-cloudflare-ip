@@ -27,28 +27,6 @@
 			"path": "cloudflare-ip/settings"
 		}
 	},
-	"admin/services/cf_ip/passwall": {
-		"title": "PassWall",
-		"order": 30,
-		"action": {
-			"type": "view",
-			"path": "cloudflare-ip/passwall"
-		},
-		"depends": {
-			"uci": { "passwall": true }
-		}
-	},
-	"admin/services/cf_ip/openclash": {
-		"title": "OpenClash",
-		"order": 40,
-		"action": {
-			"type": "view",
-			"path": "cloudflare-ip/openclash"
-		},
-		"depends": {
-			"uci": { "openclash": true }
-		}
-	},
 	"admin/services/cf_ip/advanced": {
 		"title": "Advanced",
 		"order": 50,
@@ -58,7 +36,7 @@
 		}
 	},
 	"admin/services/cf_ip/diagnostics": {
-		"title": "Logs & Maintenance",
+		"title": "Diagnostics",
 		"order": 60,
 		"action": {
 			"type": "view",
