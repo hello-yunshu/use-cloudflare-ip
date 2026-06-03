@@ -1,6 +1,6 @@
 {
 	"admin/services/cf_ip": {
-		"title": "Cloudflare IP 优选",
+		"title": "Cloudflare IP Optimization",
 		"order": 60,
 		"action": {
 			"type": "alias",
