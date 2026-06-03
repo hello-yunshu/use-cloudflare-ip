@@ -33,9 +33,15 @@
 .ys-tool-footer-brand,
 .ys-tool-footer-links {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	align-items: center;
 	gap: 0.35em;
+}
+.ys-tool-footer-brand {
+	flex-wrap: wrap;
+}
+.ys-tool-footer-links {
+	white-space: nowrap;
 }
 .ys-tool-footer-mark {
 	padding: 0.18em 0.5em;
@@ -73,16 +79,17 @@
 	text-decoration: none;
 }
 .ys-tool-footer-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	width: 1em;
 	height: 1em;
-	fill: currentColor;
 	flex: 0 0 auto;
 }
-.ys-tool-footer-icon.x {
-	fill: none;
-	stroke: currentColor;
-	stroke-width: 2.4;
-	stroke-linecap: round;
+.ys-tool-footer-icon svg {
+	display: block;
+	width: 1em;
+	height: 1em;
 }
 @media (max-width: 600px) {
 	.ys-tool-footer {
