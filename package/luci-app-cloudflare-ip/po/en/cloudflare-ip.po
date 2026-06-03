@@ -481,3 +481,57 @@ msgstr "None (No proxy service detected)"
 
 msgid "PassWall or OpenClash is not installed. Please install one before using this service."
 msgstr "PassWall or OpenClash is not installed. Please install one before using this service."
+
+msgid "Run Schedule"
+msgstr "Run Schedule"
+
+msgid "Select how often the speed test runs. The service computes the next run time automatically."
+msgstr "Select how often the speed test runs. The service computes the next run time automatically."
+
+msgid "Every 6 hours (recommended)"
+msgstr "Every 6 hours (recommended)"
+
+msgid "Every hour"
+msgstr "Every hour"
+
+msgid "Every 30 minutes"
+msgstr "Every 30 minutes"
+
+msgid "Every 15 minutes"
+msgstr "Every 15 minutes"
+
+msgid "Daily at 3:00 AM"
+msgstr "Daily at 3:00 AM"
+
+msgid "Daily at 3:00 AM & 3:00 PM"
+msgstr "Daily at 3:00 AM & 3:00 PM"
+
+msgid "Every 6 hours at :00"
+msgstr "Every 6 hours at :00"
+
+msgid "Custom..."
+msgstr "Custom..."
+
+msgid "Custom Schedule"
+msgstr "Custom Schedule"
+
+msgid "Enter a duration (e.g. 6h, 30m, 1h30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
+msgstr "Enter a duration (e.g. 6h, 30m, 1h30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
+
+msgid "CFST (CloudflareSpeedTest)"
+msgstr "CFST (CloudflareSpeedTest)"
+
+msgid "CFST operation failed: "
+msgstr "CFST operation failed: "
+
+msgid "CloudflareSpeedTest (CFST) is the core speed test tool. It will be automatically downloaded when the service starts."
+msgstr "CloudflareSpeedTest (CFST) is the core speed test tool. It will be automatically downloaded when the service starts."
+
+msgid "Keep CFST Across Upgrades"
+msgstr "Keep CFST Across Upgrades"
+
+msgid "Preserve CFST binary during OpenWrt sysupgrade so it survives system upgrades."
+msgstr "Preserve CFST binary during OpenWrt sysupgrade so it survives system upgrades."
+
+msgid "Updating..."
+msgstr "Updating..."

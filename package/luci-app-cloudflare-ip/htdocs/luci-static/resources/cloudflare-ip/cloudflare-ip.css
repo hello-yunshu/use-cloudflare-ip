@@ -17,7 +17,7 @@
 	border: 1px solid var(--border-color);
 	font-family: monospace; font-size: 0.9em;
 }
-.cfi-no-hover:hover { background: none !important; }
+.table .tr.cfi-no-hover:hover { background: none !important; }
 
 .ys-tool-footer {
 	--ys-footer-blue: #2f7df6;

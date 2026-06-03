@@ -481,3 +481,57 @@ msgstr "无（未检测到代理服务）"
 
 msgid "PassWall or OpenClash is not installed. Please install one before using this service."
 msgstr "未安装 PassWall 或 OpenClash，请先安装其中之一再使用此服务。"
+
+msgid "Run Schedule"
+msgstr "运行计划"
+
+msgid "Select how often the speed test runs. The service computes the next run time automatically."
+msgstr "选择测速运行频率，服务会自动计算下次运行时间。"
+
+msgid "Every 6 hours (recommended)"
+msgstr "每 6 小时（推荐）"
+
+msgid "Every hour"
+msgstr "每小时"
+
+msgid "Every 30 minutes"
+msgstr "每 30 分钟"
+
+msgid "Every 15 minutes"
+msgstr "每 15 分钟"
+
+msgid "Daily at 3:00 AM"
+msgstr "每天凌晨 3:00"
+
+msgid "Daily at 3:00 AM & 3:00 PM"
+msgstr "每天凌晨 3:00 和下午 3:00"
+
+msgid "Every 6 hours at :00"
+msgstr "每 6 小时整点"
+
+msgid "Custom..."
+msgstr "自定义..."
+
+msgid "Custom Schedule"
+msgstr "自定义计划"
+
+msgid "Enter a duration (e.g. 6h, 30m, 1h30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
+msgstr "输入时长（如 6h、30m、1h30m）或 5 字段 crontab 表达式。支持逗号分隔列表（如 0 3,6 * * *）。"
+
+msgid "CFST (CloudflareSpeedTest)"
+msgstr "CFST (CloudflareSpeedTest)"
+
+msgid "CFST operation failed: "
+msgstr "CFST 操作失败："
+
+msgid "CloudflareSpeedTest (CFST) is the core speed test tool. It will be automatically downloaded when the service starts."
+msgstr "CloudflareSpeedTest (CFST) 是核心测速工具，服务启动时会自动下载。"
+
+msgid "Keep CFST Across Upgrades"
+msgstr "升级时保留 CFST"
+
+msgid "Preserve CFST binary during OpenWrt sysupgrade so it survives system upgrades."
+msgstr "在 OpenWrt 系统升级时保留 CFST 二进制文件，升级后无需重新下载。"
+
+msgid "Updating..."
+msgstr "更新中..."

@@ -20,6 +20,7 @@ return view.extend({
 	},
 
 	render: function(data) {
+		utils.loadSharedCSS();
 		var env = data[1] || {};
 		var passwallInstalled = env.passwall_installed || false;
 		var openclashInstalled = env.openclash_installed || false;
@@ -193,10 +194,8 @@ return view.extend({
 			cfstSection.appendChild(E('p', { 'style': 'color:var(--subtext-color,#666);font-size:0.85em;margin-top:0.3em' },
 				_('CloudflareSpeedTest (CFST) is the core speed test tool. It will be automatically downloaded when the service starts.')));
 
-			var container = E('div', {});
-			container.appendChild(formNode);
-			container.appendChild(cfstSection);
-			return container;
+			formNode.appendChild(cfstSection);
+			return formNode;
 		}), {
 			project: 'Cloudflare IP Optimization',
 			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'

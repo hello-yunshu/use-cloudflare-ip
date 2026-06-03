@@ -19,6 +19,7 @@ return view.extend({
 	},
 
 	render: function() {
+		utils.loadSharedCSS();
 		var m, s, o;
 
 		m = new form.Map('cf_ip', _('Cloudflare IP - Advanced'));
