@@ -92,9 +92,7 @@
 }
 @media (max-width: 600px) {
 	.ys-tool-footer {
-		align-items: flex-start;
-		flex-direction: column;
-		gap: 0.65em;
+		gap: 0.5em;
 	}
 	.ys-tool-footer-title,
 	.ys-tool-footer-title-separator,

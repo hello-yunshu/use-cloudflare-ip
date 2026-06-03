@@ -47,7 +47,7 @@ function waitForServiceReady(callStatus, options) {
 
 	function poll() {
 		if (options.isActive && !options.isActive())
-			return {};
+			return Promise.resolve({});
 
 		return callStatus().then(function(status) {
 			status = status || {};
