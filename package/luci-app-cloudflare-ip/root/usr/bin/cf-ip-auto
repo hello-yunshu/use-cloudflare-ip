@@ -2,20 +2,25 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.5.1"
-MIN_CONFIG_VERSION="1.3.0"
+SCRIPT_VERSION="1.5.2"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
-CONFIG_FILE="${CONFIG_FILE:-${SCRIPT_DIR}/cf-openwrt-auto.conf}"
 
+# Status and log files
+STATUS_DIR="/tmp/cf_ip"
+STATUS_FILE="/tmp/cf_ip/status.json"
+LOG_FILE="/tmp/cf_ip/cf-ip-auto.log"
+ENV_CACHE_FILE="/tmp/cf_ip/env_cache.json"
+
+# Default variables (overridden by UCI config)
 MODE="passwall"
-CONFIG_VERSION=""
 WORK_DIR="$SCRIPT_DIR"
 CFST_DIR=""
 IP_COUNT="4"
 IP_TYPE="ipv4"
 RESULT_FILE=""
 IP_HISTORY_FILE=""
+FAST_IPS=()
 SPEEDTEST_DN="10"
 SPEEDTEST_TLL="40"
 SPEEDTEST_PROTOCOL="tcp"
@@ -28,7 +33,7 @@ OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
 OPENCLASH_TRANSPORT_FILTER=""
 OPENCLASH_BACKUP_COUNT="3"
 AUTO_UPDATE="true"
-SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
+SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/package/luci-app-cloudflare-ip/root/usr/bin/cf-ip-auto"
 DOWNLOAD_RETRIES="3"
 DOWNLOAD_RETRY_DELAY="5"
 VERBOSE="false"
@@ -36,8 +41,14 @@ CLI_VERBOSE="false"
 GITHUB_MIRROR=""
 STOP_SERVICE_BEFORE_SPEEDTEST="true"
 STARTUP_DELAY=""
+CRON_INTERVAL="360"
+ENABLED="false"
 _STOPPED_SERVICE=""
 _OPENCLASH_ENABLE_SAVED=""
+
+# Mode flags
+JSON_MODE="false"
+DAEMON_MODE="false"
 
 OPENCLASH_TEMPLATE_DOMAINS=()
 OPENCLASH_TEMPLATE_TEXT=()
@@ -48,17 +59,162 @@ OPENCLASH_MATCHED_DOMAIN=""
 RELEASE_API="${RELEASE_API:-https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest}"
 RELEASE_DOWNLOAD_BASE="${RELEASE_DOWNLOAD_BASE:-https://github.com/XIU2/CloudflareSpeedTest/releases/download}"
 BINARY_NAME="cfst"
-GITHUB_USER_AGENT="cf-openwrt-auto/${SCRIPT_VERSION}"
+GITHUB_USER_AGENT="cf-ip-auto/${SCRIPT_VERSION}"
+
+# ========== JSON Output Helpers ==========
+
+json_result() {
+	printf '{"success":true'
+	local key value
+	while (($# >= 2)); do
+		key="$1"
+		value="$2"
+		shift 2
+		if [[ "$value" =~ ^-?[0-9]+$ ]] || [[ "$value" == "true" ]] || [[ "$value" == "false" ]] || [[ "$value" == "null" ]] || [[ "$value" == "["* ]] || [[ "$value" == "{"* ]]; then
+			printf ',"%s":%s' "$key" "$value"
+		else
+			local escaped="${value//\\/\\\\}"
+			escaped="${escaped//\"/\\\"}"
+			escaped="${escaped//$'\n'/\\n}"
+			printf ',"%s":"%s"' "$key" "$escaped"
+		fi
+	done
+	printf '}\n'
+}
+
+json_error() {
+	local msg="$1"
+	msg="${msg//\\/\\\\}"
+	msg="${msg//\"/\\\"}"
+	msg="${msg//$'\n'/\\n}"
+	msg="${msg//$'\r'/}"
+	printf '{"success":false,"error":"%s"}\n' "$msg"
+}
+
+# ========== Log Helpers ==========
+
+log_to_file() {
+	[[ -w "${STATUS_DIR}" ]] || mkdir -p "$STATUS_DIR" 2>/dev/null || return 0
+	local timestamp
+	timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+	printf '[%s] %s\n' "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null
+	rotate_history_file "$LOG_FILE" 500
+}
 
 log() {
+	log_to_file "$*"
 	[[ "$VERBOSE" == "true" ]] || return 0
 	printf '[cloudflare-ip] %s\n' "$*" >&2
 }
 
 die() {
+	log_to_file "ERROR: $*"
+	if [[ "$JSON_MODE" == "true" ]]; then
+		json_error "$*"
+		exit 1
+	fi
 	printf '[cloudflare-ip] ERROR: %s\n' "$*" >&2
 	exit 1
 }
+
+# ========== UCI Config ==========
+
+load_uci_config() {
+	command -v uci >/dev/null 2>&1 || die "uci command not found"
+
+	local val
+
+	# Service section (cf_ip.main.*)
+	val="$(uci -q get cf_ip.main.enabled)" && ENABLED="$val"
+	val="$(uci -q get cf_ip.main.mode)" && MODE="$val"
+	val="$(uci -q get cf_ip.main.ip_count)" && IP_COUNT="$val"
+	val="$(uci -q get cf_ip.main.ip_type)" && IP_TYPE="$val"
+	val="$(uci -q get cf_ip.main.speedtest_protocol)" && SPEEDTEST_PROTOCOL="$val"
+	val="$(uci -q get cf_ip.main.speedtest_cfcolo)" && SPEEDTEST_CFCOLO="$val"
+	val="$(uci -q get cf_ip.main.speedtest_dn)" && SPEEDTEST_DN="$val"
+	val="$(uci -q get cf_ip.main.speedtest_tll)" && SPEEDTEST_TLL="$val"
+	val="$(uci -q get cf_ip.main.stop_service)" && STOP_SERVICE_BEFORE_SPEEDTEST="$val"
+	val="$(uci -q get cf_ip.main.startup_delay)" && STARTUP_DELAY="$val"
+	val="$(uci -q get cf_ip.main.auto_update)" && AUTO_UPDATE="$val"
+	val="$(uci -q get cf_ip.main.self_update_url)" && SELF_UPDATE_URL="$val"
+	val="$(uci -q get cf_ip.main.download_retries)" && DOWNLOAD_RETRIES="$val"
+	val="$(uci -q get cf_ip.main.download_retry_delay)" && DOWNLOAD_RETRY_DELAY="$val"
+	val="$(uci -q get cf_ip.main.github_mirror)" && GITHUB_MIRROR="$val"
+	val="$(uci -q get cf_ip.main.verbose)" && VERBOSE="$val"
+	val="$(uci -q get cf_ip.main.work_dir)" && WORK_DIR="$val"
+	val="$(uci -q get cf_ip.main.cron_interval)" && CRON_INTERVAL="$val"
+
+	# Convert UCI bool values (0/1) to true/false
+	case "$ENABLED" in 1|on|true|enabled) ENABLED="true" ;; *) ENABLED="false" ;; esac
+	case "$STOP_SERVICE_BEFORE_SPEEDTEST" in 1|on|true|enabled) STOP_SERVICE_BEFORE_SPEEDTEST="true" ;; *) STOP_SERVICE_BEFORE_SPEEDTEST="false" ;; esac
+	case "$AUTO_UPDATE" in 1|on|true|enabled) AUTO_UPDATE="true" ;; *) AUTO_UPDATE="false" ;; esac
+	case "$VERBOSE" in 1|on|true|enabled) VERBOSE="true" ;; *) VERBOSE="false" ;; esac
+
+	# Passwall section (cf_ip.passwall.*)
+	val="$(uci -q get cf_ip.passwall.target_domain)" && PASSWALL_TARGET_DOMAIN="$val"
+	val="$(uci -q get cf_ip.passwall.name_suffix)" && PASSWALL_NAME_SUFFIX="$val"
+
+	# OpenClash section (cf_ip.openclash.*)
+	val="$(uci -q get cf_ip.openclash.config)" && OPENCLASH_CONFIG="$val"
+	val="$(uci -q get cf_ip.openclash.target_domain)" && OPENCLASH_TARGET_DOMAIN="$val"
+	val="$(uci -q get cf_ip.openclash.name_suffix)" && OPENCLASH_NAME_SUFFIX="$val"
+	val="$(uci -q get cf_ip.openclash.transport_filter)" && OPENCLASH_TRANSPORT_FILTER="$val"
+	val="$(uci -q get cf_ip.openclash.backup_count)" && OPENCLASH_BACKUP_COUNT="$val"
+}
+
+load_uci_config_if_available() {
+	command -v uci >/dev/null 2>&1 || return 1
+	load_uci_config
+}
+
+# ========== Status File ==========
+
+build_ips_json() {
+	local json="["
+	local i
+	for i in "${!FAST_IPS[@]}"; do
+		((i > 0)) && json+=","
+		json+="\"${FAST_IPS[$i]}\""
+	done
+	json+="]"
+	printf '%s' "$json"
+}
+
+write_status() {
+	local running="${1:-true}"
+	local last_result="${2:-success}"
+	local error="${3:-}"
+	local best_ips_json
+
+	mkdir -p "$STATUS_DIR"
+	best_ips_json="$(build_ips_json)"
+
+	local cfst_ver=""
+	[[ -f "${CFST_DIR}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${CFST_DIR}/${BINARY_NAME}_version.txt")"
+
+	# Escape error for JSON
+	error="${error//\\/\\\\}"
+	error="${error//\"/\\\"}"
+	error="${error//$'\n'/\\n}"
+
+	cat > "$STATUS_FILE" <<EOF
+{
+  "running": ${running},
+  "last_run": "$(date '+%Y-%m-%d %H:%M:%S')",
+  "last_result": "${last_result}",
+  "mode": "${MODE}",
+  "ip_type": "${IP_TYPE}",
+  "ip_count": ${IP_COUNT},
+  "speedtest_protocol": "${SPEEDTEST_PROTOCOL}",
+  "best_ips": ${best_ips_json},
+  "cfst_version": "${cfst_ver}",
+  "script_version": "${SCRIPT_VERSION}",
+  "error": "${error}"
+}
+EOF
+}
+
+# ========== Core Utility Functions ==========
 
 curl_fetch() {
 	local output="$1" url="$2" attempt
@@ -81,12 +237,6 @@ mirror_url() {
 	else
 		printf '%s\n' "$1"
 	fi
-}
-
-load_config() {
-	[[ -f "$CONFIG_FILE" ]] || die "missing config file: $CONFIG_FILE; copy cf-openwrt-auto.conf.example to cf-openwrt-auto.conf"
-	# shellcheck source=/dev/null
-	. "$CONFIG_FILE"
 }
 
 need_cmd() {
@@ -137,7 +287,7 @@ self_update() {
 		return 0
 	}
 
-	tmp="$(mktemp "${TMPDIR:-/tmp}/cf-openwrt-auto.XXXXXX")" || return 0
+	tmp="$(mktemp "${TMPDIR:-/tmp}/cf-ip-auto.XXXXXX")" || return 0
 	log "checking script update: $SELF_UPDATE_URL"
 	if ! curl_fetch "$tmp" "$(mirror_url "$SELF_UPDATE_URL")"; then
 		rm -f "$tmp"
@@ -169,6 +319,12 @@ self_update() {
 	fi
 
 	log "updated script from $SCRIPT_VERSION to $remote_version"
+
+	# In JSON mode or daemon mode, don't exec - just return
+	if [[ "$JSON_MODE" == "true" || "$DAEMON_MODE" == "true" ]]; then
+		return 0
+	fi
+
 	if [[ "$CLI_VERBOSE" == "true" ]]; then
 		exec "$SCRIPT_PATH" --verbose
 	fi
@@ -259,7 +415,6 @@ detect_arch_tag() {
 	local arch
 
 	arch="$(uname -m)"
-	# Keep these tags aligned with CloudflareSpeedTest Linux release assets.
 	case "$arch" in
 		x86_64|amd64)
 			printf 'amd64'
@@ -563,6 +718,8 @@ cleanup_stopped_service() {
 	fi
 }
 
+# ========== PassWall Functions ==========
+
 update_passwall() {
 	local sections=() section idx ip old_remarks new_remarks
 
@@ -625,6 +782,8 @@ find_passwall_sections() {
 	done < <(uci show passwall)
 }
 
+# ========== OpenClash Functions ==========
+
 trim_scalar() {
 	local value="$1"
 
@@ -641,7 +800,6 @@ trim_scalar() {
 }
 
 lower() {
-	# BusyBox tr treats [:upper:]/[:lower:] as literal sets in some OpenWrt builds.
 	# shellcheck disable=SC2018,SC2019
 	printf '%s' "$1" | tr 'A-Z' 'a-z'
 }
@@ -1053,27 +1211,10 @@ update_openclash() {
 	restart_service openclash
 }
 
-usage() {
-	cat <<'EOF'
-Usage:
-  cf-openwrt-auto.sh [--verbose]
-
-Config:
-  Copy cf-openwrt-auto.conf.example to cf-openwrt-auto.conf in the same
-  directory as this script, then edit that config file.
-
-Options:
-  -v, --verbose  Print progress logs to stderr for manual terminal runs.
-EOF
-}
+# ========== Config Validation ==========
 
 validate_config() {
 	[[ -n "$WORK_DIR" ]] || WORK_DIR="$SCRIPT_DIR"
-	[[ -n "$CONFIG_VERSION" ]] || die "CONFIG_VERSION is missing; copy cf-openwrt-auto.conf.example to refresh your config"
-	valid_version "$CONFIG_VERSION" || die "CONFIG_VERSION has invalid format: $CONFIG_VERSION"
-	if version_gt "$MIN_CONFIG_VERSION" "$CONFIG_VERSION"; then
-		die "config version $CONFIG_VERSION is lower than required $MIN_CONFIG_VERSION; update cf-openwrt-auto.conf from cf-openwrt-auto.conf.example"
-	fi
 	[[ "$MODE" == "passwall" || "$MODE" == "openclash" ]] || die "unsupported mode: $MODE; use passwall or openclash"
 	[[ "$IP_COUNT" =~ ^[1-9][0-9]*$ ]] || die "IP_COUNT must be a positive integer"
 	[[ "$IP_TYPE" == "ipv4" || "$IP_TYPE" == "ipv6" || "$IP_TYPE" == "both" ]] || die "IP_TYPE must be ipv4, ipv6, or both"
@@ -1081,6 +1222,7 @@ validate_config() {
 	[[ "$AUTO_UPDATE" == "true" || "$AUTO_UPDATE" == "false" ]] || die "AUTO_UPDATE must be true or false"
 	[[ "$DOWNLOAD_RETRIES" =~ ^[1-9][0-9]*$ ]] || die "DOWNLOAD_RETRIES must be a positive integer"
 	[[ "$DOWNLOAD_RETRY_DELAY" =~ ^[0-9]+$ ]] || die "DOWNLOAD_RETRY_DELAY must be a non-negative integer"
+	[[ "$CRON_INTERVAL" =~ ^[1-9][0-9]*$ ]] || die "CRON_INTERVAL must be a positive integer"
 	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
 	[[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" || "$STOP_SERVICE_BEFORE_SPEEDTEST" == "false" ]] || die "STOP_SERVICE_BEFORE_SPEEDTEST must be true or false"
 	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
@@ -1121,28 +1263,9 @@ validate_config() {
 	esac
 }
 
-main() {
-	while (($# > 0)); do
-		case "$1" in
-			-h|--help)
-				usage
-				return 0
-				;;
-			-v|--verbose)
-				CLI_VERBOSE="true"
-				;;
-			*)
-				die "unexpected argument: $1; edit MODE in cf-openwrt-auto.conf"
-				;;
-		esac
-		shift
-	done
+# ========== Main Flow ==========
 
-	load_config
-	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
-	normalize_mode "$MODE"
-	validate_config
-
+apply_startup_delay() {
 	local _max_delay=300
 	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
 		_max_delay="$STARTUP_DELAY"
@@ -1152,13 +1275,18 @@ main() {
 		log "startup delay (0~${_max_delay}s): ${STARTUP_DELAY}s"
 		sleep "$STARTUP_DELAY"
 	fi
+}
+
+run_main_flow() {
+	normalize_mode "$MODE"
+	validate_config
 
 	CFST_DIR="${WORK_DIR}/cfst"
 	[[ -z "$RESULT_FILE" ]] && RESULT_FILE="${CFST_DIR}/cf_result.txt"
 	[[ -z "$IP_HISTORY_FILE" ]] && IP_HISTORY_FILE="${CFST_DIR}/ip-all.txt"
-	log "starting cf-openwrt-auto $SCRIPT_VERSION"
+	log "starting cf-ip-auto $SCRIPT_VERSION"
 	log "mode=$MODE ip_type=$IP_TYPE ip_count=$IP_COUNT protocol=$SPEEDTEST_PROTOCOL"
-	self_update "$@"
+	self_update
 	need_cmd awk
 	need_cmd sed
 	need_cmd tr
@@ -1191,6 +1319,404 @@ main() {
 	log "done"
 }
 
+# ========== CLI Commands ==========
+
+cmd_status() {
+	JSON_MODE=true
+	local status_data=""
+
+	if [[ -f "$STATUS_FILE" ]]; then
+		status_data="$(cat "$STATUS_FILE")"
+	else
+		status_data="$(printf '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"%s","error":"Status file not found"}\n' "$SCRIPT_VERSION")"
+	fi
+
+	# Refresh env cache silently (like upnp-bridge-relay's do_full_status)
+	cmd_refresh_env >/dev/null 2>&1 || true
+
+	# Merge env cache into status
+	local env_data=""
+	if [[ -f "$ENV_CACHE_FILE" ]]; then
+		env_data="$(cat "$ENV_CACHE_FILE")"
+	fi
+
+	if [[ -n "$env_data" ]]; then
+		# Use jq to merge if available, otherwise append env fields
+		if command -v jq >/dev/null 2>&1; then
+			printf '%s\n' "$status_data" | jq -c --argjson env "$env_data" '. + $env' 2>/dev/null && return 0
+		fi
+	fi
+
+	# Fallback: just output status without env
+	printf '%s\n' "$status_data"
+}
+
+cmd_run() {
+	JSON_MODE=true
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+	apply_startup_delay
+
+	run_main_flow
+
+	local best_ips_json
+	best_ips_json="$(build_ips_json)"
+	write_status true "success"
+	json_result "mode" "$MODE" "ip_type" "$IP_TYPE" "ip_count" "$IP_COUNT" "best_ips" "$best_ips_json"
+}
+
+cmd_check_env() {
+	JSON_MODE=true
+	# Real-time detection without writing cache (like upnp-bridge-relay's do_check_env)
+	local deps="" missing_deps="" missing_arr=()
+	local cmd_name pkg_name
+	for cmd_name in bash curl tar jq awk sed tr uci; do
+		if command -v "$cmd_name" >/dev/null 2>&1; then
+			[[ -n "$deps" ]] && deps+=","
+			deps+="\"${cmd_name}\":true"
+		else
+			[[ -n "$deps" ]] && deps+=","
+			deps+="\"${cmd_name}\":false"
+			pkg_name="$cmd_name"
+			case "$cmd_name" in
+				jq) pkg_name="jq" ;;
+				tr) pkg_name="coreutils-tr" ;;
+			esac
+			missing_arr+=("$pkg_name")
+		fi
+	done
+
+	# Build missing_deps JSON array
+	local i
+	for i in "${!missing_arr[@]}"; do
+		[[ -n "$missing_deps" ]] && missing_deps+=","
+		missing_deps+="\"${missing_arr[$i]}\""
+	done
+	missing_deps="[${missing_deps}]"
+
+	# Detect package manager
+	local package_manager="unknown"
+	if command -v apk >/dev/null 2>&1; then
+		package_manager="apk"
+	elif command -v opkg >/dev/null 2>&1; then
+		package_manager="opkg"
+	fi
+
+	local passwall_installed=false
+	local passwall_running=false
+	[[ -x /etc/init.d/passwall ]] && passwall_installed=true
+	$passwall_installed && /etc/init.d/passwall running >/dev/null 2>&1 && passwall_running=true
+
+	local openclash_installed=false
+	local openclash_running=false
+	[[ -x /etc/init.d/openclash ]] && openclash_installed=true
+	$openclash_installed && /etc/init.d/openclash running >/dev/null 2>&1 && openclash_running=true
+
+	local cfst_installed=false
+		load_uci_config_if_available 2>/dev/null || true
+	local cfst_dir="${WORK_DIR}/cfst"
+	if [[ -x "${cfst_dir}/${BINARY_NAME}" ]]; then
+		cfst_installed=true
+	fi
+
+	printf '{"success":true,%s,"missing_deps":%s,"package_manager":"%s","passwall_installed":%s,"passwall_running":%s,"openclash_installed":%s,"openclash_running":%s,"cfst_installed":%s}\n' \
+		"$deps" "$missing_deps" "$package_manager" "$passwall_installed" "$passwall_running" "$openclash_installed" "$openclash_running" "$cfst_installed"
+}
+
+cmd_refresh_env() {
+	JSON_MODE=true
+	local deps="" missing_deps="" missing_arr=()
+	local cmd_name pkg_name
+	for cmd_name in bash curl tar jq awk sed tr uci; do
+		if command -v "$cmd_name" >/dev/null 2>&1; then
+			[[ -n "$deps" ]] && deps+=","
+			deps+="\"${cmd_name}\":true"
+		else
+			[[ -n "$deps" ]] && deps+=","
+			deps+="\"${cmd_name}\":false"
+			pkg_name="$cmd_name"
+			case "$cmd_name" in
+				jq) pkg_name="jq" ;;
+				tr) pkg_name="coreutils-tr" ;;
+			esac
+			missing_arr+=("$pkg_name")
+		fi
+	done
+
+	# Build missing_deps JSON array
+	local i
+	for i in "${!missing_arr[@]}"; do
+		[[ -n "$missing_deps" ]] && missing_deps+=","
+		missing_deps+="\"${missing_arr[$i]}\""
+	done
+	missing_deps="[${missing_deps}]"
+
+	# Detect package manager
+	local package_manager="unknown"
+	if command -v apk >/dev/null 2>&1; then
+		package_manager="apk"
+	elif command -v opkg >/dev/null 2>&1; then
+		package_manager="opkg"
+	fi
+
+	local arch=""
+	arch="$(detect_arch_tag 2>/dev/null)" || arch=""
+
+	local passwall_installed=false
+	local passwall_running=false
+	[[ -x /etc/init.d/passwall ]] && passwall_installed=true
+	$passwall_installed && /etc/init.d/passwall running >/dev/null 2>&1 && passwall_running=true
+
+	local openclash_installed=false
+	local openclash_running=false
+	[[ -x /etc/init.d/openclash ]] && openclash_installed=true
+	$openclash_installed && /etc/init.d/openclash running >/dev/null 2>&1 && openclash_running=true
+
+	local cfst_installed=false
+	local cfst_ver=""
+		load_uci_config_if_available 2>/dev/null || true
+	local cfst_dir="${WORK_DIR}/cfst"
+	if [[ -x "${cfst_dir}/${BINARY_NAME}" ]]; then
+		cfst_installed=true
+		[[ -f "${cfst_dir}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${cfst_dir}/${BINARY_NAME}_version.txt")"
+	fi
+
+	local updated_at
+	updated_at="$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo '')"
+
+	local result
+	printf -v result '{"success":true,%s,"missing_deps":%s,"package_manager":"%s","arch":"%s","passwall_installed":%s,"passwall_running":%s,"openclash_installed":%s,"openclash_running":%s,"cfst_installed":%s,"cfst_version":"%s","updated_at":"%s"}\n' \
+		"$deps" "$missing_deps" "$package_manager" "$arch" "$passwall_installed" "$passwall_running" "$openclash_installed" "$openclash_running" "$cfst_installed" "$cfst_ver" "$updated_at"
+
+	# Write to cache
+	mkdir -p "$STATUS_DIR"
+	printf '%s\n' "$result" > "$ENV_CACHE_FILE"
+
+	printf '%s\n' "$result"
+}
+
+cmd_version() {
+	JSON_MODE=true
+	local cfst_ver=""
+	# Try to load UCI config for WORK_DIR
+		load_uci_config_if_available 2>/dev/null || true
+	local cfst_dir="${WORK_DIR}/cfst"
+	[[ -f "${cfst_dir}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${cfst_dir}/${BINARY_NAME}_version.txt")"
+
+	json_result "script_version" "$SCRIPT_VERSION" "cfst_version" "$cfst_ver"
+}
+
+cmd_read_log() {
+	JSON_MODE=true
+	if [[ -f "$LOG_FILE" ]]; then
+		local content
+		content="$(cat "$LOG_FILE")"
+		content="${content//\\/\\\\}"
+		content="${content//\"/\\\"}"
+		content="${content//$'\n'/\\n}"
+		content="${content//$'\r'/}"
+		printf '{"success":true,"logs":"%s"}\n' "$content"
+	else
+		printf '{"success":true,"logs":""}\n'
+	fi
+}
+
+cmd_clear_log() {
+	JSON_MODE=true
+	if [[ -f "$LOG_FILE" ]]; then
+		if : > "$LOG_FILE"; then
+			json_result "cleared" "true"
+		else
+			json_error "failed to clear log file"
+		fi
+	else
+		json_result "cleared" "true"
+	fi
+}
+
+cmd_ip_history() {
+	JSON_MODE=true
+	# Try to load UCI config for WORK_DIR
+		load_uci_config_if_available 2>/dev/null || true
+	local history_file="${WORK_DIR}/cfst/ip-all.txt"
+	[[ -n "$IP_HISTORY_FILE" ]] && history_file="$IP_HISTORY_FILE"
+
+	if [[ -f "$history_file" ]]; then
+		local ips_json="["
+		local first=true
+		while IFS= read -r ip; do
+			[[ -n "$ip" ]] || continue
+			$first || ips_json+=","
+			first=false
+			ips_json+="\"${ip}\""
+		done < "$history_file"
+		ips_json+="]"
+		json_result "ips" "$ips_json"
+	else
+		json_result "ips" "[]"
+	fi
+}
+
+cmd_self_update() {
+	JSON_MODE=true
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	local tmp remote_version
+
+	[[ "$AUTO_UPDATE" == "true" ]] || { json_result "updated" "false" "reason" "auto_update disabled"; return 0; }
+	[[ -n "$SELF_UPDATE_URL" ]] || { json_result "updated" "false" "reason" "no update url"; return 0; }
+	command -v curl >/dev/null 2>&1 || { json_error "curl not found"; return 1; }
+
+	tmp="$(mktemp "${TMPDIR:-/tmp}/cf-ip-auto.XXXXXX")" || { json_error "failed to create temp file"; return 1; }
+	log "checking script update: $SELF_UPDATE_URL"
+	if ! curl_fetch "$tmp" "$(mirror_url "$SELF_UPDATE_URL")"; then
+		rm -f "$tmp"
+		json_error "failed to fetch update"
+		return 1
+	fi
+
+	remote_version="$(extract_script_version "$tmp")"
+	if [[ -z "$remote_version" ]]; then
+		rm -f "$tmp"
+		json_result "updated" "false" "reason" "remote script has no version"
+		return 0
+	fi
+
+	if ! version_gt "$remote_version" "$SCRIPT_VERSION"; then
+		rm -f "$tmp"
+		json_result "updated" "false" "current_version" "$SCRIPT_VERSION" "remote_version" "$remote_version"
+		return 0
+	fi
+
+	if ! bash -n "$tmp"; then
+		rm -f "$tmp"
+		json_error "downloaded update has invalid shell syntax"
+		return 1
+	fi
+
+	chmod +x "$tmp"
+	if ! mv "$tmp" "$SCRIPT_PATH"; then
+		rm -f "$tmp"
+		json_error "failed to replace script"
+		return 1
+	fi
+
+	json_result "updated" "true" "old_version" "$SCRIPT_VERSION" "new_version" "$remote_version"
+}
+
+cron_interval_seconds() {
+	printf '%s\n' $((CRON_INTERVAL * 60))
+}
+
+cmd_daemon() {
+	DAEMON_MODE=true
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	mkdir -p "$STATUS_DIR"
+
+	# Trap signals for graceful exit
+	trap 'log "received signal, exiting"; write_status false "stopped"; exit 0' TERM INT
+
+	local sleep_seconds
+	sleep_seconds="$(cron_interval_seconds)"
+	log "starting daemon mode, interval=${CRON_INTERVAL}m"
+	write_status true "running"
+
+	# Apply startup delay once at daemon start
+	apply_startup_delay
+
+	local _daemon_ips_file="${STATUS_DIR}/.daemon_ips"
+	while true; do
+		FAST_IPS=()
+		if (
+			run_main_flow
+			printf '%s\n' "${FAST_IPS[@]}" > "$_daemon_ips_file"
+		); then
+			FAST_IPS=()
+			while IFS= read -r _ip || [[ -n "$_ip" ]]; do
+				[[ -n "$_ip" ]] && FAST_IPS+=("$_ip")
+			done < "$_daemon_ips_file"
+			write_status true "success"
+			log "daemon: run completed successfully"
+		else
+			write_status true "error" "speedtest run failed"
+			log "daemon: run failed"
+		fi
+		rm -f "$_daemon_ips_file"
+		sleep_seconds="$(cron_interval_seconds)"
+		log "daemon: sleeping ${sleep_seconds}s (${CRON_INTERVAL}m)"
+		sleep "$sleep_seconds"
+	done
+}
+
+# ========== Usage ==========
+
+usage() {
+	cat <<'EOF'
+Usage:
+  cf-ip-auto [OPTIONS]
+
+Options:
+  --status        Read and output status.json
+  --run           Run the full speedtest flow, output JSON result
+  --check-env     Check dependencies and environment (reads cache), output JSON
+  --refresh-env   Re-check environment and update cache, output JSON
+  --version       Output script and cfst version as JSON
+  --read-log      Read and output the log file as JSON
+  --clear-log     Clear the log file, output JSON result
+  --ip-history    Read and output IP history as JSON
+  --self-update   Run self-update check, output JSON result
+  --daemon        Run in daemon loop mode (for procd)
+  -v, --verbose   Enable verbose output
+  -h, --help      Show this help message
+
+When called without arguments, runs the full speedtest flow
+using UCI config (cf_ip).
+EOF
+}
+
+# ========== Entry Point ==========
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-	main "$@"
+	CLI_ACTION=""
+	while (($# > 0)); do
+		case "$1" in
+			--status) CLI_ACTION="status" ;;
+			--run) CLI_ACTION="run" ;;
+			--check-env) CLI_ACTION="check-env" ;;
+			--refresh-env) CLI_ACTION="refresh-env" ;;
+			--version) CLI_ACTION="version" ;;
+			--read-log) CLI_ACTION="read-log" ;;
+			--clear-log) CLI_ACTION="clear-log" ;;
+			--ip-history) CLI_ACTION="ip-history" ;;
+			--self-update) CLI_ACTION="self-update" ;;
+			--daemon) CLI_ACTION="daemon" ;;
+			-v|--verbose) CLI_VERBOSE="true" ;;
+			-h|--help) usage; exit 0 ;;
+			*) die "unexpected argument: $1; use --help for usage" ;;
+		esac
+		shift
+	done
+
+	case "$CLI_ACTION" in
+		status) cmd_status ;;
+		run) cmd_run ;;
+		check-env) cmd_check_env ;;
+	refresh-env) cmd_refresh_env ;;
+	version) cmd_version ;;
+		read-log) cmd_read_log ;;
+		clear-log) cmd_clear_log ;;
+		ip-history) cmd_ip_history ;;
+		self-update) cmd_self_update ;;
+		daemon) cmd_daemon ;;
+		"")
+			# Traditional mode: load UCI config and run main flow
+			load_uci_config
+			[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+			apply_startup_delay
+			run_main_flow
+			;;
+	esac
 fi

@@ -1,0 +1,134 @@
+#!/bin/sh
+
+RPCD_VERSION="@PKG_VERSION@"
+CF_IP_AUTO_BIN="/usr/bin/cf-ip-auto"
+INIT_SCRIPT="/etc/init.d/cf_ip"
+
+service_action() {
+	action="$1"
+
+	case "$action" in
+		start|restart)
+			uci set cf_ip.main.enabled='1' 2>/dev/null
+			uci commit cf_ip 2>/dev/null
+			"$INIT_SCRIPT" enable >/dev/null 2>&1
+			;;
+		stop)
+			uci set cf_ip.main.enabled='0' 2>/dev/null
+			uci commit cf_ip 2>/dev/null
+			;;
+	esac
+
+	case "$action" in
+		start)
+			"$INIT_SCRIPT" start >/dev/null 2>&1
+			;;
+		stop)
+			"$INIT_SCRIPT" stop >/dev/null 2>&1
+			;;
+		restart)
+			"$INIT_SCRIPT" restart >/dev/null 2>&1
+			;;
+		*)
+			echo '{"success":false,"error":"unknown_action"}'
+			return 0
+			;;
+	esac
+
+	_rc=$?
+	if [ "$_rc" -ne 0 ]; then
+		printf '{"success":false,"action":"%s","error":"init_action_failed","rc":%d}\n' "$action" "$_rc"
+		return 0
+	fi
+
+	_wait=0
+	while [ "$_wait" -lt 4 ]; do
+		if [ "$action" = "stop" ]; then
+			if ! "$INIT_SCRIPT" status >/dev/null 2>&1; then
+				printf '{"success":true,"action":"%s","running":false}\n' "$action"
+				return 0
+			fi
+		else
+			if "$INIT_SCRIPT" status >/dev/null 2>&1; then
+				printf '{"success":true,"action":"%s","running":true}\n' "$action"
+				return 0
+			fi
+		fi
+		sleep 1
+		_wait=$((_wait + 1))
+	done
+
+	if [ "$action" = "stop" ]; then
+		printf '{"success":false,"action":"%s","error":"service_still_running"}\n' "$action"
+	else
+		printf '{"success":false,"action":"%s","error":"service_not_running"}\n' "$action"
+	fi
+}
+
+case "$1" in
+	list)
+		cat <<'EOF'
+{
+	"status": {},
+	"check-env": {},
+	"refresh-env": {},
+	"run": {},
+	"version": {},
+	"read-log": {},
+	"clear-log": {},
+	"ip-history": {},
+	"self-update": {},
+	"start": {},
+	"stop": {},
+	"restart": {}
+}
+EOF
+		;;
+	call)
+		method="$2"
+		case "$method" in
+			status)
+				"$CF_IP_AUTO_BIN" --status 2>/dev/null || echo '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"","error":"Status file not found"}'
+				;;
+			check-env)
+				"$CF_IP_AUTO_BIN" --check-env 2>/dev/null || echo '{"error":"check-env failed"}'
+				;;
+			refresh-env)
+				"$CF_IP_AUTO_BIN" --refresh-env 2>/dev/null || echo '{"error":"refresh-env failed"}'
+				;;
+			run)
+				"$CF_IP_AUTO_BIN" --run 2>/dev/null || echo '{"success":false,"error":"run_failed"}'
+				;;
+			version)
+				printf '{"version":"%s"}\n' "$RPCD_VERSION"
+				;;
+			read-log)
+				"$CF_IP_AUTO_BIN" --read-log 2>/dev/null || echo '{"success":false,"error":"read-log failed","logs":""}'
+				;;
+			clear-log)
+				"$CF_IP_AUTO_BIN" --clear-log 2>/dev/null || echo '{"success":false,"error":"clear-log failed"}'
+				;;
+			ip-history)
+				"$CF_IP_AUTO_BIN" --ip-history 2>/dev/null || echo '{"success":false,"error":"ip-history failed","ips":[]}'
+				;;
+			self-update)
+				"$CF_IP_AUTO_BIN" --self-update 2>/dev/null || echo '{"success":false,"error":"self-update failed"}'
+				;;
+			start)
+				service_action start
+				;;
+			stop)
+				service_action stop
+				;;
+			restart)
+				service_action restart
+				;;
+			*)
+				echo '{"error":"unknown_method"}'
+				;;
+		esac
+		;;
+	*)
+		echo '{"error":"invalid_usage"}'
+		;;
+esac

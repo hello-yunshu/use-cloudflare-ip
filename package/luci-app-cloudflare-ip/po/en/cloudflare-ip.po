@@ -1,0 +1,456 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Cloudflare IP - PassWall"
+msgstr "Cloudflare IP - PassWall"
+
+msgid "PassWall Settings"
+msgstr "PassWall Settings"
+
+msgid "PassWall mode scans uci show passwall and updates nodes whose address matches the target domain with optimized IPs."
+msgstr "PassWall mode scans uci show passwall and updates nodes whose address matches the target domain with optimized IPs."
+
+msgid "Target Domain"
+msgstr "Target Domain"
+
+msgid "Only PassWall nodes whose address equals this domain will be updated. Comma-separated for multiple domains."
+msgstr "Only PassWall nodes whose address equals this domain will be updated. Comma-separated for multiple domains."
+
+msgid "Node Name Suffix"
+msgstr "Node Name Suffix"
+
+msgid "Suffix appended to the original node name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
+msgstr "Suffix appended to the original node name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
+
+msgid "Configuration saved and applied."
+msgstr "Configuration saved and applied."
+
+msgid "Configuration saved. Restarting service..."
+msgstr "Configuration saved. Restarting service..."
+
+msgid "Configuration applied and service is ready."
+msgstr "Configuration applied and service is ready."
+
+msgid "Failed to apply configuration: "
+msgstr "Failed to apply configuration: "
+
+msgid "Cloudflare IP - Logs & Maintenance"
+msgstr "Cloudflare IP - Logs & Maintenance"
+
+msgid "Recent Logs"
+msgstr "Recent Logs"
+
+msgid "Loading..."
+msgstr "Loading..."
+
+msgid "Failed to read logs"
+msgstr "Failed to read logs"
+
+msgid "No logs found."
+msgstr "No logs found."
+
+msgid "Failed to read logs: "
+msgstr "Failed to read logs: "
+
+msgid "Refresh"
+msgstr "Refresh"
+
+msgid "Clear log file?"
+msgstr "Clear log file?"
+
+msgid "Log file cleared."
+msgstr "Log file cleared."
+
+msgid "Failed to clear logs: "
+msgstr "Failed to clear logs: "
+
+msgid "Clear Logs"
+msgstr "Clear Logs"
+
+msgid "Last Error: "
+msgstr "Last Error: "
+
+msgid "IP History"
+msgstr "IP History"
+
+msgid "Failed to load IP history"
+msgstr "Failed to load IP history"
+
+msgid "No IP history available"
+msgstr "No IP history available"
+
+msgid "IP Address"
+msgstr "IP Address"
+
+msgid "Maintenance"
+msgstr "Maintenance"
+
+msgid "Checking..."
+msgstr "Checking..."
+
+msgid "Self-update failed: "
+msgstr "Self-update failed: "
+
+msgid "Script updated to version %s."
+msgstr "Script updated to version %s."
+
+msgid "Script is already up to date."
+msgstr "Script is already up to date."
+
+msgid "Check Update"
+msgstr "Check Update"
+
+msgid "Running..."
+msgstr "Running..."
+
+msgid "Speed test failed: "
+msgstr "Speed test failed: "
+
+msgid "Speed test completed: found %d best IPs."
+msgstr "Speed test completed: found %d best IPs."
+
+msgid "Speed test completed but no best IPs found."
+msgstr "Speed test completed but no best IPs found."
+
+msgid "Run Now"
+msgstr "Run Now"
+
+msgid "Danger Zone"
+msgstr "Danger Zone"
+
+msgid "Warning: The operations above modify the running service or its files. Use with caution."
+msgstr "Warning: The operations above modify the running service or its files. Use with caution."
+
+msgid "Cloudflare IP - Advanced"
+msgstr "Cloudflare IP - Advanced"
+
+msgid "Self Update"
+msgstr "Self Update"
+
+msgid "Auto Update Script"
+msgstr "Auto Update Script"
+
+msgid "Check for script updates on startup and auto-upgrade if newer. Only replaces the script, not the configuration."
+msgstr "Check for script updates on startup and auto-upgrade if newer. Only replaces the script, not the configuration."
+
+msgid "Self Update URL"
+msgstr "Self Update URL"
+
+msgid "URL to download the latest script version."
+msgstr "URL to download the latest script version."
+
+msgid "Download"
+msgstr "Download"
+
+msgid "GitHub Mirror"
+msgstr "GitHub Mirror"
+
+msgid "Prepend this URL to GitHub download links. Useful in mainland China. Leave empty for direct downloads. Must end with /."
+msgstr "Prepend this URL to GitHub download links. Useful in mainland China. Leave empty for direct downloads. Must end with /."
+
+msgid "Download Retries"
+msgstr "Download Retries"
+
+msgid "Number of retry attempts for GitHub downloads."
+msgstr "Number of retry attempts for GitHub downloads."
+
+msgid "Retry Delay (seconds)"
+msgstr "Retry Delay (seconds)"
+
+msgid "Seconds to wait between download retries."
+msgstr "Seconds to wait between download retries."
+
+msgid "Startup"
+msgstr "Startup"
+
+msgid "Startup Delay"
+msgstr "Startup Delay"
+
+msgid "Verbose Logging"
+msgstr "Verbose Logging"
+
+msgid "Output detailed progress logs."
+msgstr "Output detailed progress logs."
+
+msgid "Work Directory"
+msgstr "Work Directory"
+
+msgid "Leave empty to use the script directory. The cfst binary, IP lists, and results are stored in a cfst/ subdirectory."
+msgstr "Leave empty to use the script directory. The cfst binary, IP lists, and results are stored in a cfst/ subdirectory."
+
+msgid "Service action completed, but speedtest is still in progress. Refreshing current status."
+msgstr "Service action completed, but speedtest is still in progress. Refreshing current status."
+
+msgid "Installed"
+msgstr "Installed"
+
+msgid "Missing"
+msgstr "Missing"
+
+msgid "Running"
+msgstr "Running"
+
+msgid "Installed (Stopped)"
+msgstr "Installed (Stopped)"
+
+msgid "Not Installed"
+msgstr "Not Installed"
+
+msgid "Missing Dependencies & Fix Commands"
+msgstr "Missing Dependencies & Fix Commands"
+
+msgid "Missing dependencies: "
+msgstr "Missing dependencies: "
+
+msgid "All dependencies are installed."
+msgstr "All dependencies are installed."
+
+msgid "Cloudflare IP Optimization - Overview"
+msgstr "Cloudflare IP Optimization - Overview"
+
+msgid "Speedtest Running"
+msgstr "Speedtest Running"
+
+msgid "Service Running"
+msgstr "Service Running"
+
+msgid "Service Stopped"
+msgstr "Service Stopped"
+
+msgid "Cloudflare IP speedtest is in progress, please wait..."
+msgstr "Cloudflare IP speedtest is in progress, please wait..."
+
+msgid "Cloudflare IP optimization service is active and running."
+msgstr "Cloudflare IP optimization service is active and running."
+
+msgid "Cloudflare IP optimization service is not running. Click Start to begin."
+msgstr "Cloudflare IP optimization service is not running. Click Start to begin."
+
+msgid "Best IP Count"
+msgstr "Best IP Count"
+
+msgid "IP Type"
+msgstr "IP Type"
+
+msgid "Speedtest Protocol"
+msgstr "Speedtest Protocol"
+
+msgid "CFST Version"
+msgstr "CFST Version"
+
+msgid "Service Control"
+msgstr "Service Control"
+
+msgid "Service started."
+msgstr "Service started."
+
+msgid "Failed to start service: "
+msgstr "Failed to start service: "
+
+msgid "Start"
+msgstr "Start"
+
+msgid "Service stopped."
+msgstr "Service stopped."
+
+msgid "Failed to stop service: "
+msgstr "Failed to stop service: "
+
+msgid "Stop"
+msgstr "Stop"
+
+msgid "Service restarted."
+msgstr "Service restarted."
+
+msgid "Failed to restart service: "
+msgstr "Failed to restart service: "
+
+msgid "Restart"
+msgstr "Restart"
+
+msgid "Speedtest completed: found %d best IPs."
+msgstr "Speedtest completed: found %d best IPs."
+
+msgid "Speedtest completed but no best IPs found."
+msgstr "Speedtest completed but no best IPs found."
+
+msgid "Speedtest failed: %s"
+msgstr "Speedtest failed: %s"
+
+msgid "Speedtest triggered."
+msgstr "Speedtest triggered."
+
+msgid "Service Information"
+msgstr "Service Information"
+
+msgid "Mode"
+msgstr "Mode"
+
+msgid "Last Run Time"
+msgstr "Last Run Time"
+
+msgid "Last Result"
+msgstr "Last Result"
+
+msgid "Best IPs"
+msgstr "Best IPs"
+
+msgid "Script Version"
+msgstr "Script Version"
+
+msgid "GitHub"
+msgstr "GitHub"
+
+msgid "Environment Detection"
+msgstr "Environment Detection"
+
+msgid "bash"
+msgstr "bash"
+
+msgid "curl"
+msgstr "curl"
+
+msgid "tar"
+msgstr "tar"
+
+msgid "jq"
+msgstr "jq"
+
+msgid "awk"
+msgstr "awk"
+
+msgid "sed"
+msgstr "sed"
+
+msgid "uci"
+msgstr "uci"
+
+msgid "PassWall"
+msgstr "PassWall"
+
+msgid "OpenClash"
+msgstr "OpenClash"
+
+msgid "CFST"
+msgstr "CFST"
+
+msgid "Environment detection refreshed."
+msgstr "Environment detection refreshed."
+
+msgid "Failed to refresh environment: "
+msgstr "Failed to refresh environment: "
+
+msgid "Refresh Env"
+msgstr "Refresh Env"
+
+msgid "Cloudflare IP - OpenClash"
+msgstr "Cloudflare IP - OpenClash"
+
+msgid "OpenClash Settings"
+msgstr "OpenClash Settings"
+
+msgid "OpenClash mode modifies the YAML configuration file. It finds proxies whose server matches the target domain, generates [CF-1], [CF-2] variants, and keeps servername/Host as the original domain. Supports vless/vmess/trojan with tls:true or network ws/xhttp/grpc/h2/http."
+msgstr "OpenClash mode modifies the YAML configuration file. It finds proxies whose server matches the target domain, generates [CF-1], [CF-2] variants, and keeps servername/Host as the original domain. Supports vless/vmess/trojan with tls:true or network ws/xhttp/grpc/h2/http."
+
+msgid "Config File Path"
+msgstr "Config File Path"
+
+msgid "Path to the OpenClash YAML configuration file."
+msgstr "Path to the OpenClash YAML configuration file."
+
+msgid "Only OpenClash proxies whose server matches this domain will be updated. Comma-separated for multiple domains."
+msgstr "Only OpenClash proxies whose server matches this domain will be updated. Comma-separated for multiple domains."
+
+msgid "Proxy Name Suffix"
+msgstr "Proxy Name Suffix"
+
+msgid "Suffix appended to the original proxy name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
+msgstr "Suffix appended to the original proxy name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
+
+msgid "Transport Filter"
+msgstr "Transport Filter"
+
+msgid "Only update proxies with the specified transport protocol. Comma-separated. Values: ws, grpc, xhttp, h2, http. Leave empty to update all supported proxies."
+msgstr "Only update proxies with the specified transport protocol. Comma-separated. Values: ws, grpc, xhttp, h2, http. Leave empty to update all supported proxies."
+
+msgid "Backup Count"
+msgstr "Backup Count"
+
+msgid "Number of OpenClash config backups to keep."
+msgstr "Number of OpenClash config backups to keep."
+
+msgid "Cloudflare IP Optimization"
+msgstr "Cloudflare IP Optimization"
+
+msgid "Configure the Cloudflare IP speed test and optimization service."
+msgstr "Configure the Cloudflare IP speed test and optimization service."
+
+msgid "Service"
+msgstr "Service"
+
+msgid "Enable Service"
+msgstr "Enable Service"
+
+msgid "Run the background service to periodically optimize Cloudflare IPs."
+msgstr "Run the background service to periodically optimize Cloudflare IPs."
+
+msgid "Run Interval (minutes)"
+msgstr "Run Interval (minutes)"
+
+msgid "How often the service runs speed tests. Recommended: 360 (6 hours). Avoid below 60."
+msgstr "How often the service runs speed tests. Recommended: 360 (6 hours). Avoid below 60."
+
+msgid "Speed Test"
+msgstr "Speed Test"
+
+msgid "Select which proxy service to update."
+msgstr "Select which proxy service to update."
+
+msgid "IP Count"
+msgstr "IP Count"
+
+msgid "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
+msgstr "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
+
+msgid "Select which IP addresses to test."
+msgstr "Select which IP addresses to test."
+
+msgid "Speed Test Protocol"
+msgstr "Speed Test Protocol"
+
+msgid "TCPing measures TCP latency. HTTPing measures HTTP response latency and supports data center filtering."
+msgstr "TCPing measures TCP latency. HTTPing measures HTTP response latency and supports data center filtering."
+
+msgid "Data Center Filter"
+msgstr "Data Center Filter"
+
+msgid "Filter by Cloudflare data center in HTTPing mode. Comma-separated, e.g. HKG,NRT,LAX. Only effective with HTTPing."
+msgstr "Filter by Cloudflare data center in HTTPing mode. Comma-separated, e.g. HKG,NRT,LAX. Only effective with HTTPing."
+
+msgid "Download Test Count"
+msgstr "Download Test Count"
+
+msgid "Number of IPs to test download speed."
+msgstr "Number of IPs to test download speed."
+
+msgid "Average Latency Limit (ms)"
+msgstr "Average Latency Limit (ms)"
+
+msgid "Skip IPs with average latency above this limit."
+msgstr "Skip IPs with average latency above this limit."
+
+msgid "Stop Service Before Test"
+msgstr "Stop Service Before Test"
+
+msgid "Stop the proxy service before speed testing to avoid interference, and restart after updating."
+msgstr "Stop the proxy service before speed testing to avoid interference, and restart after updating."
+
+msgid "service action failed"
+msgstr "service action failed"
+
+msgid "Random delay upper bound in seconds. Useful for staggering startup on multiple routers. Empty or 'random' = 0~300s, '0' = no delay."
+msgstr "Random delay upper bound in seconds. Useful for staggering startup on multiple routers. Empty or 'random' = 0~300s, '0' = no delay."
+
+msgid "Both"
+msgstr "Both"

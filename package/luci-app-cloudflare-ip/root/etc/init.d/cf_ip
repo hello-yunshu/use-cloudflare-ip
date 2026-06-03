@@ -1,0 +1,66 @@
+#!/bin/sh /etc/rc.common
+
+# shellcheck disable=SC2034
+START=99
+STOP=10
+USE_PROCD=1
+
+start_service() {
+	local enabled
+	config_load cf_ip
+	config_get_bool enabled main enabled 0
+
+	[ "$enabled" -eq 0 ] && return 0
+
+	if ! validate_cf_ip 2>/dev/null; then
+		logger -t cf_ip -p daemon.err "Configuration validation failed, refusing to start"
+		return 1
+	fi
+
+	mkdir -p /tmp/cf_ip
+
+	procd_open_instance
+	procd_set_param command /usr/bin/cf-ip-auto --daemon
+	procd_set_param respawn 3600 5 5
+	procd_set_param stderr 1
+	procd_set_param stdout 1
+	procd_set_param pidfile /var/run/cf_ip.pid
+	procd_set_param file /etc/config/cf_ip
+	procd_set_param log "cf_ip"
+	procd_close_instance
+}
+
+stop_service() {
+	if [ -f /tmp/cf_ip/status.json ]; then
+		sed -i 's/"running":true/"running":false/' /tmp/cf_ip/status.json 2>/dev/null
+	fi
+}
+
+service_triggers() {
+	procd_add_reload_trigger "cf_ip"
+	procd_add_validation validate_cf_ip
+}
+
+reload_service() {
+	restart
+}
+
+validate_cf_ip() {
+	uci_validate_section cf_ip service main \
+		'enabled:bool' 'mode:string' 'ip_count:uinteger' \
+		'ip_type:string' 'speedtest_protocol:string' \
+		'speedtest_cfcolo:string' 'speedtest_dn:uinteger' \
+		'speedtest_tll:uinteger' 'stop_service:bool' \
+		'startup_delay:string' 'auto_update:bool' \
+		'self_update_url:string' 'download_retries:uinteger' \
+		'download_retry_delay:uinteger' 'github_mirror:string' \
+		'verbose:bool' 'work_dir:string' 'cron_interval:uinteger'
+
+	uci_validate_section cf_ip passwall passwall \
+		'target_domain:string' 'name_suffix:string'
+
+	uci_validate_section cf_ip openclash openclash \
+		'config:string' 'target_domain:string' \
+		'name_suffix:string' 'transport_filter:string' \
+		'backup_count:uinteger'
+}

@@ -1,0 +1,19 @@
+.cfi-dashboard { max-width: 100%; }
+.cfi-section {
+	margin-bottom: 1.5em;
+}
+.cfi-badge {
+	display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
+	font-size: 0.85em; font-weight: 500;
+}
+.cfi-badge.green { background: color-mix(in srgb, var(--success-color, #3aa657) 15%, transparent); color: var(--success-color, #3aa657); }
+.cfi-badge.red { background: color-mix(in srgb, var(--danger-color, #d94b4b) 15%, transparent); color: var(--danger-color, #d94b4b); }
+.cfi-badge.orange { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
+.cfi-badge.gray { background: color-mix(in srgb, var(--subtext-color, #666) 15%, transparent); color: var(--subtext-color, #666); }
+.cfi-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
+.cfi-cmd-box {
+	padding: 0.8em 1em; border-radius: 6px;
+	background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
+	border: 1px solid var(--border-color);
+	font-family: monospace; font-size: 0.9em;
+}

@@ -1,0 +1,19 @@
+{
+	"luci-app-cloudflare-ip": {
+		"description": "Grant access to Cloudflare IP optimization",
+		"read": {
+			"ubus": {
+				"cf_ip": [ "status", "check-env", "refresh-env", "version", "read-log", "ip-history" ]
+			},
+			"uci": [ "cf_ip" ],
+			"file": [ "/tmp/cf_ip/*" ]
+		},
+		"write": {
+			"ubus": {
+				"cf_ip": [ "run", "clear-log", "self-update", "start", "stop", "restart" ],
+				"luci": [ "setInitAction" ]
+			},
+			"uci": [ "cf_ip" ]
+		}
+	}
+}

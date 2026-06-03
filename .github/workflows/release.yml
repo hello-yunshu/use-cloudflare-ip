@@ -1,0 +1,202 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  SDKDIR: /builder
+  REPO_NAME: use-cloudflare-ip
+  PKG_NAME: luci-app-cloudflare-ip
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: check
+        run: |
+          PKG_VERSION=$(grep '^PKG_VERSION:=' package/luci-app-cloudflare-ip/Makefile | cut -d= -f2)
+          PKG_RELEASE=$(grep '^PKG_RELEASE:=' package/luci-app-cloudflare-ip/Makefile | cut -d= -f2)
+          TAG="v${PKG_VERSION}-${PKG_RELEASE}"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger, proceeding with build"
+            {
+              echo "changed=true"
+              echo "version=${PKG_VERSION}"
+              echo "release=${PKG_RELEASE}"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git tag -l "$TAG" | grep -q .; then
+            echo "Tag ${TAG} already exists, skipping"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "New version detected: ${TAG}"
+          {
+            echo "changed=true"
+            echo "version=${PKG_VERSION}"
+            echo "release=${PKG_RELEASE}"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - branch: "v24.10.5"
+            pkgtype: ipk
+            arch: x86_64
+          - branch: "v25.12.0"
+            pkgtype: apk
+            arch: x86_64
+    name: "Build ${{ matrix.pkgtype }} (${{ matrix.branch }})"
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/openwrt/sdk:${{ matrix.arch }}-${{ matrix.branch }}
+      options: --user root
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: ${{ env.REPO_NAME }}
+
+      - name: Fix SDK paths
+        run: |
+          mkdir -p "$SDKDIR/shared-workdir"
+          rm -rf "$SDKDIR/shared-workdir/build"
+          ln -sf "$SDKDIR" "$SDKDIR/shared-workdir/build"
+
+      - name: Cache SDK build
+        uses: HiGarfield/cachewrtbuild@main
+        with:
+          mixkey: ${{ matrix.branch }}
+          prefix: ${{ env.SDKDIR }}
+
+      - name: Update feeds
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          ./scripts/feeds update base packages luci
+          ./scripts/feeds install luci-base bash curl tar jq ca-bundle ca-certificates
+
+      - name: Prepare package source
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          cp -r "$GITHUB_WORKSPACE/$REPO_NAME/package/$PKG_NAME" ./package/
+
+      - name: Configure
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          echo "CONFIG_PACKAGE_${PKG_NAME}=y" >> .config
+          make defconfig
+
+      - name: Build package
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          make "package/$PKG_NAME/compile" V=sc
+
+      - name: Collect package
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/output"
+          package_files="$(find ./bin/ -type f -name "${PKG_NAME}*.${{ matrix.pkgtype }}")"
+          if [ -z "$package_files" ]; then
+            echo "::error::No ${PKG_NAME} .${{ matrix.pkgtype }} package was produced"
+            find ./bin/ -type f -name "*.${{ matrix.pkgtype }}" -print
+            exit 1
+          fi
+          printf '%s\n' "$package_files" | while IFS= read -r file; do
+            cp "$file" "$GITHUB_WORKSPACE/output/"
+          done
+          ls -la "$GITHUB_WORKSPACE/output/"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@main
+        with:
+          name: ${{ matrix.pkgtype }}
+          path: output/
+
+  release:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@main
+        with:
+          path: release/
+
+      - name: List artifacts
+        run: |
+          find release/ -type f -ls
+
+      - name: Generate checksums
+        working-directory: release
+        run: |
+          find . -type f \( -name '*.ipk' -o -name '*.apk' \) -exec sha256sum {} + > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: Delete existing release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+          name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+          body: |
+            Cloudflare IP Optimization v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+
+            Package: `luci-app-cloudflare-ip` (LuCI web interface + service, includes Chinese and English translations)
+
+            Both `.ipk` (opkg) and `.apk` (apk) formats are provided.
+
+            ## Installation (opkg - OpenWrt 23.05 / 24.10)
+            ```bash
+            opkg install luci-app-cloudflare-ip_*.ipk
+            ```
+
+            ## Installation (apk - OpenWrt 25.12+)
+            ```bash
+            apk add --allow-untrusted ./luci-app-cloudflare-ip*.apk
+            ```
+
+            ## Upgrade
+            ```bash
+            # Download new packages from Release, then install the same way as above.
+            # opkg/apk will automatically detect and upgrade the existing version.
+            # Your UCI config (/etc/config/cf_ip) is preserved.
+
+            # Clear LuCI cache after upgrade:
+            rm -rf /tmp/luci-*
+            # Then force-refresh browser: Ctrl+Shift+R
+            ```
+
+            ## Requirements
+            - OpenWrt 23.05+ with bash, curl, tar, jq
+            - PassWall or OpenClash (optional, at least one recommended)
+          files: |
+            release/ipk/*.ipk
+            release/apk/*.apk
+            release/sha256sums.txt

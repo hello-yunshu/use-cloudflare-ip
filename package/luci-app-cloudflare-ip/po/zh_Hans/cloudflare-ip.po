@@ -1,0 +1,456 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Cloudflare IP - PassWall"
+msgstr "Cloudflare IP - PassWall"
+
+msgid "PassWall Settings"
+msgstr "PassWall 设置"
+
+msgid "PassWall mode scans uci show passwall and updates nodes whose address matches the target domain with optimized IPs."
+msgstr "PassWall 模式扫描 uci show passwall，将 address 匹配目标域名的节点替换为优选 IP。"
+
+msgid "Target Domain"
+msgstr "目标域名"
+
+msgid "Only PassWall nodes whose address equals this domain will be updated. Comma-separated for multiple domains."
+msgstr "只更新 address 等于此域名的 PassWall 节点。逗号分隔支持多域名。"
+
+msgid "Node Name Suffix"
+msgstr "节点名称后缀"
+
+msgid "Suffix appended to the original node name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
+msgstr "修改节点后在原始名称后追加的后缀。占位符：{n} = 序号，{ip} = IP 地址。留空不修改名称。"
+
+msgid "Configuration saved and applied."
+msgstr "配置已保存并应用。"
+
+msgid "Configuration saved. Restarting service..."
+msgstr "配置已保存。正在重启服务..."
+
+msgid "Configuration applied and service is ready."
+msgstr "配置已应用，服务就绪。"
+
+msgid "Failed to apply configuration: "
+msgstr "应用配置失败："
+
+msgid "Cloudflare IP - Logs & Maintenance"
+msgstr "Cloudflare IP - 日志与维护"
+
+msgid "Recent Logs"
+msgstr "最近日志"
+
+msgid "Loading..."
+msgstr "加载中..."
+
+msgid "Failed to read logs"
+msgstr "读取日志失败"
+
+msgid "No logs found."
+msgstr "暂无日志。"
+
+msgid "Failed to read logs: "
+msgstr "读取日志失败："
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Clear log file?"
+msgstr "确认清除日志文件？"
+
+msgid "Log file cleared."
+msgstr "日志已清除。"
+
+msgid "Failed to clear logs: "
+msgstr "清除日志失败："
+
+msgid "Clear Logs"
+msgstr "清除日志"
+
+msgid "Last Error: "
+msgstr "最近错误："
+
+msgid "IP History"
+msgstr "IP 历史"
+
+msgid "Failed to load IP history"
+msgstr "加载 IP 历史失败"
+
+msgid "No IP history available"
+msgstr "暂无 IP 历史记录"
+
+msgid "IP Address"
+msgstr "IP 地址"
+
+msgid "Maintenance"
+msgstr "维护"
+
+msgid "Checking..."
+msgstr "检测中..."
+
+msgid "Self-update failed: "
+msgstr "自动更新失败："
+
+msgid "Script updated to version %s."
+msgstr "脚本已更新至版本 %s。"
+
+msgid "Script is already up to date."
+msgstr "脚本已是最新版本。"
+
+msgid "Check Update"
+msgstr "检查更新"
+
+msgid "Running..."
+msgstr "运行中..."
+
+msgid "Speed test failed: "
+msgstr "测速失败："
+
+msgid "Speed test completed: found %d best IPs."
+msgstr "测速完成：找到 %d 个优选 IP。"
+
+msgid "Speed test completed but no best IPs found."
+msgstr "测速完成但未找到优选 IP。"
+
+msgid "Run Now"
+msgstr "立即运行"
+
+msgid "Danger Zone"
+msgstr "危险区域"
+
+msgid "Warning: The operations above modify the running service or its files. Use with caution."
+msgstr "警告：以上操作会影响正在运行的服务或其文件，请谨慎使用。"
+
+msgid "Cloudflare IP - Advanced"
+msgstr "Cloudflare IP - 高级"
+
+msgid "Self Update"
+msgstr "自动更新"
+
+msgid "Auto Update Script"
+msgstr "自动更新脚本"
+
+msgid "Check for script updates on startup and auto-upgrade if newer. Only replaces the script, not the configuration."
+msgstr "启动时检查脚本版本，有新版自动升级。只替换脚本，不会覆盖配置。"
+
+msgid "Self Update URL"
+msgstr "更新地址"
+
+msgid "URL to download the latest script version."
+msgstr "下载最新脚本版本的 URL。"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "GitHub Mirror"
+msgstr "GitHub 镜像"
+
+msgid "Prepend this URL to GitHub download links. Useful in mainland China. Leave empty for direct downloads. Must end with /."
+msgstr "在 GitHub 下载链接前拼接此 URL。中国大陆网络环境可用。留空直接从 GitHub 下载。必须以 / 结尾。"
+
+msgid "Download Retries"
+msgstr "下载重试次数"
+
+msgid "Number of retry attempts for GitHub downloads."
+msgstr "GitHub 下载重试次数。"
+
+msgid "Retry Delay (seconds)"
+msgstr "重试间隔（秒）"
+
+msgid "Seconds to wait between download retries."
+msgstr "下载重试之间的等待秒数。"
+
+msgid "Startup"
+msgstr "启动"
+
+msgid "Startup Delay"
+msgstr "启动延迟"
+
+msgid "Verbose Logging"
+msgstr "详细日志"
+
+msgid "Output detailed progress logs."
+msgstr "输出详细的过程日志。"
+
+msgid "Work Directory"
+msgstr "工作目录"
+
+msgid "Leave empty to use the script directory. The cfst binary, IP lists, and results are stored in a cfst/ subdirectory."
+msgstr "留空使用脚本所在目录。cfst 二进制、IP 列表、结果等保存在 cfst/ 子目录中。"
+
+msgid "Service action completed, but speedtest is still in progress. Refreshing current status."
+msgstr "服务操作已完成，但测速仍在进行中。正在刷新状态。"
+
+msgid "Installed"
+msgstr "已安装"
+
+msgid "Missing"
+msgstr "未安装"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Installed (Stopped)"
+msgstr "已安装（已停止）"
+
+msgid "Not Installed"
+msgstr "未安装"
+
+msgid "Missing Dependencies & Fix Commands"
+msgstr "缺失依赖及安装命令"
+
+msgid "Missing dependencies: "
+msgstr "缺失依赖："
+
+msgid "All dependencies are installed."
+msgstr "所有依赖已安装。"
+
+msgid "Cloudflare IP Optimization - Overview"
+msgstr "Cloudflare IP 优选 - 概览"
+
+msgid "Speedtest Running"
+msgstr "测速进行中"
+
+msgid "Service Running"
+msgstr "服务运行中"
+
+msgid "Service Stopped"
+msgstr "服务已停止"
+
+msgid "Cloudflare IP speedtest is in progress, please wait..."
+msgstr "Cloudflare IP 测速正在进行中，请稍候..."
+
+msgid "Cloudflare IP optimization service is active and running."
+msgstr "Cloudflare IP 优选服务正在运行。"
+
+msgid "Cloudflare IP optimization service is not running. Click Start to begin."
+msgstr "Cloudflare IP 优选服务未运行。点击启动开始。"
+
+msgid "Best IP Count"
+msgstr "优选 IP 数量"
+
+msgid "IP Type"
+msgstr "IP 类型"
+
+msgid "Speedtest Protocol"
+msgstr "测速协议"
+
+msgid "CFST Version"
+msgstr "CFST 版本"
+
+msgid "Service Control"
+msgstr "服务控制"
+
+msgid "Service started."
+msgstr "服务已启动。"
+
+msgid "Failed to start service: "
+msgstr "启动服务失败："
+
+msgid "Start"
+msgstr "启动"
+
+msgid "Service stopped."
+msgstr "服务已停止。"
+
+msgid "Failed to stop service: "
+msgstr "停止服务失败："
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Service restarted."
+msgstr "服务已重启。"
+
+msgid "Failed to restart service: "
+msgstr "重启服务失败："
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "Speedtest completed: found %d best IPs."
+msgstr "测速完成：找到 %d 个优选 IP。"
+
+msgid "Speedtest completed but no best IPs found."
+msgstr "测速完成但未找到优选 IP。"
+
+msgid "Speedtest failed: %s"
+msgstr "测速失败：%s"
+
+msgid "Speedtest triggered."
+msgstr "测速已触发。"
+
+msgid "Service Information"
+msgstr "服务信息"
+
+msgid "Mode"
+msgstr "模式"
+
+msgid "Last Run Time"
+msgstr "上次运行时间"
+
+msgid "Last Result"
+msgstr "上次结果"
+
+msgid "Best IPs"
+msgstr "优选 IP"
+
+msgid "Script Version"
+msgstr "脚本版本"
+
+msgid "GitHub"
+msgstr "GitHub"
+
+msgid "Environment Detection"
+msgstr "环境检测"
+
+msgid "bash"
+msgstr "bash"
+
+msgid "curl"
+msgstr "curl"
+
+msgid "tar"
+msgstr "tar"
+
+msgid "jq"
+msgstr "jq"
+
+msgid "awk"
+msgstr "awk"
+
+msgid "sed"
+msgstr "sed"
+
+msgid "uci"
+msgstr "uci"
+
+msgid "PassWall"
+msgstr "PassWall"
+
+msgid "OpenClash"
+msgstr "OpenClash"
+
+msgid "CFST"
+msgstr "CFST"
+
+msgid "Environment detection refreshed."
+msgstr "环境检测已刷新。"
+
+msgid "Failed to refresh environment: "
+msgstr "刷新环境检测失败："
+
+msgid "Refresh Env"
+msgstr "刷新环境"
+
+msgid "Cloudflare IP - OpenClash"
+msgstr "Cloudflare IP - OpenClash"
+
+msgid "OpenClash Settings"
+msgstr "OpenClash 设置"
+
+msgid "OpenClash mode modifies the YAML configuration file. It finds proxies whose server matches the target domain, generates [CF-1], [CF-2] variants, and keeps servername/Host as the original domain. Supports vless/vmess/trojan with tls:true or network ws/xhttp/grpc/h2/http."
+msgstr "OpenClash 模式修改 YAML 配置文件。找到 server 匹配目标域名的代理，生成 [CF-1]、[CF-2] 变体，保留 servername/Host 为原域名。支持 vless/vmess/trojan 且 tls:true 或 network ws/xhttp/grpc/h2/http。"
+
+msgid "Config File Path"
+msgstr "配置文件路径"
+
+msgid "Path to the OpenClash YAML configuration file."
+msgstr "OpenClash YAML 配置文件路径。"
+
+msgid "Only OpenClash proxies whose server matches this domain will be updated. Comma-separated for multiple domains."
+msgstr "只更新 server 匹配此域名的 OpenClash 代理。逗号分隔支持多域名。"
+
+msgid "Proxy Name Suffix"
+msgstr "代理名称后缀"
+
+msgid "Suffix appended to the original proxy name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
+msgstr "修改代理后在原始名称后追加的后缀。占位符：{n} = 序号，{ip} = IP 地址。留空不修改名称。"
+
+msgid "Transport Filter"
+msgstr "传输协议过滤"
+
+msgid "Only update proxies with the specified transport protocol. Comma-separated. Values: ws, grpc, xhttp, h2, http. Leave empty to update all supported proxies."
+msgstr "只更新指定传输协议的代理节点。逗号分隔。可选值：ws、grpc、xhttp、h2、http。留空更新所有支持的节点。"
+
+msgid "Backup Count"
+msgstr "备份数量"
+
+msgid "Number of OpenClash config backups to keep."
+msgstr "OpenClash 配置备份保留数量。"
+
+msgid "Cloudflare IP Optimization"
+msgstr "Cloudflare IP 优选"
+
+msgid "Configure the Cloudflare IP speed test and optimization service."
+msgstr "配置 Cloudflare IP 测速优选服务。"
+
+msgid "Service"
+msgstr "服务"
+
+msgid "Enable Service"
+msgstr "启用服务"
+
+msgid "Run the background service to periodically optimize Cloudflare IPs."
+msgstr "运行后台服务，定期优选 Cloudflare IP。"
+
+msgid "Run Interval (minutes)"
+msgstr "运行间隔（分钟）"
+
+msgid "How often the service runs speed tests. Recommended: 360 (6 hours). Avoid below 60."
+msgstr "服务运行测速的间隔时间。推荐：360（6小时）。不建议低于60。"
+
+msgid "Speed Test"
+msgstr "测速"
+
+msgid "Select which proxy service to update."
+msgstr "选择要更新的代理服务。"
+
+msgid "IP Count"
+msgstr "IP 数量"
+
+msgid "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
+msgstr "保留的优选 IP 数量。如果测速结果不足，会用最快的 IP 自动补齐。"
+
+msgid "Select which IP addresses to test."
+msgstr "选择要测速的 IP 地址类型。"
+
+msgid "Speed Test Protocol"
+msgstr "测速协议"
+
+msgid "TCPing measures TCP latency. HTTPing measures HTTP response latency and supports data center filtering."
+msgstr "TCPing 测 TCP 连接延迟，速度快。HTTPing 测 HTTP 响应延迟，更贴近实际使用场景，支持数据中心筛选。"
+
+msgid "Data Center Filter"
+msgstr "数据中心筛选"
+
+msgid "Filter by Cloudflare data center in HTTPing mode. Comma-separated, e.g. HKG,NRT,LAX. Only effective with HTTPing."
+msgstr "HTTPing 模式下按 Cloudflare 数据中心筛选。逗号分隔，如 HKG,NRT,LAX。仅 HTTPing 模式生效。"
+
+msgid "Download Test Count"
+msgstr "下载测速数量"
+
+msgid "Number of IPs to test download speed."
+msgstr "测试下载速度的 IP 数量。"
+
+msgid "Average Latency Limit (ms)"
+msgstr "平均延迟上限（ms）"
+
+msgid "Skip IPs with average latency above this limit."
+msgstr "跳过平均延迟超过此限制的 IP。"
+
+msgid "Stop Service Before Test"
+msgstr "测速前停止服务"
+
+msgid "Stop the proxy service before speed testing to avoid interference, and restart after updating."
+msgstr "测速前停止代理服务以避免干扰，更新配置后自动重启。"
+
+msgid "service action failed"
+msgstr "服务操作失败"
+
+msgid "Random delay upper bound in seconds. Useful for staggering startup on multiple routers. Empty or 'random' = 0~300s, '0' = no delay."
+msgstr "随机延迟上限（秒）。多台路由器同时运行时可错开启动。留空或 random = 0~300秒，0 = 不等待。"
+
+msgid "Both"
+msgstr "双栈"

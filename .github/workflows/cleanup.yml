@@ -1,0 +1,43 @@
+name: Cleanup Old Runs
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          KEEP_DAYS=14
+          KEEP_MIN=5
+
+          mapfile -t lines < <(gh run list --limit 100 --json databaseId,createdAt --jq '.[] | "\(.databaseId)\t\(.createdAt)"')
+
+          total=${#lines[@]}
+          echo "Found $total workflow runs"
+
+          for i in "${!lines[@]}"; do
+            if [ "$i" -lt "$KEEP_MIN" ]; then
+              echo "Keeping newest run $(echo "${lines[$i]}" | cut -f1)"
+              continue
+            fi
+
+            run_id=$(echo "${lines[$i]}" | cut -f1)
+            run_date=$(echo "${lines[$i]}" | cut -f2)
+            age_days=$(( ( $(date +%s) - $(date -d "$run_date" +%s) ) / 86400 ))
+
+            if [ "$age_days" -ge "$KEEP_DAYS" ]; then
+              echo "Deleting run $run_id (age: ${age_days}d)"
+              gh run delete "$run_id" --confirm 2>/dev/null || true
+            else
+              echo "Run $run_id is only ${age_days}d old, skipping"
+            fi
+          done
