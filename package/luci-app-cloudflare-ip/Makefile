@@ -13,7 +13,7 @@ define Package/luci-app-cloudflare-ip
   SECTION:=luci
   CATEGORY:=LuCI
   TITLE:=Cloudflare IP - Optimize Cloudflare IPs for PassWall/OpenClash on OpenWrt
-  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates +cron
+  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates
   PKGARCH:=all
 endef
 

@@ -20,6 +20,9 @@
 .cfi-no-hover:hover { background: none !important; }
 
 .ys-tool-footer {
+	--ys-footer-blue: #2f7df6;
+	--ys-footer-blue-bg: rgba(47, 125, 246, 0.12);
+	--ys-footer-blue-bg-hover: rgba(47, 125, 246, 0.18);
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -47,8 +50,9 @@
 .ys-tool-footer-mark {
 	padding: 0.18em 0.5em;
 	border-radius: 4px;
-	background: color-mix(in srgb, var(--main-color, #0069d9) 10%, transparent);
-	color: var(--main-color, #0069d9);
+	background-color: var(--ys-footer-blue-bg);
+	background: color-mix(in srgb, var(--ys-footer-blue) 12%, transparent);
+	color: var(--ys-footer-blue);
 	font-size: 0.86em;
 	font-weight: 700;
 	line-height: 1.6;
@@ -59,36 +63,50 @@
 }
 .ys-tool-footer-separator {
 	color: color-mix(in srgb, var(--subtext-color, #666) 65%, transparent);
+	margin: 0 0.15em;
 }
 .ys-tool-footer-version {
 	color: var(--subtext-color, #666);
 }
-.ys-tool-footer-link {
+.ys-tool-footer-link,
+.ys-tool-footer a.ys-tool-footer-link {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.35em;
-	padding: 0.18em 0.55em;
-	border: 1px solid color-mix(in srgb, var(--main-color, #0069d9) 28%, var(--border-color));
+	padding: 0.18em 0.5em;
+	border: 0;
 	border-radius: 4px;
-	background: color-mix(in srgb, var(--main-color, #0069d9) 5%, transparent);
-	color: var(--main-color, #0069d9);
+	background-color: var(--ys-footer-blue-bg);
+	background: color-mix(in srgb, var(--ys-footer-blue) 12%, transparent);
+	color: var(--ys-footer-blue);
+	font-size: 0.86em;
+	font-weight: 700;
 	line-height: 1.6;
 	text-decoration: none;
 }
-.ys-tool-footer-link:hover {
-	background: color-mix(in srgb, var(--main-color, #0069d9) 12%, transparent);
+.ys-tool-footer-link:hover,
+.ys-tool-footer a.ys-tool-footer-link:hover {
+	background-color: var(--ys-footer-blue-bg-hover);
+	background: color-mix(in srgb, var(--ys-footer-blue) 18%, transparent);
 	text-decoration: none;
-}
-.ys-tool-footer-icon {
-	display: inline-block;
-	width: 1em;
-	height: 1em;
-	flex: 0 0 auto;
-	vertical-align: -0.125em;
 }
 @media (max-width: 600px) {
 	.ys-tool-footer {
 		align-items: flex-start;
 		flex-direction: column;
+		gap: 0.65em;
+	}
+	.ys-tool-footer-title,
+	.ys-tool-footer-title-separator,
+	.ys-tool-footer-project-link,
+	.ys-tool-footer-project-separator {
+		display: none;
+	}
+	.ys-tool-footer-links {
+		flex-wrap: wrap;
+		white-space: normal;
+	}
+	.ys-tool-footer-links .ys-tool-footer-link-label {
+		display: none;
 	}
 }
