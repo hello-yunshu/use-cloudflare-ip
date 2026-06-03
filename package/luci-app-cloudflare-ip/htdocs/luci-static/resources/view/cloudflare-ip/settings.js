@@ -154,51 +154,50 @@ return view.extend({
 			});
 		};
 
-		var formNode = m.render();
+		return utils.renderWithFooter(m.render().then(function(formNode) {
+			/* CFST Section */
+			var cfstSection = E('div', { 'class': 'cbi-section cfi-section' });
+			cfstSection.appendChild(E('h3', {}, _('CFST (CloudflareSpeedTest)')));
 
-		/* CFST Section */
-		var cfstSection = E('div', { 'class': 'cbi-section cfi-section' });
-		cfstSection.appendChild(E('h3', {}, _('CFST (CloudflareSpeedTest)')));
+			var cfstRow = E('div', { 'style': 'display:flex;align-items:center;gap:0.8em;padding:0.5em 0' });
 
-		var cfstRow = E('div', { 'style': 'display:flex;align-items:center;gap:0.8em;padding:0.5em 0' });
+			var cfstBadge = cfstInstalled
+				? E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + (cfstVersion || _('Installed')))
+				: E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + _('Not Installed'));
+			cfstRow.appendChild(cfstBadge);
 
-		var cfstBadge = cfstInstalled
-			? E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + (cfstVersion || _('Installed')))
-			: E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + _('Not Installed'));
-		cfstRow.appendChild(cfstBadge);
+			var cfstBtn = E('button', {
+				'class': 'cbi-button cbi-button-apply',
+				'click': function() {
+					var btn = this;
+					var isInstalled = cfstInstalled;
+					utils.setBusy(btn, isInstalled ? _('Updating...') : _('Downloading...'));
+					return callDownloadCfst().then(function(result) {
+						result = result || {};
+						if (result.success === false) {
+							ui.addNotification(null, E('p', _('CFST operation failed: ') + (result.error || 'unknown')), 'error');
+						} else {
+							ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
+							utils.reloadSoon(1500);
+						}
+					}).catch(function(e) {
+						ui.addNotification(null, E('p', _('CFST operation failed: ') + e.message), 'error');
+					}).finally(function() {
+						utils.resetBusy(btn);
+					});
+				}
+			}, cfstInstalled ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST'));
+			cfstRow.appendChild(cfstBtn);
+			cfstSection.appendChild(cfstRow);
 
-		var cfstBtn = E('button', {
-			'class': 'cbi-button cbi-button-apply',
-			'click': function() {
-				var btn = this;
-				var isInstalled = cfstInstalled;
-				utils.setBusy(btn, isInstalled ? _('Updating...') : _('Downloading...'));
-				return callDownloadCfst().then(function(result) {
-					result = result || {};
-					if (result.success === false) {
-						ui.addNotification(null, E('p', _('CFST operation failed: ') + (result.error || 'unknown')), 'error');
-					} else {
-						ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
-						utils.reloadSoon(1500);
-					}
-				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('CFST operation failed: ') + e.message), 'error');
-				}).finally(function() {
-					utils.resetBusy(btn);
-				});
-			}
-		}, cfstInstalled ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST'));
-		cfstRow.appendChild(cfstBtn);
-		cfstSection.appendChild(cfstRow);
+			cfstSection.appendChild(E('p', { 'style': 'color:var(--subtext-color,#666);font-size:0.85em;margin-top:0.3em' },
+				_('CloudflareSpeedTest (CFST) is the core speed test tool. It will be automatically downloaded when the service starts.')));
 
-		cfstSection.appendChild(E('p', { 'style': 'color:var(--subtext-color,#666);font-size:0.85em;margin-top:0.3em' },
-			_('CloudflareSpeedTest (CFST) is the core speed test tool. It will be automatically downloaded when the service starts.')));
-
-		var container = E('div', {});
-		container.appendChild(formNode);
-		container.appendChild(cfstSection);
-
-		return utils.renderWithFooter(container, {
+			var container = E('div', {});
+			container.appendChild(formNode);
+			container.appendChild(cfstSection);
+			return container;
+		}), {
 			project: 'Cloudflare IP Optimization',
 			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
 		});
