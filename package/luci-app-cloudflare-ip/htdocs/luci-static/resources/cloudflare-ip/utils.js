@@ -73,7 +73,7 @@ function loadSharedCSS() {
 		var link = E('link', {
 			'id': 'cfi-shared-css',
 			'rel': 'stylesheet',
-			'href': L.resource('cloudflare-ip/cloudflare-ip.css')
+			'href': L.resource('cloudflare-ip/cloudflare-ip.css') + '?v=1.6.0'
 		});
 		document.head.appendChild(link);
 	}
