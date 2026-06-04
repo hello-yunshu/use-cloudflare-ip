@@ -42,6 +42,12 @@ var callServiceRestart = rpc.declare({
 	expect: { '': {} }
 });
 
+var callDownloadCfst = rpc.declare({
+	object: 'cf_ip',
+	method: 'download-cfst',
+	expect: { '': {} }
+});
+
 function waitReadyAndReload() {
 	return utils.waitForServiceReady(callStatus).then(function(status) {
 		if (status && status.last_result === 'running')
@@ -155,7 +161,7 @@ return view.extend({
 		var container = E('div', { 'class': 'cbi-map cfi-dashboard' });
 		container.appendChild(E('style', {}, css));
 
-		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Cloudflare IP Optimization - Overview')));
+		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Overview')));
 
 		var isRunningTest = running && lastResult === 'running';
 		var bannerState = isRunningTest ? 'running-test' : (running ? 'running' : 'stopped');
@@ -295,6 +301,42 @@ return view.extend({
 		}
 
 		controlSection.appendChild(btnGroup);
+
+		/* CFST row inside service control */
+		var cfstInstalled = data.cfst_installed || false;
+		var cfstRow = E('div', { 'style': 'display:flex;align-items:center;gap:0.8em;margin-top:1em;padding-top:1em;border-top:1px solid var(--border-color)' });
+
+		cfstRow.appendChild(E('span', { 'style': 'color:var(--subtext-color,#666);font-size:0.9em' },
+			_('CFST') + ': '));
+
+		var cfstBadge = cfstInstalled
+			? E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + (cfstVersion !== '-' ? cfstVersion : _('Installed')))
+			: E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + _('Not Installed'));
+		cfstRow.appendChild(cfstBadge);
+
+		cfstRow.appendChild(E('button', {
+			'class': 'cbi-button cbi-button-apply',
+			'style': 'margin-left:auto',
+			'click': function() {
+				var btn = this;
+				utils.setBusy(btn, cfstInstalled ? _('Updating...') : _('Downloading...'));
+				return callDownloadCfst().then(function(result) {
+					result = result || {};
+					if (result.success === false) {
+						ui.addNotification(null, E('p', _('CFST operation failed: ') + (result.error || 'unknown')), 'error');
+					} else {
+						ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
+						utils.reloadSoon(1500);
+					}
+				}).catch(function(e) {
+					ui.addNotification(null, E('p', _('CFST operation failed: ') + e.message), 'error');
+				}).finally(function() {
+					utils.resetBusy(btn);
+				});
+			}
+		}, cfstInstalled ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST')));
+
+		controlSection.appendChild(cfstRow);
 		container.appendChild(controlSection);
 
 		var infoSection = E('div', { 'class': 'cbi-section cfi-section' });

@@ -5,6 +5,9 @@ msgstr ""
 msgid "Cloudflare IP - PassWall"
 msgstr "Cloudflare IP - PassWall"
 
+msgid "PassWall"
+msgstr "PassWall"
+
 msgid "PassWall Settings"
 msgstr "PassWall 设置"
 
@@ -37,6 +40,9 @@ msgstr "应用配置失败："
 
 msgid "Cloudflare IP - Diagnostics"
 msgstr "Cloudflare IP - 诊断"
+
+msgid "Diagnostics"
+msgstr "诊断"
 
 msgid "Recent Logs"
 msgstr "最近日志"
@@ -130,6 +136,9 @@ msgstr "警告：以上操作会影响正在运行的服务或其文件，请谨
 
 msgid "Cloudflare IP - Advanced"
 msgstr "Cloudflare IP - 高级"
+
+msgid "Advanced"
+msgstr "高级"
 
 msgid "Self Update"
 msgstr "自动更新"
@@ -353,6 +362,9 @@ msgstr "刷新环境"
 msgid "Cloudflare IP - OpenClash"
 msgstr "Cloudflare IP - OpenClash"
 
+msgid "OpenClash"
+msgstr "OpenClash"
+
 msgid "OpenClash Settings"
 msgstr "OpenClash 设置"
 
@@ -388,6 +400,15 @@ msgstr "OpenClash 配置备份保留数量。"
 
 msgid "Cloudflare IP Optimization"
 msgstr "Cloudflare IP 优选"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Cloudflare IP Optimization - Overview"
+msgstr "Cloudflare IP 优选 - 概览"
+
+msgid "Overview"
+msgstr "概览"
 
 msgid "Configure the Cloudflare IP speed test and optimization service."
 msgstr "配置 Cloudflare IP 测速优选服务。"

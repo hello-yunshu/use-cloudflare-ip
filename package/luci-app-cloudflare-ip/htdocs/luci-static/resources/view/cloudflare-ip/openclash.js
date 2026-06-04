@@ -11,7 +11,7 @@ var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': 
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
 
 return view.extend({
-	title: _('Cloudflare IP - OpenClash'),
+	title: _('OpenClash'),
 
 	load: function() {
 		return Promise.all([
@@ -34,7 +34,7 @@ return view.extend({
 
 		utils.loadSharedCSS();
 
-		var m = new form.Map('cf_ip', _('Cloudflare IP - OpenClash'));
+		var m = new form.Map('cf_ip', _('OpenClash'));
 
 		var s = m.section(form.TypedSection, 'openclash', _('OpenClash Settings'));
 		s.anonymous = true;

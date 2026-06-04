@@ -5,6 +5,9 @@ msgstr ""
 msgid "Cloudflare IP - PassWall"
 msgstr "Cloudflare IP - PassWall"
 
+msgid "PassWall"
+msgstr "PassWall"
+
 msgid "PassWall Settings"
 msgstr "PassWall Settings"
 
@@ -37,6 +40,9 @@ msgstr "Failed to apply configuration: "
 
 msgid "Cloudflare IP - Diagnostics"
 msgstr "Cloudflare IP - Diagnostics"
+
+msgid "Diagnostics"
+msgstr "Diagnostics"
 
 msgid "Recent Logs"
 msgstr "Recent Logs"
@@ -130,6 +136,9 @@ msgstr "Warning: The operations above modify the running service or its files. U
 
 msgid "Cloudflare IP - Advanced"
 msgstr "Cloudflare IP - Advanced"
+
+msgid "Advanced"
+msgstr "Advanced"
 
 msgid "Self Update"
 msgstr "Self Update"
@@ -353,6 +362,9 @@ msgstr "Refresh Env"
 msgid "Cloudflare IP - OpenClash"
 msgstr "Cloudflare IP - OpenClash"
 
+msgid "OpenClash"
+msgstr "OpenClash"
+
 msgid "OpenClash Settings"
 msgstr "OpenClash Settings"
 
@@ -388,6 +400,15 @@ msgstr "Number of OpenClash config backups to keep."
 
 msgid "Cloudflare IP Optimization"
 msgstr "Cloudflare IP Optimization"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Cloudflare IP Optimization - Overview"
+msgstr "Cloudflare IP Optimization - Overview"
+
+msgid "Overview"
+msgstr "Overview"
 
 msgid "Configure the Cloudflare IP speed test and optimization service."
 msgstr "Configure the Cloudflare IP speed test and optimization service."

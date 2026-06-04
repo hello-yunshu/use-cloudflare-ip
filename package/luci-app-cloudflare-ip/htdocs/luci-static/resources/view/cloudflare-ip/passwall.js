@@ -11,7 +11,7 @@ var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': 
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
 
 return view.extend({
-	title: _('Cloudflare IP - PassWall'),
+	title: _('PassWall'),
 
 	load: function() {
 		return Promise.all([
@@ -34,7 +34,7 @@ return view.extend({
 
 		utils.loadSharedCSS();
 
-		var m = new form.Map('cf_ip', _('Cloudflare IP - PassWall'));
+		var m = new form.Map('cf_ip', _('PassWall'));
 
 		var s = m.section(form.TypedSection, 'passwall', _('PassWall Settings'));
 		s.anonymous = true;

@@ -12,7 +12,7 @@ var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expec
 var callSelfUpdate = rpc.declare({ object: 'cf_ip', method: 'self-update', expect: { '': {} } });
 
 return view.extend({
-	title: _('Cloudflare IP - Advanced'),
+	title: _('Advanced'),
 
 	load: function() {
 		return uci.load('cf_ip');
@@ -22,7 +22,7 @@ return view.extend({
 		utils.loadSharedCSS();
 		var m, s, o;
 
-		m = new form.Map('cf_ip', _('Cloudflare IP - Advanced'));
+		m = new form.Map('cf_ip', _('Advanced'));
 
 		/* Self Update */
 		s = m.section(form.TypedSection, 'service', _('Self Update'));

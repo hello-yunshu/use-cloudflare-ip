@@ -10,7 +10,7 @@
 		},
 		"write": {
 			"ubus": {
-				"cf_ip": [ "run", "clear-log", "self-update", "start", "stop", "restart" ],
+				"cf_ip": [ "run", "clear-log", "self-update", "download-cfst", "start", "stop", "restart" ],
 				"luci": [ "setInitAction" ]
 			},
 			"uci": [ "cf_ip" ]

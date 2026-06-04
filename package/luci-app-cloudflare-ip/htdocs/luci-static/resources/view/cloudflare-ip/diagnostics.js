@@ -60,7 +60,7 @@ return view.extend({
 		var container = E('div', { 'class': 'cbi-map cfi-dashboard' });
 		container.appendChild(E('style', {}, css));
 
-		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Cloudflare IP - Diagnostics')));
+		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Diagnostics')));
 
 		/* Recent Logs */
 		var logSection = E('div', { 'class': 'cbi-section cfi-section' });
