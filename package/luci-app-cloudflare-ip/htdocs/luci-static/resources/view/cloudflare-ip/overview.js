@@ -310,7 +310,7 @@ return view.extend({
 			_('CFST') + ': '));
 
 		var cfstBadge = cfstInstalled
-			? E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + (cfstVersion !== '-' ? cfstVersion : _('Installed')))
+			? E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + (data.cfst_version || _('Installed')))
 			: E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + _('Not Installed'));
 		cfstRow.appendChild(cfstBadge);
 
