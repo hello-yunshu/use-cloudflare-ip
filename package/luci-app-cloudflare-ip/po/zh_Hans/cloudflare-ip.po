@@ -8,6 +8,12 @@ msgstr "Cloudflare IP - PassWall"
 msgid "PassWall"
 msgstr "PassWall"
 
+msgid "PassWall Not Found"
+msgstr "未找到 PassWall"
+
+msgid "PassWall is not installed. Please install PassWall before using this feature."
+msgstr "未安装 PassWall，请先安装 PassWall 再使用此功能。"
+
 msgid "PassWall Settings"
 msgstr "PassWall 设置"
 
@@ -364,6 +370,12 @@ msgstr "Cloudflare IP - OpenClash"
 
 msgid "OpenClash"
 msgstr "OpenClash"
+
+msgid "OpenClash Not Found"
+msgstr "未找到 OpenClash"
+
+msgid "OpenClash is not installed. Please install OpenClash before using this feature."
+msgstr "未安装 OpenClash，请先安装 OpenClash 再使用此功能。"
 
 msgid "OpenClash Settings"
 msgstr "OpenClash 设置"

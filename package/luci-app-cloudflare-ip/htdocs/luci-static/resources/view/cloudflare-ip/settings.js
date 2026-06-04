@@ -81,7 +81,7 @@ return view.extend({
 			_('Select which IP addresses to test.'));
 		o.value('ipv4', 'IPv4');
 		o.value('ipv6', 'IPv6');
-		o.value('both', 'Both');
+		o.value('both', _('Both'));
 		o.default = 'ipv4';
 		o.rmempty = false;
 
