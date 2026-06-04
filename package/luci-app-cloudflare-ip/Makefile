@@ -46,7 +46,7 @@ define Build/Compile
 			"$(STAGING_DIR_HOSTPKG)/bin/po2lmo" "$$$$po_dir/cloudflare-ip.po" "$(PKG_BUILD_DIR)/lmo/cloudflare-ip.$$$$lmo_lang.lmo"; \
 		fi; \
 	done; \
-	sed -i 's/^SCRIPT_VERSION="[^"]*"/SCRIPT_VERSION="$(PKG_VERSION)"/' $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto
+	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/cf_ip
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/htdocs/luci-static/resources/cloudflare-ip/utils.js
 endef
