@@ -48,6 +48,7 @@ define Build/Compile
 	done; \
 	sed -i 's/^SCRIPT_VERSION="[^"]*"/SCRIPT_VERSION="$(PKG_VERSION)"/' $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/cf_ip
+	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/htdocs/luci-static/resources/cloudflare-ip/utils.js
 endef
 
 define Package/luci-app-cloudflare-ip/install
