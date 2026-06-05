@@ -89,34 +89,34 @@ EOF
 		method="$2"
 		case "$method" in
 			status)
-				"$CF_IP_AUTO_BIN" --status 2>/dev/null || echo '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"","error":""}'
+				"$CF_IP_AUTO_BIN" --status 2>/dev/null || true
 				;;
 			check-env)
-				"$CF_IP_AUTO_BIN" --check-env 2>/dev/null || echo '{"error":"check-env failed"}'
+				"$CF_IP_AUTO_BIN" --check-env 2>/dev/null || true
 				;;
 			refresh-env)
-				"$CF_IP_AUTO_BIN" --refresh-env 2>/dev/null || echo '{"error":"refresh-env failed"}'
+				"$CF_IP_AUTO_BIN" --refresh-env 2>/dev/null || true
 				;;
 			run)
-				"$CF_IP_AUTO_BIN" --run 2>/dev/null || echo '{"success":false,"error":"run_failed"}'
+				"$CF_IP_AUTO_BIN" --run 2>/dev/null || true
 				;;
 			version)
 				printf '{"version":"%s"}\n' "$RPCD_VERSION"
 				;;
 			read-log)
-				"$CF_IP_AUTO_BIN" --read-log 2>/dev/null || echo '{"success":false,"error":"read-log failed","logs":""}'
+				"$CF_IP_AUTO_BIN" --read-log 2>/dev/null || true
 				;;
 			clear-log)
-				"$CF_IP_AUTO_BIN" --clear-log 2>/dev/null || echo '{"success":false,"error":"clear-log failed"}'
+				"$CF_IP_AUTO_BIN" --clear-log 2>/dev/null || true
 				;;
 			ip-history)
-				"$CF_IP_AUTO_BIN" --ip-history 2>/dev/null || echo '{"success":false,"error":"ip-history failed","ips":[]}'
+				"$CF_IP_AUTO_BIN" --ip-history 2>/dev/null || true
 				;;
 			download-cfst)
-				"$CF_IP_AUTO_BIN" --download-cfst 2>/dev/null || echo '{"success":false,"error":"download-cfst failed"}'
+				"$CF_IP_AUTO_BIN" --download-cfst 2>/dev/null || true
 				;;
 			self-update)
-				"$CF_IP_AUTO_BIN" --self-update 2>/dev/null || echo '{"success":false,"error":"self-update failed"}'
+				"$CF_IP_AUTO_BIN" --self-update 2>/dev/null || true
 				;;
 			start)
 				service_action start

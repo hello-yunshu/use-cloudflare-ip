@@ -316,7 +316,7 @@ return view.extend({
 
 		cfstRow.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
-			'style': 'margin-left:auto',
+			'style': 'margin-left:0.5em',
 			'click': function() {
 				var btn = this;
 				utils.setBusy(btn, cfstInstalled ? _('Updating...') : _('Downloading...'));
