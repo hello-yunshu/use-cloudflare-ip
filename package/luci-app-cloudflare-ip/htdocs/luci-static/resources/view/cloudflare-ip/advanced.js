@@ -45,9 +45,10 @@ return view.extend({
 		o.inputtitle = _('Update Script');
 		o.inputstyle = 'apply';
 		o.onclick = function() {
+			ui.addNotification(null, E('p', _('Checking for script updates, this may take a moment. Please wait...')), 'info');
 			return callSelfUpdate().then(function(res) {
 				res = res || {};
-				if (res.success === false) {
+				if (res.success !== true) {
 					ui.addNotification(null, E('p', _('Self-update failed: ') + (res.error || 'unknown')), 'error');
 				} else if (res.updated) {
 					ui.addNotification(null, E('p', _('Script updated to version %s.').format(res.new_version || res.version || '')), 'info');

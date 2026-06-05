@@ -63,7 +63,7 @@ function waitForServiceReady(callStatus, options) {
 }
 
 function requireSuccess(result) {
-	if (result && result.success === false)
+	if (!result || result.success !== true)
 		throw new Error(result.error || _('service action failed'));
 	return result || {};
 }

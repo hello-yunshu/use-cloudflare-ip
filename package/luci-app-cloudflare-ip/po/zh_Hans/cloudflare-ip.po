@@ -557,6 +557,15 @@ msgstr "CFST (CloudflareSpeedTest)"
 msgid "CFST operation failed: "
 msgstr "CFST 操作失败："
 
+msgid "Updating CFST, this may take a few minutes depending on network conditions. Please wait..."
+msgstr "正在更新 CFST，根据网络情况可能需要几分钟，请耐心等待..."
+
+msgid "Downloading CFST, this may take a few minutes depending on network conditions. Please wait..."
+msgstr "正在下载 CFST，根据网络情况可能需要几分钟，请耐心等待..."
+
+msgid "Checking for script updates, this may take a moment. Please wait..."
+msgstr "正在检查脚本更新，可能需要一点时间，请耐心等待..."
+
 msgid "CloudflareSpeedTest (CFST) is the core speed test tool. It will be automatically downloaded when the service starts."
 msgstr "CloudflareSpeedTest (CFST) 是核心测速工具，服务启动时会自动下载。"
 

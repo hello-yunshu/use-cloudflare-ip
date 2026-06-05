@@ -113,10 +113,12 @@ EOF
 				"$CF_IP_AUTO_BIN" --ip-history 2>/dev/null || true
 				;;
 			download-cfst)
-				"$CF_IP_AUTO_BIN" --download-cfst 2>/dev/null || true
+				_out="$("$CF_IP_AUTO_BIN" --download-cfst 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"no output from cf-ip-auto\"}}"
 				;;
 			self-update)
-				"$CF_IP_AUTO_BIN" --self-update 2>/dev/null || true
+				_out="$("$CF_IP_AUTO_BIN" --self-update 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"no output from cf-ip-auto\"}}"
 				;;
 			start)
 				service_action start

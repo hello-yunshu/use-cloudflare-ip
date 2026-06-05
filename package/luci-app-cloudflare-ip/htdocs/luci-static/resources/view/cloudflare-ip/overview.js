@@ -284,7 +284,7 @@ return view.extend({
 								msg = _('Speedtest completed but no best IPs found.');
 								msgType = 'warning';
 							}
-						} else if (result.success === false) {
+						} else if (result.success !== true) {
 							msg = _('Speedtest failed: %s').format(result.error || 'unknown');
 							msgType = 'error';
 						} else {
@@ -320,9 +320,12 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				utils.setBusy(btn, cfstInstalled ? _('Updating...') : _('Downloading...'));
+				ui.addNotification(null, E('p', cfstInstalled
+					? _('Updating CFST, this may take a few minutes depending on network conditions. Please wait...')
+					: _('Downloading CFST, this may take a few minutes depending on network conditions. Please wait...')), 'info');
 				return callDownloadCfst().then(function(result) {
 					result = result || {};
-					if (result.success === false) {
+					if (result.success !== true) {
 						ui.addNotification(null, E('p', _('CFST operation failed: ') + (result.error || 'unknown')), 'error');
 					} else {
 						ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');

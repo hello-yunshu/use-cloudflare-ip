@@ -1545,7 +1545,8 @@ cmd_ip_history() {
 	JSON_MODE=true
 	# Try to load UCI config for WORK_DIR
 		load_uci_config_if_available 2>/dev/null || true
-	local history_file="${WORK_DIR}/cfst/ip-all.txt"
+	CFST_DIR="${WORK_DIR}/cfst"
+	local history_file="${CFST_DIR}/ip-all.txt"
 	[[ -n "$IP_HISTORY_FILE" ]] && history_file="$IP_HISTORY_FILE"
 
 	if [[ -f "$history_file" ]]; then
@@ -1569,6 +1570,7 @@ cmd_download_cfst() {
 	load_uci_config
 	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
 
+	CFST_DIR="${WORK_DIR}/cfst"
 	mkdir -p "$CFST_DIR"
 	download_speedtest
 

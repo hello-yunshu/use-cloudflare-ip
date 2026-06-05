@@ -79,7 +79,7 @@ return view.extend({
 				logArea.textContent = _('Loading...');
 				return callReadLog().then(function(res) {
 					res = res || {};
-					if (res.success === false) {
+					if (res.success !== true) {
 						logArea.className = 'cfi-log-area is-error';
 						logArea.textContent = res.error || _('Failed to read logs');
 					} else if (res.logs) {
@@ -111,7 +111,7 @@ return view.extend({
 				utils.setBusy(btn, _('Loading...'));
 				return callClearLog().then(function(res) {
 					res = res || {};
-					if (res.success) {
+					if (res.success === true) {
 						logArea.className = 'cfi-log-area is-empty';
 						logArea.textContent = _('Log file cleared.');
 					} else {
@@ -128,7 +128,7 @@ return view.extend({
 		logSection.appendChild(logBtnBar);
 
 		/* Populate initial log content */
-		if (logData.success === false) {
+		if (logData.success !== true) {
 			logArea.className = 'cfi-log-area is-error';
 			logArea.textContent = logData.error || _('Failed to read logs');
 		} else if (logData.logs) {
@@ -160,7 +160,7 @@ return view.extend({
 				ipTableBody.removeChild(ipTableBody.firstChild);
 
 			res = res || {};
-			if (res.success === false) {
+			if (res.success !== true) {
 				ipTableBody.appendChild(E('tr', { 'class': 'tr' }, E('td', { 'class': 'td', 'colspan': '2', 'style': 'color:var(--danger-color)' }, res.error || _('Failed to load IP history'))));
 				return;
 			}
