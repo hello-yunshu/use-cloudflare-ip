@@ -39,14 +39,6 @@ return view.extend({
 		var s = m.section(form.TypedSection, 'passwall', _('PassWall Settings'));
 		s.anonymous = true;
 
-		var info = s.option(form.DummyValue, '_info', '');
-		info.rawhtml = true;
-		info.cfgvalue = function() {
-			return '<div class="cbi-section-descr cfi-cmd-box">' +
-				_('PassWall mode scans uci show passwall and updates nodes whose address matches the target domain with optimized IPs.') +
-				'</div>';
-		};
-
 		var o;
 
 		o = s.option(form.Value, 'target_domain', _('Target Domain'));

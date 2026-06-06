@@ -350,6 +350,9 @@ msgstr "uci"
 msgid "CFST"
 msgstr "CFST"
 
+msgid "CFST Core"
+msgstr "CFST Core"
+
 msgid "Environment detection refreshed."
 msgstr "Environment detection refreshed."
 

@@ -39,14 +39,6 @@ return view.extend({
 		var s = m.section(form.TypedSection, 'openclash', _('OpenClash Settings'));
 		s.anonymous = true;
 
-		var info = s.option(form.DummyValue, '_info', '');
-		info.rawhtml = true;
-		info.cfgvalue = function() {
-			return '<div class="cbi-section-descr cfi-cmd-box">' +
-				_('OpenClash mode modifies the YAML configuration file. It finds proxies whose server matches the target domain, generates [CF-1], [CF-2] variants, and keeps servername/Host as the original domain. Supports vless/vmess/trojan with tls:true or network ws/xhttp/grpc/h2/http.') +
-				'</div>';
-		};
-
 		var o;
 
 		o = s.option(form.Value, 'config', _('Config File Path'));

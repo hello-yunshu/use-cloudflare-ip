@@ -26,8 +26,7 @@ return view.extend({
 
 		var m, s, o;
 
-		m = new form.Map('cf_ip', _('Settings'),
-			_('Configure the Cloudflare IP speed test and optimization service.'));
+		m = new form.Map('cf_ip', _('Settings'));
 
 		s = m.section(form.TypedSection, 'service', _('Service'));
 		s.anonymous = true;

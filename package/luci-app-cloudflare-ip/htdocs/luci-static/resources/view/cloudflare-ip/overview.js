@@ -302,21 +302,10 @@ return view.extend({
 
 		controlSection.appendChild(btnGroup);
 
-		/* CFST row inside service control */
+		/* CFST button in button group */
 		var cfstInstalled = data.cfst_installed || false;
-		var cfstRow = E('div', { 'style': 'display:flex;align-items:center;gap:0.8em;margin-top:1em;padding-top:1em;border-top:1px solid var(--border-color)' });
-
-		cfstRow.appendChild(E('span', { 'style': 'color:var(--subtext-color,#666);font-size:0.9em' },
-			_('CFST') + ': '));
-
-		var cfstBadge = cfstInstalled
-			? E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + (data.cfst_version || _('Installed')))
-			: E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + _('Not Installed'));
-		cfstRow.appendChild(cfstBadge);
-
-		cfstRow.appendChild(E('button', {
+		btnGroup.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
-			'style': 'margin-left:0.5em',
 			'click': function() {
 				var btn = this;
 				utils.setBusy(btn, cfstInstalled ? _('Updating...') : _('Downloading...'));
@@ -339,7 +328,6 @@ return view.extend({
 			}
 		}, cfstInstalled ? '\u21BB ' + _('Update CFST') : '\u2B07 ' + _('Download CFST')));
 
-		controlSection.appendChild(cfstRow);
 		container.appendChild(controlSection);
 
 		var infoSection = E('div', { 'class': 'cbi-section cfi-section' });

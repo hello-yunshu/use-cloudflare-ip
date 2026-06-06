@@ -17,8 +17,6 @@ msgstr "未安装 PassWall，请先安装 PassWall 再使用此功能。"
 msgid "PassWall Settings"
 msgstr "PassWall 设置"
 
-msgid "PassWall mode scans uci show passwall and updates nodes whose address matches the target domain with optimized IPs."
-msgstr "PassWall 模式扫描 uci show passwall，将 address 匹配目标域名的节点替换为优选 IP。"
 
 msgid "Target Domain"
 msgstr "目标域名"
@@ -350,6 +348,9 @@ msgstr "uci"
 msgid "CFST"
 msgstr "CFST"
 
+msgid "CFST Core"
+msgstr "CFST 核心"
+
 msgid "Environment detection refreshed."
 msgstr "环境检测已刷新。"
 
@@ -370,9 +371,6 @@ msgstr "未安装 OpenClash，请先安装 OpenClash 再使用此功能。"
 
 msgid "OpenClash Settings"
 msgstr "OpenClash 设置"
-
-msgid "OpenClash mode modifies the YAML configuration file. It finds proxies whose server matches the target domain, generates [CF-1], [CF-2] variants, and keeps servername/Host as the original domain. Supports vless/vmess/trojan with tls:true or network ws/xhttp/grpc/h2/http."
-msgstr "OpenClash 模式修改 YAML 配置文件。找到 server 匹配目标域名的代理，生成 [CF-1]、[CF-2] 变体，保留 servername/Host 为原域名。支持 vless/vmess/trojan 且 tls:true 或 network ws/xhttp/grpc/h2/http。"
 
 msgid "Config File Path"
 msgstr "配置文件路径"
@@ -409,9 +407,6 @@ msgstr "设置"
 
 msgid "Overview"
 msgstr "概览"
-
-msgid "Configure the Cloudflare IP speed test and optimization service."
-msgstr "配置 Cloudflare IP 测速优选服务。"
 
 msgid "Service"
 msgstr "服务"
