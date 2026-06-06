@@ -347,12 +347,6 @@ msgstr "sed"
 msgid "uci"
 msgstr "uci"
 
-msgid "PassWall"
-msgstr "PassWall"
-
-msgid "OpenClash"
-msgstr "OpenClash"
-
 msgid "CFST"
 msgstr "CFST"
 
@@ -367,9 +361,6 @@ msgstr "Refresh Env"
 
 msgid "Cloudflare IP - OpenClash"
 msgstr "Cloudflare IP - OpenClash"
-
-msgid "OpenClash"
-msgstr "OpenClash"
 
 msgid "OpenClash Not Found"
 msgstr "OpenClash Not Found"
@@ -415,9 +406,6 @@ msgstr "Cloudflare IP Optimization"
 
 msgid "Settings"
 msgstr "Settings"
-
-msgid "Cloudflare IP Optimization - Overview"
-msgstr "Cloudflare IP Optimization - Overview"
 
 msgid "Overview"
 msgstr "Overview"
@@ -473,11 +461,17 @@ msgstr "Download Test Count"
 msgid "Number of IPs to test download speed."
 msgstr "Number of IPs to test download speed."
 
-msgid "Average Latency Limit (ms)"
-msgstr "Average Latency Limit (ms)"
+msgid "Average Latency Floor (ms)"
+msgstr "Average Latency Floor (ms)"
 
-msgid "Skip IPs with average latency above this limit."
-msgstr "Skip IPs with average latency above this limit."
+msgid "Skip IPs with average latency below this value. Useful for filtering out fake/blocked IPs with suspiciously low latency."
+msgstr "Skip IPs with average latency below this value. Useful for filtering out fake/blocked IPs with suspiciously low latency."
+
+msgid "Average Latency Ceiling (ms)"
+msgstr "Average Latency Ceiling (ms)"
+
+msgid "Skip IPs with average latency above this value. Leave empty for no upper limit."
+msgstr "Skip IPs with average latency above this value. Leave empty for no upper limit."
 
 msgid "Stop Service Before Test"
 msgstr "Stop Service Before Test"

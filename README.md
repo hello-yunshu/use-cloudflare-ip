@@ -186,7 +186,8 @@ htdocs/luci-static/resources/
 | `speedtest_protocol` | enum | tcp | 测速协议：`tcp` / `http` |
 | `speedtest_cfcolo` | string | — | 按数据中心筛选（HTTP 协议时有效） |
 | `speedtest_dn` | integer | 10 | 下载测速线程数 |
-| `speedtest_tll` | integer | 40 | 延迟测试次数 |
+| `speedtest_tll` | integer | 40 | 平均延迟下限（ms），过滤假墙 IP |
+| `speedtest_tl` | integer | — | 平均延迟上限（ms），留空不限制 |
 | `stop_service` | boolean | 1 | 测速前停止代理服务 |
 | `startup_delay` | string | — | 启动延迟，`random` = 0~300s |
 | `auto_update` | boolean | 1 | 启用脚本自更新 |

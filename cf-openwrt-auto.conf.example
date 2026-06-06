@@ -24,7 +24,7 @@
 #   The script checks CONFIG_VERSION against the minimum required config version.
 #   Do not remove this value; update it when you refresh this config from the template.
 
-CONFIG_VERSION="1.3.0"
+CONFIG_VERSION="1.3.1"
 
 # 运行模式：
 #   passwall  = 修改 PassWall 节点
@@ -79,7 +79,8 @@ IP_TYPE="ipv4"
 #     留空不筛选；多个用逗号分隔，如 HKG,NRT,LAX
 #     仅 SPEEDTEST_PROTOCOL=http 时生效
 #   SPEEDTEST_DN       = 下载测速数量，对应 cfst -dn
-#   SPEEDTEST_TLL      = 平均延迟上限，对应 cfst -tll
+#   SPEEDTEST_TLL      = 平均延迟下限，对应 cfst -tll
+#   SPEEDTEST_TL       = 平均延迟上限，对应 cfst -tl（留空不限制）
 #
 # CloudflareSpeedTest options:
 #   SPEEDTEST_PROTOCOL = test protocol, maps to cfst -httping
@@ -90,11 +91,13 @@ IP_TYPE="ipv4"
 #     Only effective when SPEEDTEST_PROTOCOL=http
 #   SPEEDTEST_DN       maps to cfst -dn
 #   SPEEDTEST_TLL      maps to cfst -tll
+#   SPEEDTEST_TL       maps to cfst -tl (leave empty for no limit)
 
 SPEEDTEST_PROTOCOL="tcp"
 SPEEDTEST_CFCOLO=""
 SPEEDTEST_DN="10"
 SPEEDTEST_TLL="40"
+SPEEDTEST_TL=""
 
 # PassWall 目标域名：
 #   脚本会扫描 `uci show passwall`。

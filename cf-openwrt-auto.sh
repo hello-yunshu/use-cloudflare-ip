@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.5.1"
+SCRIPT_VERSION="1.5.2"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -18,6 +18,7 @@ RESULT_FILE=""
 IP_HISTORY_FILE=""
 SPEEDTEST_DN="10"
 SPEEDTEST_TLL="40"
+SPEEDTEST_TL=""
 SPEEDTEST_PROTOCOL="tcp"
 SPEEDTEST_CFCOLO=""
 PASSWALL_TARGET_DOMAIN=""
@@ -425,7 +426,10 @@ run_speedtest() {
 		local partial_result
 		partial_result="$(mktemp "${RESULT_FILE}.XXXXXX")"
 		log "running speedtest with $cfst_file"
-		"${CFST_DIR}/${BINARY_NAME}" -f "$cfst_file" -dn "$SPEEDTEST_DN" -tll "$SPEEDTEST_TLL" "${cfst_proto_args[@]}" -o "$partial_result" >/dev/null || true
+		local cfst_args=(-f "$cfst_file" -dn "$SPEEDTEST_DN" -tll "$SPEEDTEST_TLL")
+		[[ -n "$SPEEDTEST_TL" ]] && cfst_args+=(-tl "$SPEEDTEST_TL")
+		cfst_args+=("${cfst_proto_args[@]}" -o "$partial_result")
+		"${CFST_DIR}/${BINARY_NAME}" "${cfst_args[@]}" >/dev/null || true
 		result_files+=("$partial_result")
 	done
 
@@ -1085,6 +1089,9 @@ validate_config() {
 	[[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" || "$STOP_SERVICE_BEFORE_SPEEDTEST" == "false" ]] || die "STOP_SERVICE_BEFORE_SPEEDTEST must be true or false"
 	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
 		[[ "$STARTUP_DELAY" =~ ^[0-9]+$ ]] || die "STARTUP_DELAY must be a non-negative integer or random"
+	fi
+	if [[ -n "$SPEEDTEST_TL" ]]; then
+		[[ "$SPEEDTEST_TL" =~ ^[0-9]+$ ]] || die "SPEEDTEST_TL must be a non-negative integer"
 	fi
 	if [[ -n "$GITHUB_MIRROR" ]]; then
 		[[ "$GITHUB_MIRROR" == http://* || "$GITHUB_MIRROR" == https://* ]] || die "GITHUB_MIRROR must start with http:// or https://"

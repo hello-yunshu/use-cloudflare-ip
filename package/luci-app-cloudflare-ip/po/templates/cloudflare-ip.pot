@@ -440,10 +440,16 @@ msgstr ""
 msgid "Number of IPs to test download speed."
 msgstr ""
 
-msgid "Average Latency Limit (ms)"
+msgid "Average Latency Floor (ms)"
 msgstr ""
 
-msgid "Skip IPs with average latency above this limit."
+msgid "Skip IPs with average latency below this value. Useful for filtering out fake/blocked IPs with suspiciously low latency."
+msgstr ""
+
+msgid "Average Latency Ceiling (ms)"
+msgstr ""
+
+msgid "Skip IPs with average latency above this value. Leave empty for no upper limit."
 msgstr ""
 
 msgid "Stop Service Before Test"

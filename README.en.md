@@ -186,7 +186,8 @@ htdocs/luci-static/resources/
 | `speedtest_protocol` | enum | tcp | Benchmark protocol: `tcp` / `http` |
 | `speedtest_cfcolo` | string | — | Filter by data center (HTTP protocol only) |
 | `speedtest_dn` | integer | 10 | Download benchmark threads |
-| `speedtest_tll` | integer | 40 | Latency test count |
+| `speedtest_tll` | integer | 40 | Average latency floor (ms), filter fake IPs |
+| `speedtest_tl` | integer | — | Average latency ceiling (ms), leave empty for no limit |
 | `stop_service` | boolean | 1 | Stop proxy service before benchmarking |
 | `startup_delay` | string | — | Startup delay, `random` = 0~300s |
 | `auto_update` | boolean | 1 | Enable script self-update |

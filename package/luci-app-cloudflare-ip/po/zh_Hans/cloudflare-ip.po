@@ -347,12 +347,6 @@ msgstr "sed"
 msgid "uci"
 msgstr "uci"
 
-msgid "PassWall"
-msgstr "PassWall"
-
-msgid "OpenClash"
-msgstr "OpenClash"
-
 msgid "CFST"
 msgstr "CFST"
 
@@ -367,9 +361,6 @@ msgstr "刷新环境"
 
 msgid "Cloudflare IP - OpenClash"
 msgstr "Cloudflare IP - OpenClash"
-
-msgid "OpenClash"
-msgstr "OpenClash"
 
 msgid "OpenClash Not Found"
 msgstr "未找到 OpenClash"
@@ -415,9 +406,6 @@ msgstr "Cloudflare IP 优选"
 
 msgid "Settings"
 msgstr "设置"
-
-msgid "Cloudflare IP Optimization - Overview"
-msgstr "Cloudflare IP 优选 - 概览"
 
 msgid "Overview"
 msgstr "概览"
@@ -473,11 +461,17 @@ msgstr "下载测速数量"
 msgid "Number of IPs to test download speed."
 msgstr "测试下载速度的 IP 数量。"
 
-msgid "Average Latency Limit (ms)"
+msgid "Average Latency Floor (ms)"
+msgstr "平均延迟下限（ms）"
+
+msgid "Skip IPs with average latency below this value. Useful for filtering out fake/blocked IPs with suspiciously low latency."
+msgstr "跳过平均延迟低于此值的 IP。可过滤延迟异常低的假墙 IP。"
+
+msgid "Average Latency Ceiling (ms)"
 msgstr "平均延迟上限（ms）"
 
-msgid "Skip IPs with average latency above this limit."
-msgstr "跳过平均延迟超过此限制的 IP。"
+msgid "Skip IPs with average latency above this value. Leave empty for no upper limit."
+msgstr "跳过平均延迟超过此值的 IP。留空表示不设上限。"
 
 msgid "Stop Service Before Test"
 msgstr "测速前停止服务"

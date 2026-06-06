@@ -103,11 +103,17 @@ return view.extend({
 		o.placeholder = '10';
 		o.rmempty = false;
 
-		o = s.option(form.Value, 'speedtest_tll', _('Average Latency Limit (ms)'),
-			_('Skip IPs with average latency above this limit.'));
-		o.datatype = 'range(1,1000)';
+		o = s.option(form.Value, 'speedtest_tll', _('Average Latency Floor (ms)'),
+			_('Skip IPs with average latency below this value. Useful for filtering out fake/blocked IPs with suspiciously low latency.'));
+		o.datatype = 'range(0,1000)';
 		o.placeholder = '40';
 		o.rmempty = false;
+
+		o = s.option(form.Value, 'speedtest_tl', _('Average Latency Ceiling (ms)'),
+			_('Skip IPs with average latency above this value. Leave empty for no upper limit.'));
+		o.datatype = 'range(1,9999)';
+		o.placeholder = '200';
+		o.rmempty = true;
 
 		o = s.option(form.Flag, 'stop_service', _('Stop Service Before Test'),
 			_('Stop the proxy service before speed testing to avoid interference, and restart after updating.'));

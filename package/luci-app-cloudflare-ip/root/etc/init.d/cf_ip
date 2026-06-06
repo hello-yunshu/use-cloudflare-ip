@@ -107,7 +107,7 @@ validate_cf_ip() {
 		'enabled:bool' 'mode:string' 'ip_count:uinteger' \
 		'ip_type:string' 'speedtest_protocol:string' \
 		'speedtest_cfcolo:string' 'speedtest_dn:uinteger' \
-		'speedtest_tll:uinteger' 'stop_service:bool' \
+		'speedtest_tll:uinteger' 'speedtest_tl:uinteger' 'stop_service:bool' \
 		'startup_delay:string' 'auto_update:bool' \
 		'self_update_url:string' 'download_retries:uinteger' \
 		'download_retry_delay:uinteger' 'github_mirror:string' \
