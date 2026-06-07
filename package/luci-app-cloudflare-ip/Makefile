@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-cloudflare-ip
-PKG_VERSION:=1.6.3
+PKG_VERSION:=1.6.5
 PKG_RELEASE:=1
 
 PKG_MAINTAINER:=yunshu
