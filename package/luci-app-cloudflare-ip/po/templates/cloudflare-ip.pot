@@ -35,7 +35,7 @@ msgstr ""
 msgid "Failed to apply configuration: "
 msgstr ""
 
-msgid "Cloudflare IP - Diagnostics"
+msgid "Cloudflare IP - Logs & Records"
 msgstr ""
 
 msgid "Recent Logs"

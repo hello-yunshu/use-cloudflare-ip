@@ -35,8 +35,8 @@
 			"path": "cloudflare-ip/advanced"
 		}
 	},
-	"admin/services/cf_ip/diagnostics": {
-		"title": "Diagnostics",
+	"admin/services/cf_ip/logs": {
+		"title": "Logs & Records",
 		"order": 60,
 		"action": {
 			"type": "view",

@@ -42,11 +42,11 @@ msgstr "配置已应用，服务就绪。"
 msgid "Failed to apply configuration: "
 msgstr "应用配置失败："
 
-msgid "Cloudflare IP - Diagnostics"
-msgstr "Cloudflare IP - 诊断"
+msgid "Cloudflare IP - Logs & Records"
+msgstr "Cloudflare IP - 日志与记录"
 
-msgid "Diagnostics"
-msgstr "诊断"
+msgid "Logs & Records"
+msgstr "日志与记录"
 
 msgid "Recent Logs"
 msgstr "最近日志"

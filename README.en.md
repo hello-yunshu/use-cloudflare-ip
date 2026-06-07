@@ -144,7 +144,7 @@ htdocs/luci-static/resources/
     ├── passwall.js                           # PassWall configuration
     ├── openclash.js                          # OpenClash configuration
     ├── advanced.js                           # Advanced settings
-    └── diagnostics.js                        # Logs & maintenance
+    └── diagnostics.js                        # Logs & Records
 ```
 
 ## Architecture

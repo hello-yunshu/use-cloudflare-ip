@@ -112,7 +112,7 @@ CFST 未安装时，点击「下载 CFST」按钮即可自动下载；已安装�
 | 重试间隔 | 重试间隔秒数 | 5 |
 | 详细日志 | 输出详细运行日志 | 关 |
 
-### 日志与维护
+### 日志与记录
 
 - 查看运行日志
 - 查看 IP 历史记录
@@ -144,7 +144,7 @@ htdocs/luci-static/resources/
     ├── passwall.js                           # PassWall 配置
     ├── openclash.js                          # OpenClash 配置
     ├── advanced.js                           # 高级设置
-    └── diagnostics.js                        # 日志与维护
+    └── diagnostics.js                        # 日志与记录
 ```
 
 ## 架构设计

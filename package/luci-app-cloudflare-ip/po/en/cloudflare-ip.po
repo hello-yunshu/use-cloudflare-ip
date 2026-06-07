@@ -44,11 +44,11 @@ msgstr "Configuration applied and service is ready."
 msgid "Failed to apply configuration: "
 msgstr "Failed to apply configuration: "
 
-msgid "Cloudflare IP - Diagnostics"
-msgstr "Cloudflare IP - Diagnostics"
+msgid "Cloudflare IP - Logs & Records"
+msgstr "Cloudflare IP - Logs & Records"
 
-msgid "Diagnostics"
-msgstr "Diagnostics"
+msgid "Logs & Records"
+msgstr "Logs & Records"
 
 msgid "Recent Logs"
 msgstr "Recent Logs"
