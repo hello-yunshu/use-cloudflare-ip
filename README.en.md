@@ -197,7 +197,7 @@ htdocs/luci-static/resources/
 | `github_mirror` | string | — | GitHub mirror URL for acceleration |
 | `verbose` | boolean | 0 | Verbose logging |
 | `work_dir` | string | — | Working directory |
-| `cron_interval` | integer | 360 | Auto-run interval in minutes |
+| `cron_interval` | string | 6h | Auto-run schedule, supports `6h`, `30m`, or a 5-field cron expression |
 
 ### passwall section
 

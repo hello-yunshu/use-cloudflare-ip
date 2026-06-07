@@ -76,11 +76,15 @@ start_service() {
 	# Schedule via crontab
 	cf_ip_cron_add "$cron_expr"
 
-	# Handle startup delay: schedule an immediate one-shot run after delay
-	if [ -n "$startup_delay" ] && [ "$startup_delay" -gt 0 ] 2>/dev/null; then
-		(sleep "$startup_delay" && /usr/bin/cf-ip-auto --run >/dev/null 2>&1) &
-		logger -t cf_ip -p daemon.info "startup: first run delayed by ${startup_delay} seconds"
-	fi
+	# Let cf-ip-auto apply its own startup delay so numeric and random modes stay consistent.
+	case "$startup_delay" in
+		""|0)
+			;;
+		*)
+			(/usr/bin/cf-ip-auto --run >/dev/null 2>&1) &
+			logger -t cf_ip -p daemon.info "startup: first run scheduled with delay '${startup_delay}'"
+			;;
+	esac
 
 	# Write initial status for crontab-managed mode
 	cf-ip-auto --write-status

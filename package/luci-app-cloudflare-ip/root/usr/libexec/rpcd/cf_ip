@@ -4,6 +4,17 @@ RPCD_VERSION="@PKG_VERSION@"
 CF_IP_AUTO_BIN="/usr/bin/cf-ip-auto"
 INIT_SCRIPT="/etc/init.d/cf_ip"
 
+service_running_state() {
+	case "$(uci -q get cf_ip.main.enabled 2>/dev/null)" in
+		1|on|true|enabled)
+			if [ -f /tmp/cf_ip/status.json ] && grep -q '"running"[[:space:]]*:[[:space:]]*true' /tmp/cf_ip/status.json 2>/dev/null; then
+				return 0
+			fi
+			;;
+	esac
+	return 1
+}
+
 service_action() {
 	action="$1"
 
@@ -44,12 +55,12 @@ service_action() {
 	_wait=0
 	while [ "$_wait" -lt 4 ]; do
 		if [ "$action" = "stop" ]; then
-			if ! "$INIT_SCRIPT" status >/dev/null 2>&1; then
+			if ! service_running_state; then
 				printf '{"success":true,"action":"%s","running":false}\n' "$action"
 				return 0
 			fi
 		else
-			if "$INIT_SCRIPT" status >/dev/null 2>&1; then
+			if service_running_state; then
 				printf '{"success":true,"action":"%s","running":true}\n' "$action"
 				return 0
 			fi

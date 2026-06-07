@@ -50,7 +50,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'cron_custom', _('Custom Schedule'),
-			_('Enter a duration (e.g. 6h, 30m, 1h30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *).'));
+			_('Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *).'));
 		o.placeholder = '6h';
 		o.depends('cron_interval', 'custom');
 

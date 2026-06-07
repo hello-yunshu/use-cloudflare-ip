@@ -1674,8 +1674,9 @@ _parse_cron_seconds() {
 	# Pattern: */N * * * *  — every N minutes
 	if [[ "$min" == \*/[1-9]* && "$hour" == "*" && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
 		local n="${min#*/}"
-		local now_min=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
-		local now_sec=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local now_min now_sec
+		now_min=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		now_sec=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
 		local elapsed=$((now_min % n))
 		if [ "$elapsed" -eq 0 ] && [ "$now_sec" -lt 5 ]; then
 			printf '%s\n' $((n * 60))
@@ -1690,9 +1691,10 @@ _parse_cron_seconds() {
 	# Pattern: M */N * * *  — every N hours at minute M
 	if [[ "$min" =~ ^[0-9]+$ && "$hour" == \*/[1-9]* && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
 		local n="${hour#*/}"
-		local now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
-		local now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
-		local now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local now_h now_m now_s
+		now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
+		now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
 		local now_secs=$((now_h * 3600 + now_m * 60 + now_s))
 		local elapsed=$((now_h / n))
 		local next_h=$(((elapsed + 1) * n))
@@ -1717,9 +1719,10 @@ _parse_cron_seconds() {
 	# Pattern: * */N * * *  — every N hours
 	if [[ "$min" == "*" && "$hour" == \*/[1-9]* && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
 		local n="${hour#*/}"
-		local now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
-		local now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
-		local now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local now_h now_m now_s
+		now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
+		now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
 		local now_secs=$((now_h * 3600 + now_m * 60 + now_s))
 		local next_interval=$((((now_h / n) + 1) * n))
 		local target_secs
@@ -1773,7 +1776,7 @@ to_cron_expression() {
 # return seconds until the next matching time today or tomorrow
 _next_comma_times() {
 	local mins="$1" hours="$2" IFS=','
-	local now_h now_m now_s now_secs min_hour best=-1 candidate
+	local now_h now_m now_s now_secs best=-1 candidate
 
 	now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
 	now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')

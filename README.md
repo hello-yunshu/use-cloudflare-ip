@@ -197,7 +197,7 @@ htdocs/luci-static/resources/
 | `github_mirror` | string | — | GitHub 镜像加速地址 |
 | `verbose` | boolean | 0 | 详细日志 |
 | `work_dir` | string | — | 工作目录 |
-| `cron_interval` | integer | 360 | 自动运行间隔（分钟） |
+| `cron_interval` | string | 6h | 自动运行计划，支持 `6h`、`30m` 或 5 字段 cron 表达式 |
 
 ### passwall section
 
