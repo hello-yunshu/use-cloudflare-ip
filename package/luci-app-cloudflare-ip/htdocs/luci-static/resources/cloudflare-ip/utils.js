@@ -2,7 +2,8 @@
 'require uci';
 'require baseclass';
 
-var FOOTER_VERSION = '@PKG_VERSION@' === '@' + 'PKG_VERSION@' ? '1.6.3' : '@PKG_VERSION@';
+var FOOTER_VERSION = '@PKG_VERSION@';
+var FOOTER_VERSION_FALLBACK = '1.6.3';
 
 function safeApply() {
 	return uci.apply().catch(function(e) {
@@ -132,6 +133,8 @@ function footerLink(href, label, icon) {
 
 function footerVersion(version) {
 	var value = version && version !== '-' ? version : FOOTER_VERSION;
+	if (value && value.charAt(0) === '@')
+		value = FOOTER_VERSION_FALLBACK;
 	if (!value || value === '-')
 		return '';
 	return /^v/i.test(value) ? value : 'v' + value;
