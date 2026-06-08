@@ -11,6 +11,7 @@ STATUS_DIR="/tmp/cf_ip"
 STATUS_FILE="/tmp/cf_ip/status.json"
 LOG_FILE="/tmp/cf_ip/cf-ip-auto.log"
 ENV_CACHE_FILE="/tmp/cf_ip/env_cache.json"
+LOCK_FILE="/tmp/cf_ip/cf-ip-auto.lock"
 
 # Default variables (overridden by UCI config)
 MODE="passwall"
@@ -42,6 +43,7 @@ CLI_VERBOSE="false"
 GITHUB_MIRROR=""
 STOP_SERVICE_BEFORE_SPEEDTEST="true"
 STARTUP_DELAY=""
+SKIP_STARTUP_DELAY="false"
 CRON_INTERVAL="6h"
 ENABLED="false"
 _STOPPED_SERVICE=""
@@ -221,6 +223,44 @@ write_status() {
   "error": "${error}"
 }
 EOF
+}
+
+# ========== Lock File ==========
+
+acquire_lock() {
+	mkdir -p "$STATUS_DIR"
+	local max_wait="${1:-0}" waited=0
+	while true; do
+		if mkdir "$LOCK_FILE" 2>/dev/null; then
+			printf '%s\n' "$$" > "$LOCK_FILE/pid"
+			return 0
+		fi
+		# Check for stale lock (process no longer alive)
+		local lock_pid=""
+		[[ -f "$LOCK_FILE/pid" ]] && lock_pid="$(<"$LOCK_FILE/pid")"
+		if [[ -n "$lock_pid" ]] && ! kill -0 "$lock_pid" 2>/dev/null; then
+			log "removing stale lock (pid=$lock_pid no longer alive)"
+			rm -rf "$LOCK_FILE"
+			continue
+		fi
+		if [[ "$max_wait" -gt 0 ]]; then
+			((waited >= max_wait)) && return 1
+			sleep 5
+			waited=$((waited + 5))
+		else
+			return 1
+		fi
+	done
+}
+
+release_lock() {
+	rm -rf "$LOCK_FILE" 2>/dev/null || true
+}
+
+# Combined exit handler: releases lock + restarts stopped service
+_on_exit() {
+	cleanup_stopped_service
+	release_lock
 }
 
 # ========== Core Utility Functions ==========
@@ -1314,7 +1354,8 @@ run_main_flow() {
 			passwall) stop_service passwall ;;
 			openclash) stop_service openclash ;;
 		esac
-		trap cleanup_stopped_service EXIT
+		# Ensure EXIT trap includes service cleanup (caller may have set _on_exit already)
+		trap _on_exit EXIT
 	fi
 
 	run_speedtest
@@ -1329,7 +1370,6 @@ run_main_flow() {
 	esac
 
 	_STOPPED_SERVICE=""
-	trap - EXIT
 
 	log "done"
 }
@@ -1370,13 +1410,28 @@ cmd_run() {
 	JSON_MODE=true
 	load_uci_config
 	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
-	apply_startup_delay
+
+	# Acquire lock to prevent concurrent execution with plugin sync
+	if ! acquire_lock 0; then
+		local lock_pid=""
+		[[ -f "$LOCK_FILE/pid" ]] && lock_pid="$(<"$LOCK_FILE/pid")"
+		json_error "another instance is running (pid=$lock_pid)"
+		return 1
+	fi
+	trap _on_exit EXIT
+
+	# Write running status immediately so frontend can detect it
+	write_status true "running"
+
+	[[ "$SKIP_STARTUP_DELAY" != "true" ]] && apply_startup_delay
 
 	run_main_flow
 
 	local best_ips_json
 	best_ips_json="$(build_ips_json)"
 	write_status true "success"
+	release_lock
+	trap - EXIT
 	json_result "mode" "$MODE" "ip_type" "$IP_TYPE" "ip_count" "$IP_COUNT" "best_ips" "$best_ips_json"
 }
 
@@ -1876,12 +1931,169 @@ cmd_to_cron() {
 	}
 }
 
+cmd_sync() {
+	JSON_MODE=true
+	local sync_mode="${CLI_ARG1:-}"
+	[[ -n "$sync_mode" ]] || { json_error "missing plugin name (passwall or openclash)"; return 1; }
+	[[ "$sync_mode" == "passwall" || "$sync_mode" == "openclash" ]] || { json_error "unsupported plugin: $sync_mode; use passwall or openclash"; return 1; }
+
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	# Wait for main program lock with 300s timeout
+	log "sync: waiting for lock (plugin=$sync_mode)..."
+	if ! acquire_lock 300; then
+		json_error "timed out waiting for lock, main program may still be running"
+		return 1
+	fi
+	trap _on_exit EXIT
+
+	log "sync: lock acquired, syncing $sync_mode"
+
+	# Read best IPs from status.json
+	if [[ ! -f "$STATUS_FILE" ]]; then
+		release_lock
+		trap - EXIT
+		json_error "no status file found, run speedtest first"
+		return 1
+	fi
+
+	local best_ips_raw
+	best_ips_raw="$(jq -r '.best_ips[]' "$STATUS_FILE" 2>/dev/null)" || {
+		release_lock
+		trap - EXIT
+		json_error "failed to read best IPs from status file"
+		return 1
+	}
+
+	FAST_IPS=()
+	while IFS= read -r ip; do
+		[[ -n "$ip" ]] && FAST_IPS+=("$ip")
+	done <<< "$best_ips_raw"
+
+	if ((${#FAST_IPS[@]} == 0)); then
+		release_lock
+		trap - EXIT
+		json_error "no best IPs available, run speedtest first"
+		return 1
+	fi
+
+	log "sync: using ${#FAST_IPS[@]} best IPs: ${FAST_IPS[*]}"
+
+	# Adjust IP_COUNT to actual available IPs to prevent out-of-bounds in modulo
+	IP_COUNT=${#FAST_IPS[@]}
+
+	# Update the specified plugin
+	case "$sync_mode" in
+		passwall)
+			[[ -n "$PASSWALL_TARGET_DOMAIN" ]] || { release_lock; trap - EXIT; json_error "PASSWALL_TARGET_DOMAIN is empty"; return 1; }
+			update_passwall
+			;;
+		openclash)
+			[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || { release_lock; trap - EXIT; json_error "OPENCLASH_TARGET_DOMAIN is empty"; return 1; }
+			update_openclash
+			;;
+	esac
+
+	release_lock
+	trap - EXIT
+	json_result "synced" "$sync_mode" "ip_count" "${#FAST_IPS[@]}"
+}
+
 cmd_write_status() {
 	mkdir -p /tmp/cf_ip
 	cat > /tmp/cf_ip/status.json <<'STATUSEOF'
 {"running":true,"last_result":"scheduled","last_run":"","best_ips":[]}
 STATUSEOF
 	log "status: crontab-managed mode initialized"
+}
+
+cmd_oc_list_backups() {
+	JSON_MODE=true
+	load_uci_config
+	local config_dir config_base file ts
+	config_dir="$(dirname "$OPENCLASH_CONFIG")"
+	config_base="$(basename "$OPENCLASH_CONFIG")"
+
+	json_init
+	json_add_string "config" "$OPENCLASH_CONFIG"
+	json_add_array "backups"
+
+	while IFS= read -r file; do
+		[[ -f "$file" ]] || continue
+		ts="${file#*.bak.}"
+		json_add_object ""
+		json_add_string "id" "$ts"
+		json_add_string "file" "$file"
+		json_add_string "timestamp" "$(date -r "$file" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "$ts")"
+		json_add_int "size" "$(wc -c < "$file" 2>/dev/null || echo 0)"
+		json_close_object
+	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+
+	json_close_array
+	json_dump
+}
+
+cmd_oc_restore_backup() {
+	JSON_MODE=true
+	load_uci_config
+	local backup_id="${CLI_ARG1:-}"
+	[[ -n "$backup_id" ]] || { json_error "missing backup id"; return 1; }
+
+	local config_dir config_base
+	config_dir="$(dirname "$OPENCLASH_CONFIG")"
+	config_base="$(basename "$OPENCLASH_CONFIG")"
+	local backup_file=""
+	local file
+	while IFS= read -r file; do
+		[[ -f "$file" ]] || continue
+		if [[ "$file" == *".bak.${backup_id}" || "$file" == *".bak.${backup_id}."* ]]; then
+			backup_file="$file"
+			break
+		fi
+	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+
+	[[ -n "$backup_file" ]] || { json_error "backup not found: $backup_id"; return 1; }
+	[[ -f "$OPENCLASH_CONFIG" ]] || { json_error "OpenClash config not found"; return 1; }
+
+	# Create a pre-restore backup
+	local pre_backup_ts pre_backup
+	pre_backup_ts="$(date +%Y%m%d%H%M%S)"
+	pre_backup="${OPENCLASH_CONFIG}.bak.${pre_backup_ts}.pre-restore"
+	cp "$OPENCLASH_CONFIG" "$pre_backup"
+
+	# Restore
+	cp "$backup_file" "$OPENCLASH_CONFIG"
+	rotate_openclash_backups "$OPENCLASH_CONFIG" "$OPENCLASH_BACKUP_COUNT"
+
+	json_result "restored_from" "$backup_file" "pre_restore_backup" "$pre_backup"
+}
+
+cmd_oc_delete_backup() {
+	JSON_MODE=true
+	load_uci_config
+	local backup_id="${CLI_ARG1:-}"
+	[[ -n "$backup_id" ]] || { json_error "missing backup id"; return 1; }
+
+	local config_dir config_base
+	config_dir="$(dirname "$OPENCLASH_CONFIG")"
+	config_base="$(basename "$OPENCLASH_CONFIG")"
+	local found=false
+	local file
+	while IFS= read -r file; do
+		[[ -f "$file" ]] || continue
+		if [[ "$file" == *".bak.${backup_id}" || "$file" == *".bak.${backup_id}."* ]]; then
+			rm -f "$file"
+			found=true
+			break
+		fi
+	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+
+	if $found; then
+		json_result "deleted" "$backup_id"
+	else
+		json_error "backup not found: $backup_id"
+	fi
 }
 
 # ========== Usage ==========
@@ -1904,6 +2116,7 @@ Options:
   --self-update   Run self-update check, output JSON result
   --daemon        Run in daemon loop mode (for procd)
   --to-cron       Convert the configured cron_interval to a crontab expression
+  --sync PLUGIN   Sync plugin (passwall or openclash) with existing best IPs
   --write-status  Write initial status for crontab-managed mode
   -v, --verbose   Enable verbose output
   -h, --help      Show this help message
@@ -1921,6 +2134,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 		case "$1" in
 			--status) CLI_ACTION="status" ;;
 			--run) CLI_ACTION="run" ;;
+			--no-delay) SKIP_STARTUP_DELAY="true" ;;
 			--check-env) CLI_ACTION="check-env" ;;
 			--refresh-env) CLI_ACTION="refresh-env" ;;
 			--version) CLI_ACTION="version" ;;
@@ -1931,7 +2145,11 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 			--self-update) CLI_ACTION="self-update" ;;
 			--daemon) CLI_ACTION="daemon" ;;
 			--to-cron) CLI_ACTION="to-cron"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; [ $# -gt 0 ] && CLI_ARG2="$1" && shift; continue ;;
+			--sync) CLI_ACTION="sync"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; continue ;;
 			--write-status) CLI_ACTION="write-status" ;;
+			--oc-list-backups) CLI_ACTION="oc-list-backups" ;;
+			--oc-restore-backup) CLI_ACTION="oc-restore-backup"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; continue ;;
+			--oc-delete-backup) CLI_ACTION="oc-delete-backup"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; continue ;;
 			-v|--verbose) CLI_VERBOSE="true" ;;
 			-h|--help) usage; exit 0 ;;
 			*) die "unexpected argument: $1; use --help for usage" ;;
@@ -1952,13 +2170,26 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 		self-update) cmd_self_update ;;
 		daemon) cmd_daemon ;;
 		to-cron) cmd_to_cron ;;
+		sync) cmd_sync ;;
 		write-status) cmd_write_status ;;
+		oc-list-backups) cmd_oc_list_backups ;;
+		oc-restore-backup) cmd_oc_restore_backup ;;
+		oc-delete-backup) cmd_oc_delete_backup ;;
 		"")
 			# Traditional mode: load UCI config and run main flow
 			load_uci_config
 			[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+			if ! acquire_lock 0; then
+				local lock_pid=""
+				[[ -f "$LOCK_FILE/pid" ]] && lock_pid="$(<"$LOCK_FILE/pid")"
+				echo "[cloudflare-ip] ERROR: another instance is running (pid=$lock_pid)" >&2
+				exit 1
+			fi
+			trap _on_exit EXIT
 			apply_startup_delay
 			run_main_flow
+			release_lock
+			trap - EXIT
 			;;
 	esac
 fi

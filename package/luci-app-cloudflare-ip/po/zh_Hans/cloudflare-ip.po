@@ -566,3 +566,21 @@ msgstr "在 OpenWrt 系统升级时保留 CFST 二进制文件，升级后无需
 
 msgid "Updating..."
 msgstr "更新中..."
+
+msgid "Sync Schedule"
+msgstr "同步计划"
+
+msgid "How often to sync Cloudflare best IPs to OpenClash. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
+msgstr "将 Cloudflare 优选 IP 同步到 OpenClash 的频率。选择「跟随主程序」时，使用与主测速服务相同的计划。"
+
+msgid "How often to sync Cloudflare best IPs to PassWall. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
+msgstr "将 Cloudflare 优选 IP 同步到 PassWall 的频率。选择「跟随主程序」时，使用与主测速服务相同的计划。"
+
+msgid "Follow main program"
+msgstr "跟随主程序"
+
+msgid "Custom Sync Schedule"
+msgstr "自定义同步计划"
+
+msgid "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
+msgstr "输入可转换为 cron 的时长（如 6h、30m）或 5 字段 crontab 表达式。支持逗号分隔列表（如 0 3,6 * * *）。"

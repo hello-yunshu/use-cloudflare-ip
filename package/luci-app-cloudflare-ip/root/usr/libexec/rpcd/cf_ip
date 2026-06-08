@@ -84,6 +84,7 @@ case "$1" in
 	"check-env": {},
 	"refresh-env": {},
 	"run": {},
+	"speedtest-status": {},
 	"version": {},
 	"read-log": {},
 	"clear-log": {},
@@ -92,7 +93,11 @@ case "$1" in
 	"self-update": {},
 	"start": {},
 	"stop": {},
-	"restart": {}
+	"restart": {},
+	"sync": { "plugin": "plugin" },
+	"oc-list-backups": {},
+	"oc-restore-backup": { "id": "id" },
+	"oc-delete-backup": { "id": "id" }
 }
 EOF
 		;;
@@ -109,7 +114,18 @@ EOF
 				"$CF_IP_AUTO_BIN" --refresh-env 2>/dev/null || true
 				;;
 			run)
-				"$CF_IP_AUTO_BIN" --run 2>/dev/null || true
+				"$CF_IP_AUTO_BIN" --run --no-delay 2>/dev/null || true
+				;;
+			speedtest-status)
+				_status="$("$CF_IP_AUTO_BIN" --status 2>/dev/null)" || true
+				_log="$("$CF_IP_AUTO_BIN" --read-log 2>/dev/null)" || true
+				# Merge status + log into single response
+				if command -v jq >/dev/null 2>&1 && [ -n "$_status" ]; then
+					_log_json="$(printf '%s' "$_log" | jq -c '.' 2>/dev/null)" || _log_json='{"logs":""}'
+					printf '%s\n' "$_status" | jq -c --argjson log "$_log_json" '. + {log_data: $log}' 2>/dev/null && return 0
+				fi
+				# Fallback: just return status
+				printf '%s\n' "${_status:-{\}}"
 				;;
 			version)
 				printf '{"version":"%s"}\n' "$RPCD_VERSION"
@@ -139,6 +155,36 @@ EOF
 				;;
 			restart)
 				service_action restart
+				;;
+			sync)
+				_plugin="$(jsonfilter -s "$3" -e '$.plugin' 2>/dev/null)" || true
+				if [ -z "$_plugin" ]; then
+					echo '{"success":false,"error":"missing plugin name"}'
+				else
+					_out="$("$CF_IP_AUTO_BIN" --sync "$_plugin" 2>/dev/null)" || true
+					printf '%s\n' "${_out:-{\"success\":false,\"error\":\"no output from cf-ip-auto\"}}"
+				fi
+				;;
+			oc-list-backups)
+				"$CF_IP_AUTO_BIN" --oc-list-backups 2>/dev/null || echo '{"success":false,"error":"failed to list backups"}'
+				;;
+			oc-restore-backup)
+				_backup_id="$(jsonfilter -s "$3" -e '$.id' 2>/dev/null)" || true
+				if [ -z "$_backup_id" ]; then
+					echo '{"success":false,"error":"missing backup id"}'
+				else
+					_out="$("$CF_IP_AUTO_BIN" --oc-restore-backup "$_backup_id" 2>/dev/null)" || true
+					printf '%s\n' "${_out:-{\"success\":false,\"error\":\"no output from cf-ip-auto\"}}"
+				fi
+				;;
+			oc-delete-backup)
+				_backup_id="$(jsonfilter -s "$3" -e '$.id' 2>/dev/null)" || true
+				if [ -z "$_backup_id" ]; then
+					echo '{"success":false,"error":"missing backup id"}'
+				else
+					_out="$("$CF_IP_AUTO_BIN" --oc-delete-backup "$_backup_id" 2>/dev/null)" || true
+					printf '%s\n' "${_out:-{\"success\":false,\"error\":\"no output from cf-ip-auto\"}}"
+				fi
 				;;
 			*)
 				echo '{"error":"unknown_method"}'

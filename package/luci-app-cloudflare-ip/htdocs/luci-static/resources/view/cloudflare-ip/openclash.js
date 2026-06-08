@@ -9,6 +9,16 @@
 
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
+var callOcListBackups = rpc.declare({ object: 'cf_ip', method: 'oc-list-backups', expect: { '': {} } });
+var callOcRestoreBackup = rpc.declare({ object: 'cf_ip', method: 'oc-restore-backup', params: ['id'], expect: { '': {} } });
+var callOcDeleteBackup = rpc.declare({ object: 'cf_ip', method: 'oc-delete-backup', params: ['id'], expect: { '': {} } });
+
+function formatSize(bytes) {
+	if (!bytes || bytes <= 0) return '-';
+	if (bytes < 1024) return bytes + ' B';
+	if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+	return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
 
 return view.extend({
 	title: _('OpenClash'),
@@ -16,12 +26,14 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('cf_ip'),
-			callStatus().catch(function() { return {}; })
+			callStatus().catch(function() { return {}; }),
+			callOcListBackups().catch(function() { return { success: false, backups: [] }; })
 		]);
 	},
 
 	render: function(data) {
 		var env = data[1] || {};
+		var backupData = data[2] || {};
 
 		if (!env.openclash_installed) {
 			return E('div', { 'class': 'cbi-map' }, [
@@ -70,6 +82,31 @@ return view.extend({
 		o.placeholder = '3';
 		o.rmempty = false;
 
+		var ss = m.section(form.TypedSection, 'openclash', _('Sync Schedule'));
+		ss.anonymous = true;
+
+		o = ss.option(form.ListValue, 'sync_interval', _('Sync Schedule'),
+			_('How often to sync Cloudflare best IPs to OpenClash. When set to "Follow main program", uses the same schedule as the main speedtest service.'));
+		o.value('', _('Follow main program'));
+		o.value('6h', _('Every 6 hours (recommended)'));
+		o.value('1h', _('Every hour'));
+		o.value('30m', _('Every 30 minutes'));
+		o.value('15m', _('Every 15 minutes'));
+		o.value('0 3 * * *', _('Daily at 3:00 AM'));
+		o.value('0 3,15 * * *', _('Daily at 3:00 AM & 3:00 PM'));
+		o.value('0 */6 * * *', _('Every 6 hours at :00'));
+		o.value('custom', _('Custom...'));
+		o.default = '';
+		o.rmempty = true;
+		o.optional = true;
+
+		o = ss.option(form.Value, 'sync_custom', _('Custom Sync Schedule'),
+			_('Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *).'));
+		o.placeholder = '6h';
+		o.depends('sync_interval', 'custom');
+		o.rmempty = true;
+		o.optional = true;
+
 		m.handleSave = function(ev) {
 			var tasks = [];
 			document.getElementById('maincontent')
@@ -103,7 +140,109 @@ return view.extend({
 			});
 		};
 
-		return utils.renderWithFooter(m.render(), {
+		/* Build backup section as a separate DOM tree appended after the form */
+		var backupSection = E('div', { 'class': 'cbi-section cfi-section', 'id': 'oc-backups-section' });
+		backupSection.appendChild(E('h3', {}, _('Config Backups')));
+
+		var backups = (backupData.success !== false && backupData.backups) ? backupData.backups : [];
+
+		if (backups.length === 0) {
+			backupSection.appendChild(E('div', {
+				'style': 'color:var(--subtext-color);font-style:italic;padding:0.5em 0'
+			}, _('No backups available. Backups are created automatically when the config is updated.')));
+		} else {
+			var table = E('table', { 'class': 'table' });
+			var thead = E('thead');
+			var headerRow = E('tr');
+			[_('Backup Time'), _('Size'), _('Actions')].forEach(function(title) {
+				headerRow.appendChild(E('th', {}, title));
+			});
+			thead.appendChild(headerRow);
+			table.appendChild(thead);
+
+			var tbody = E('tbody');
+
+			backups.forEach(function(backup) {
+				var row = E('tr');
+				row.appendChild(E('td', {}, backup.timestamp || backup.id || '-'));
+				row.appendChild(E('td', {}, formatSize(backup.size)));
+
+				var actionsCell = E('td');
+
+				actionsCell.appendChild(E('button', {
+					'class': 'cbi-button cbi-button-apply',
+					'style': 'margin-right:0.5em',
+					'click': function() {
+						ui.showModal(_('Confirm Restore'), [
+							E('div', { 'class': 'alert-message warning' },
+								_('Are you sure you want to restore this backup? A backup of the current configuration will be created first.')),
+							E('div', { 'class': 'right' }, [
+								E('button', { 'class': 'btn', 'click': function() { ui.hideModal(); } }, _('Cancel')),
+								E('button', {
+									'class': 'cbi-button cbi-button-apply',
+									'click': function() {
+										ui.hideModal();
+										ui.showModal(_('Restoring...'), [E('p', {}, _('Please wait...'))]);
+										callOcRestoreBackup(backup.id).then(function(result) {
+											ui.hideModal();
+											if (result && result.error) {
+												ui.addNotification(null, E('p', {}, _('Restore failed') + ': ' + result.error), 'error');
+											} else {
+												ui.addNotification(null, E('p', {}, _('Backup restored successfully.')), 'info');
+												setTimeout(function() { location.reload(); }, 500);
+											}
+										}).catch(function(e) {
+											ui.hideModal();
+											ui.addNotification(null, E('p', {}, _('Restore failed: ') + e.message), 'error');
+										});
+									}
+								}, '\u21A9 ' + _('Restore'))
+							])
+						]);
+					}
+				}, '\u21A9 ' + _('Restore')));
+
+				actionsCell.appendChild(E('button', {
+					'class': 'cbi-button cbi-button-reset',
+					'click': function() {
+						ui.showModal(_('Confirm Delete'), [
+							E('p', {}, _('Are you sure you want to delete this backup?')),
+							E('div', { 'class': 'right' }, [
+								E('button', { 'class': 'btn', 'click': function() { ui.hideModal(); } }, _('Cancel')),
+								E('button', {
+									'class': 'cbi-button cbi-button-reset',
+									'click': function() {
+										ui.hideModal();
+										callOcDeleteBackup(backup.id).then(function(result) {
+											if (result && result.error) {
+												ui.addNotification(null, E('p', {}, result.error), 'error');
+											} else {
+												ui.addNotification(null, E('p', {}, _('Backup deleted')), 'info');
+												setTimeout(function() { location.reload(); }, 500);
+											}
+										}).catch(function(e) {
+											ui.addNotification(null, E('p', {}, e.message), 'error');
+										});
+									}
+								}, _('Delete'))
+							])
+						]);
+					}
+				}, _('Delete')));
+
+				row.appendChild(actionsCell);
+				tbody.appendChild(row);
+			});
+
+			table.appendChild(tbody);
+			backupSection.appendChild(table);
+		}
+
+		return utils.renderWithFooter(m.render().then(function(node) {
+			/* Append backup section after the form */
+			node.appendChild(backupSection);
+			return node;
+		}), {
 			project: 'Cloudflare IP Optimization',
 			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
 		});

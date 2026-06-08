@@ -24,6 +24,12 @@ var callRun = rpc.declare({
 	expect: { '': {} }
 });
 
+var callSpeedtestStatus = rpc.declare({
+	object: 'cf_ip',
+	method: 'speedtest-status',
+	expect: { '': {} }
+});
+
 var callServiceStart = rpc.declare({
 	object: 'cf_ip',
 	method: 'start',
@@ -47,6 +53,79 @@ var callDownloadCfst = rpc.declare({
 	method: 'download-cfst',
 	expect: { '': {} }
 });
+
+var SPEEDTEST_POLL_INTERVAL = 3000;
+
+function showSpeedtestModal() {
+	var statusNode = E('span', { 'class': 'cfi-badge orange' }, '\u23F3 ' + _('Running'));
+	var logNode = E('pre', { 'class': 'cfi-log-area is-loading' }, _('Loading...'));
+	var modalOpen = true;
+
+	function update(result) {
+		result = result || {};
+		var status = result.last_result || 'unknown';
+		var isRunning = status === 'running';
+
+		if (status === 'success' || (typeof status === 'string' && status.indexOf('success') === 0)) {
+			statusNode.className = 'cfi-badge green';
+			statusNode.textContent = '\u2714 ' + status;
+		} else if (status === 'running') {
+			statusNode.className = 'cfi-badge orange';
+			statusNode.textContent = '\u23F3 ' + _('Running');
+		} else if (status === 'error') {
+			statusNode.className = 'cfi-badge red';
+			statusNode.textContent = '\u2718 ' + status;
+		} else {
+			statusNode.className = 'cfi-badge gray';
+			statusNode.textContent = status;
+		}
+
+		var logData = result.log_data || {};
+		var logs = logData.logs || '';
+		if (logs && logs.trim()) {
+			logNode.className = 'cfi-log-area';
+			logNode.textContent = logs;
+			logNode.scrollTop = logNode.scrollHeight;
+		} else if (!isRunning) {
+			logNode.className = 'cfi-log-area is-empty';
+			logNode.textContent = _('No log output yet.');
+		}
+
+		if (modalOpen && isRunning)
+			setTimeout(refresh, SPEEDTEST_POLL_INTERVAL);
+	}
+
+	function refresh() {
+		callSpeedtestStatus().then(update).catch(function(err) {
+			logNode.className = 'cfi-log-area is-error';
+			logNode.textContent = _('Failed to get status: ') + String(err);
+		});
+	}
+
+	ui.showModal(_('Speedtest Log'), [
+		E('div', { 'class': 'cbi-value' }, [
+			E('label', { 'class': 'cbi-value-title' }, _('Status')),
+			E('div', { 'class': 'cbi-value-field' }, statusNode)
+		]),
+		E('div', { 'class': 'cbi-value cfi-value-full' }, [
+			E('label', { 'class': 'cbi-value-title' }, _('Log')),
+			E('div', { 'class': 'cbi-value-field' }, logNode)
+		]),
+		E('div', { 'class': 'right' }, [
+			E('button', { 'class': 'btn', 'click': refresh }, _('Refresh')),
+			E('button', {
+				'class': 'btn',
+				'click': function() {
+					modalOpen = false;
+					ui.hideModal();
+					location.reload();
+				}
+			}, _('Close'))
+		])
+	]);
+
+	refresh();
+}
 
 function waitReadyAndReload() {
 	return utils.waitForServiceReady(callStatus).then(function(status) {
@@ -153,6 +232,7 @@ return view.extend({
 		var bestIps = data.best_ips || [];
 		var cfstVersion = data.cfst_version || '-';
 		var scriptVersion = data.script_version || '-';
+		if (scriptVersion.charAt(0) === '@') scriptVersion = '-';
 		var error = data.error || '';
 
 		/* Env info from status (merged by backend) */
@@ -268,12 +348,19 @@ return view.extend({
 		}, '\u21BB ' + _('Restart')));
 
 		if (running) {
-			btnGroup.appendChild(E('button', {
+			/* Speedtest button: shows "Running..." when test is active, click to view log */
+			var speedtestBtn = E('button', {
 				'class': 'cbi-button cbi-button-apply',
 				'click': function() {
+					if (isRunningTest) {
+						showSpeedtestModal();
+						return;
+					}
 					var btn = this;
-					utils.setBusy(btn, _('Running...'));
-					return callRun().then(function(result) {
+					utils.setBusy(btn, '\u23F3 ' + _('Running...'));
+					isRunningTest = true;
+					// Trigger speedtest in background
+					callRun().then(function(result) {
 						result = result || {};
 						var msg, msgType = 'info';
 						if (result.success === true) {
@@ -295,9 +382,12 @@ return view.extend({
 					}).catch(function(e) {
 						ui.addNotification(null, E('p', _('Speedtest failed: %s').format(e.message)), 'error');
 						utils.resetBusy(btn);
+						isRunningTest = false;
+						btn.textContent = '\u26A1 ' + _('Run Speedtest');
 					});
 				}
-			}, '\u26A1 ' + _('Run Speedtest')));
+			}, isRunningTest ? '\u23F3 ' + _('Running...') : '\u26A1 ' + _('Run Speedtest'));
+			btnGroup.appendChild(speedtestBtn);
 		}
 
 		controlSection.appendChild(btnGroup);
@@ -347,7 +437,7 @@ return view.extend({
 
 		var lastResultBadge;
 		if (lastResult === 'running') {
-			lastResultBadge = E('span', { 'class': 'cfi-badge orange' }, '\u23F3 ' + _('Running'));
+			lastResultBadge = E('span', { 'class': 'cfi-badge orange', 'style': 'cursor:pointer', 'click': showSpeedtestModal }, '\u23F3 ' + _('Running'));
 		} else if (lastResult === 'success' || (typeof lastResult === 'string' && lastResult.indexOf('success') === 0)) {
 			lastResultBadge = E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + lastResult);
 		} else if (lastResult === '-' || lastResult === 'unknown') {

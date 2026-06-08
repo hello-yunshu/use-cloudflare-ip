@@ -10,19 +10,6 @@ var callClearLog = rpc.declare({ object: 'cf_ip', method: 'clear-log', expect: {
 var callIpHistory = rpc.declare({ object: 'cf_ip', method: 'ip-history', expect: { '': {} } });
 
 var css = `
-	.cfi-log-area {
-		min-height: 16em; max-height: 26em; overflow: auto; padding: 1em;
-		background: var(--background-color-low);
-		color: inherit;
-		font-size: 0.85em; line-height: 1.45; border-radius: 6px;
-		border: 1px solid var(--border-color);
-		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		white-space: pre;
-		tab-size: 4;
-	}
-	.cfi-log-area.is-empty,
-	.cfi-log-area.is-loading { color: var(--subtext-color); font-style: italic; }
-	.cfi-log-area.is-error { color: var(--danger-color); }
 	.cfi-ip-table {
 		width: 100%;
 	}

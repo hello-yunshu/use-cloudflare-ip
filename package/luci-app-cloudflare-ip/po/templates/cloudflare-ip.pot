@@ -490,3 +490,21 @@ msgstr ""
 
 msgid "PassWall or OpenClash is not installed. Please install one before using this service."
 msgstr ""
+
+msgid "Sync Schedule"
+msgstr ""
+
+msgid "How often to sync Cloudflare best IPs to OpenClash. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
+msgstr ""
+
+msgid "How often to sync Cloudflare best IPs to PassWall. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
+msgstr ""
+
+msgid "Follow main program"
+msgstr ""
+
+msgid "Custom Sync Schedule"
+msgstr ""
+
+msgid "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
+msgstr ""

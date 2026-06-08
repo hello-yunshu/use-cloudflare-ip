@@ -52,6 +52,31 @@ return view.extend({
 		o.placeholder = ' [CF-{n}]';
 		o.rmempty = true;
 
+		var ss = m.section(form.TypedSection, 'passwall', _('Sync Schedule'));
+		ss.anonymous = true;
+
+		o = ss.option(form.ListValue, 'sync_interval', _('Sync Schedule'),
+			_('How often to sync Cloudflare best IPs to PassWall. When set to "Follow main program", uses the same schedule as the main speedtest service.'));
+		o.value('', _('Follow main program'));
+		o.value('6h', _('Every 6 hours (recommended)'));
+		o.value('1h', _('Every hour'));
+		o.value('30m', _('Every 30 minutes'));
+		o.value('15m', _('Every 15 minutes'));
+		o.value('0 3 * * *', _('Daily at 3:00 AM'));
+		o.value('0 3,15 * * *', _('Daily at 3:00 AM & 3:00 PM'));
+		o.value('0 */6 * * *', _('Every 6 hours at :00'));
+		o.value('custom', _('Custom...'));
+		o.default = '';
+		o.rmempty = true;
+		o.optional = true;
+
+		o = ss.option(form.Value, 'sync_custom', _('Custom Sync Schedule'),
+			_('Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *).'));
+		o.placeholder = '6h';
+		o.depends('sync_interval', 'custom');
+		o.rmempty = true;
+		o.optional = true;
+
 		m.handleSave = function(ev) {
 			var tasks = [];
 			document.getElementById('maincontent')

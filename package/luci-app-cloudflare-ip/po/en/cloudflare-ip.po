@@ -574,3 +574,21 @@ msgstr "Preserve CFST binary during OpenWrt sysupgrade so it survives system upg
 
 msgid "Updating..."
 msgstr "Updating..."
+
+msgid "Sync Schedule"
+msgstr "Sync Schedule"
+
+msgid "How often to sync Cloudflare best IPs to OpenClash. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
+msgstr "How often to sync Cloudflare best IPs to OpenClash. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
+
+msgid "How often to sync Cloudflare best IPs to PassWall. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
+msgstr "How often to sync Cloudflare best IPs to PassWall. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
+
+msgid "Follow main program"
+msgstr "Follow main program"
+
+msgid "Custom Sync Schedule"
+msgstr "Custom Sync Schedule"
+
+msgid "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
+msgstr "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
