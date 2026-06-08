@@ -2024,27 +2024,25 @@ EOF
 cmd_oc_list_backups() {
 	JSON_MODE=true
 	load_uci_config
-	local config_dir config_base file ts
+	local config_dir config_base file ts size timestamp
 	config_dir="$(dirname "$OPENCLASH_CONFIG")"
 	config_base="$(basename "$OPENCLASH_CONFIG")"
 
-	json_init
-	json_add_string "config" "$OPENCLASH_CONFIG"
-	json_add_array "backups"
-
+	local backups_json=""
 	while IFS= read -r file; do
 		[[ -f "$file" ]] || continue
 		ts="${file#*.bak.}"
-		json_add_object ""
-		json_add_string "id" "$ts"
-		json_add_string "file" "$file"
-		json_add_string "timestamp" "$(date -r "$file" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "$ts")"
-		json_add_int "size" "$(wc -c < "$file" 2>/dev/null || echo 0)"
-		json_close_object
+		size="$(wc -c < "$file" 2>/dev/null || echo 0)"
+		timestamp="$(date -r "$file" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "$ts")"
+		# Escape special characters for JSON
+		ts="${ts//\\/\\\\}"; ts="${ts//\"/\\\"}"
+		file="${file//\\/\\\\}"; file="${file//\"/\\\"}"
+		timestamp="${timestamp//\\/\\\\}"; timestamp="${timestamp//\"/\\\"}"
+		[[ -n "$backups_json" ]] && backups_json+=","
+		backups_json+="{\"id\":\"${ts}\",\"file\":\"${file}\",\"timestamp\":\"${timestamp}\",\"size\":${size}}"
 	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
 
-	json_close_array
-	json_dump
+	printf '{"success":true,"config":"%s","backups":[%s]}\n' "$OPENCLASH_CONFIG" "$backups_json"
 }
 
 cmd_oc_restore_backup() {
