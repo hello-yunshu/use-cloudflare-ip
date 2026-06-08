@@ -198,7 +198,13 @@ write_status() {
 	local best_ips_json
 
 	mkdir -p "$STATUS_DIR"
-	best_ips_json="$(build_ips_json)"
+
+	if [[ ${#FAST_IPS[@]} -gt 0 ]]; then
+		best_ips_json="$(build_ips_json)"
+	else
+		# Preserve previous best_ips when writing intermediate status (e.g. "running")
+		best_ips_json="$(jq -c '.best_ips // []' "$STATUS_FILE" 2>/dev/null)" || best_ips_json="[]"
+	fi
 
 	local cfst_ver=""
 	[[ -f "${CFST_DIR}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${CFST_DIR}/${BINARY_NAME}_version.txt")"
@@ -2005,9 +2011,13 @@ cmd_sync() {
 
 cmd_write_status() {
 	mkdir -p "$STATUS_DIR"
-	cat > "$STATUS_FILE" <<'STATUSEOF'
-{"running":true,"last_result":"scheduled","last_run":"","best_ips":[]}
-STATUSEOF
+	local best_ips="[]"
+	if [[ -f "$STATUS_FILE" ]]; then
+		best_ips="$(jq -c '.best_ips // []' "$STATUS_FILE" 2>/dev/null)" || best_ips="[]"
+	fi
+	cat > "$STATUS_FILE" <<EOF
+{"running":true,"last_result":"scheduled","last_run":"","best_ips":${best_ips}}
+EOF
 	log "status: crontab-managed mode initialized"
 }
 
