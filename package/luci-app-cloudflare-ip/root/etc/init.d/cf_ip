@@ -36,31 +36,6 @@ cf_ip_cron_remove() {
 	logger -t cf_ip -p daemon.info "crontab: removed scheduled entries"
 }
 
-# Plugin sync cron management
-cf_ip_cron_add_plugin() {
-	local plugin="$1" expr="$2"
-	cf_ip_cron_ensure
-	cf_ip_cron_remove_plugin "$plugin"
-	mkdir -p /etc/crontabs
-	cron_ensure_newline
-	printf '%s /usr/bin/cf-ip-auto --sync %s >/dev/null 2>&1\n' \
-		"$expr" "$plugin" >> "$CRONTAB_FILE"
-	/etc/init.d/cron reload 2>/dev/null || /etc/init.d/crond reload 2>/dev/null || true
-	logger -t cf_ip -p daemon.info "crontab: ${plugin}-sync scheduled with expression '${expr}'"
-}
-
-cf_ip_cron_remove_plugin() {
-	local plugin="$1"
-	sed -i "/cf-ip-auto --sync ${plugin}/d" "$CRONTAB_FILE" 2>/dev/null || true
-	/etc/init.d/cron reload 2>/dev/null || /etc/init.d/crond reload 2>/dev/null || true
-	logger -t cf_ip -p daemon.info "crontab: removed ${plugin}-sync scheduled entries"
-}
-
-cf_ip_cron_remove_all_plugins() {
-	cf_ip_cron_remove_plugin openclash
-	cf_ip_cron_remove_plugin passwall
-}
-
 start_service() {
 	local enabled cfst_persist cron_interval cron_custom startup_delay
 	config_load cf_ip
@@ -102,29 +77,9 @@ start_service() {
 	# Schedule via crontab
 	cf_ip_cron_add "$cron_expr"
 
-	# Set up plugin sync cron entries
-	local sync_interval sync_custom sync_expr target_domain
-	for plugin in openclash passwall; do
-		# Only add sync cron if target_domain is configured
-		config_get target_domain "$plugin" target_domain ""
-		[ -z "$target_domain" ] && continue
-
-		config_get sync_interval "$plugin" sync_interval ""
-		config_get sync_custom "$plugin" sync_custom ""
-
-		# Empty sync_interval means follow main program schedule
-		if [ -z "$sync_interval" ]; then
-			sync_interval="$cron_interval"
-			sync_custom="$cron_custom"
-		fi
-
-		sync_expr="$(cf-ip-auto --to-cron "$sync_interval" "$sync_custom")" || {
-			logger -t cf_ip -p daemon.warn "crontab: failed to convert ${plugin} sync schedule, skipping"
-			continue
-		}
-
-		cf_ip_cron_add_plugin "$plugin" "$sync_expr"
-	done
+	# Clean up any leftover plugin sync cron entries from older versions
+	sed -i '/cf-ip-auto --sync/d' "$CRONTAB_FILE" 2>/dev/null || true
+	/etc/init.d/cron reload 2>/dev/null || /etc/init.d/crond reload 2>/dev/null || true
 
 	# Let cf-ip-auto apply its own startup delay so numeric and random modes stay consistent.
 	case "$startup_delay" in
@@ -142,7 +97,6 @@ start_service() {
 
 stop_service() {
 	cf_ip_cron_remove
-	cf_ip_cron_remove_all_plugins
 	if [ -f /etc/cf_ip/status.json ]; then
 		sed -i 's/"running":true/"running":false/' /etc/cf_ip/status.json 2>/dev/null
 	fi
@@ -171,12 +125,10 @@ validate_cf_ip() {
 		'cfst_persist:bool'
 
 	uci_validate_section cf_ip passwall passwall \
-		'target_domain:string' 'name_suffix:string' \
-		'sync_interval:string' 'sync_custom:string'
+		'target_domain:string' 'name_suffix:string'
 
 	uci_validate_section cf_ip openclash openclash \
 		'config:string' 'target_domain:string' \
 		'name_suffix:string' 'transport_filter:string' \
-		'backup_count:uinteger' \
-		'sync_interval:string' 'sync_custom:string'
+		'backup_count:uinteger'
 }
