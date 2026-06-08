@@ -86,7 +86,6 @@ define Package/luci-app-cloudflare-ip/postinst
 	rm -f /tmp/luci-indexcache.*; \
 	rm -rf /tmp/luci-modulecache/; \
 	/etc/init.d/rpcd reload 2>/dev/null; \
-	# Migrate status data from /tmp to persistent storage \
 	if [ -f /tmp/cf_ip/status.json ] && [ ! -f /etc/cf_ip/status.json ]; then \
 		mkdir -p /etc/cf_ip; \
 		mv /tmp/cf_ip/status.json /etc/cf_ip/status.json; \
