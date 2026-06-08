@@ -44,6 +44,18 @@ Grab the package from the [Releases](../../releases) page:
 
 After installation, clear your browser cache and look for **Services → Cloudflare IP 优选** in the LuCI menu.
 
+### Package Info
+
+| Item | Value |
+|------|-------|
+| Package name | `luci-app-cloudflare-ip` |
+| Service name | `cf_ip` |
+| UCI config | `/etc/config/cf_ip` |
+| Core script | `/usr/bin/cf-ip-auto` |
+| RPC backend | `cf_ip` (`ubus call cf_ip <method>`) |
+
+> **Note**: This package is `luci-app-cloudflare-ip`, which is independent from PassWall (`luci-app-passwall`) and OpenClash (`luci-app-openclash`). It only reads and modifies proxy configurations — it does not replace or overwrite PassWall / OpenClash itself.
+
 ### Verify
 
 ```sh

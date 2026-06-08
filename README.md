@@ -44,6 +44,18 @@
 
 安装后刷新浏览器缓存即可在 **服务 → Cloudflare IP 优选** 中看到菜单。
 
+### 包信息
+
+| 项目 | 值 |
+|------|-----|
+| 包名 | `luci-app-cloudflare-ip` |
+| 服务名 | `cf_ip` |
+| UCI 配置 | `/etc/config/cf_ip` |
+| 核心脚本 | `/usr/bin/cf-ip-auto` |
+| RPC 后端 | `cf_ip`（`ubus call cf_ip <method>`） |
+
+> **注意**：本包名为 `luci-app-cloudflare-ip`，与 PassWall（`luci-app-passwall`）和 OpenClash（`luci-app-openclash`）是独立的包，互不依赖。本包仅读取和修改代理配置，不会替换或覆盖 PassWall / OpenClash 本体。
+
 ### 校验
 
 ```sh
