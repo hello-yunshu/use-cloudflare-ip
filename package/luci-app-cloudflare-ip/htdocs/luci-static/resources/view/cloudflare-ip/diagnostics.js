@@ -138,7 +138,7 @@ return view.extend({
 
 		/* IP History */
 		var ipSection = E('div', { 'class': 'cbi-section cfi-section' });
-		ipSection.appendChild(E('h3', {}, _('IP History')));
+		ipSection.appendChild(E('h3', {}, _('IP History') + ' ' + _('(latest 10)')));
 
 		var ipTableBody = E('tbody');
 

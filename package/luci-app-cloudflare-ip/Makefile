@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-cloudflare-ip
-PKG_VERSION:=1.7.0
+PKG_VERSION:=1.7.1
 PKG_RELEASE:=1
 
 PKG_MAINTAINER:=yunshu
@@ -26,6 +26,7 @@ endef
 
 define Package/luci-app-cloudflare-ip/conffiles
 /etc/config/cf_ip
+/etc/cf_ip
 endef
 
 define Build/Prepare
@@ -85,6 +86,12 @@ define Package/luci-app-cloudflare-ip/postinst
 	rm -f /tmp/luci-indexcache.*; \
 	rm -rf /tmp/luci-modulecache/; \
 	/etc/init.d/rpcd reload 2>/dev/null; \
+	# Migrate status data from /tmp to persistent storage \
+	if [ -f /tmp/cf_ip/status.json ] && [ ! -f /etc/cf_ip/status.json ]; then \
+		mkdir -p /etc/cf_ip; \
+		mv /tmp/cf_ip/status.json /etc/cf_ip/status.json; \
+		[ -f /tmp/cf_ip/env_cache.json ] && mv /tmp/cf_ip/env_cache.json /etc/cf_ip/env_cache.json; \
+	fi; \
 	exit 0; \
 }
 endef

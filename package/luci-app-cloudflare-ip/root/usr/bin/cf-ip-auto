@@ -7,10 +7,11 @@ SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
 
 # Status and log files
-STATUS_DIR="/tmp/cf_ip"
-STATUS_FILE="/tmp/cf_ip/status.json"
+# STATUS_DIR on persistent storage so status.json survives reboots/updates
+STATUS_DIR="/etc/cf_ip"
+STATUS_FILE="/etc/cf_ip/status.json"
 LOG_FILE="/tmp/cf_ip/cf-ip-auto.log"
-ENV_CACHE_FILE="/tmp/cf_ip/env_cache.json"
+ENV_CACHE_FILE="/etc/cf_ip/env_cache.json"
 LOCK_FILE="/tmp/cf_ip/cf-ip-auto.lock"
 
 # Default variables (overridden by UCI config)
@@ -97,7 +98,7 @@ json_error() {
 # ========== Log Helpers ==========
 
 log_to_file() {
-	[[ -w "${STATUS_DIR}" ]] || mkdir -p "$STATUS_DIR" 2>/dev/null || return 0
+	[[ -w "${LOG_FILE%/*}" ]] || mkdir -p "${LOG_FILE%/*}" 2>/dev/null || return 0
 	local timestamp
 	timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
 	printf '[%s] %s\n' "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null
@@ -1613,14 +1614,18 @@ cmd_ip_history() {
 	[[ -n "$IP_HISTORY_FILE" ]] && history_file="$IP_HISTORY_FILE"
 
 	if [[ -f "$history_file" ]]; then
-		local ips_json="["
-		local first=true
+		# Read last 10 lines in reverse order (newest first)
+		local ips_json="[" first=true
+		local lines
+		lines="$(tail -n 10 "$history_file")" || lines=""
+		local reversed
+		reversed="$(printf '%s\n' "$lines" | awk '{a[NR]=$0} END{for(i=NR;i>=1;i--) print a[i]}')" || reversed="$lines"
 		while IFS= read -r ip; do
 			[[ -n "$ip" ]] || continue
 			$first || ips_json+=","
 			first=false
 			ips_json+="\"${ip}\""
-		done < "$history_file"
+		done <<< "$reversed"
 		ips_json+="]"
 		json_result "ips" "$ips_json"
 	else
@@ -2001,8 +2006,8 @@ cmd_sync() {
 }
 
 cmd_write_status() {
-	mkdir -p /tmp/cf_ip
-	cat > /tmp/cf_ip/status.json <<'STATUSEOF'
+	mkdir -p "$STATUS_DIR"
+	cat > "$STATUS_FILE" <<'STATUSEOF'
 {"running":true,"last_result":"scheduled","last_run":"","best_ips":[]}
 STATUSEOF
 	log "status: crontab-managed mode initialized"

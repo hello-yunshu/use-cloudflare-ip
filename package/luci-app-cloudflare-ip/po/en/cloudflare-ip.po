@@ -548,6 +548,9 @@ msgstr "Custom Schedule"
 msgid "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
 msgstr "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
 
+msgid "(latest 10)"
+msgstr "(latest 10)"
+
 msgid "CFST (CloudflareSpeedTest)"
 msgstr "CFST (CloudflareSpeedTest)"
 

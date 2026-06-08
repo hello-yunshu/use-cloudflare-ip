@@ -7,7 +7,7 @@ INIT_SCRIPT="/etc/init.d/cf_ip"
 service_running_state() {
 	case "$(uci -q get cf_ip.main.enabled 2>/dev/null)" in
 		1|on|true|enabled)
-			if [ -f /tmp/cf_ip/status.json ] && grep -q '"running"[[:space:]]*:[[:space:]]*true' /tmp/cf_ip/status.json 2>/dev/null; then
+			if [ -f /etc/cf_ip/status.json ] && grep -q '"running"[[:space:]]*:[[:space:]]*true' /etc/cf_ip/status.json 2>/dev/null; then
 				return 0
 			fi
 			;;

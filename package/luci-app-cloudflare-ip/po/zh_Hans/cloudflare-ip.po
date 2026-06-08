@@ -540,6 +540,9 @@ msgstr "自定义计划"
 msgid "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
 msgstr "输入可转换为 cron 的时长（如 6h、30m）或 5 字段 crontab 表达式。支持逗号分隔列表（如 0 3,6 * * *）。"
 
+msgid "(latest 10)"
+msgstr "（最近 10 条）"
+
 msgid "CFST (CloudflareSpeedTest)"
 msgstr "CFST (CloudflareSpeedTest)"
 
