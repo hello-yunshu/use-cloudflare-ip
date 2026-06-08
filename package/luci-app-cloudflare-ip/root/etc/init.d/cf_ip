@@ -7,16 +7,8 @@ USE_PROCD=1
 
 CRONTAB_FILE="/etc/crontabs/root"
 
-# Identify our crontab entries by the command pattern (not comments,
-# since OpenWrt crontab upgrades may strip comments)
-
-# Ensure crontab file ends with a newline before appending.
-# Without this, if the last line has no trailing newline, the new entry
-# would be concatenated onto it, producing a broken crontab.
 cron_ensure_newline() {
 	[ -s "$CRONTAB_FILE" ] || return 0
-	# $(tail -c1) strips trailing newlines in command substitution,
-	# so if the file ends with \n the result is empty, otherwise non-empty.
 	[ -n "$(tail -c1 "$CRONTAB_FILE")" ] && echo "" >> "$CRONTAB_FILE"
 }
 
@@ -29,7 +21,6 @@ cf_ip_cron_ensure() {
 cf_ip_cron_add() {
 	local expr="$1"
 	cf_ip_cron_ensure
-	# Remove any existing cf-ip-auto --run entry
 	cf_ip_cron_remove
 	mkdir -p /etc/crontabs
 	cron_ensure_newline
@@ -49,7 +40,6 @@ cf_ip_cron_remove() {
 cf_ip_cron_add_plugin() {
 	local plugin="$1" expr="$2"
 	cf_ip_cron_ensure
-	# Remove existing entries for this plugin
 	cf_ip_cron_remove_plugin "$plugin"
 	mkdir -p /etc/crontabs
 	cron_ensure_newline

@@ -7,7 +7,6 @@ SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
 
 # Status and log files
-# STATUS_DIR on persistent storage so status.json survives reboots/updates
 STATUS_DIR="/etc/cf_ip"
 STATUS_FILE="/etc/cf_ip/status.json"
 LOG_FILE="/tmp/cf_ip/cf-ip-auto.log"
@@ -1614,7 +1613,6 @@ cmd_ip_history() {
 	[[ -n "$IP_HISTORY_FILE" ]] && history_file="$IP_HISTORY_FILE"
 
 	if [[ -f "$history_file" ]]; then
-		# Read last 10 lines in reverse order (newest first)
 		local ips_json="[" first=true
 		local lines
 		lines="$(tail -n 10 "$history_file")" || lines=""
