@@ -157,7 +157,8 @@ EOF
 				service_action restart
 				;;
 			sync)
-				_plugin="$(jsonfilter -s "$3" -e '$.plugin' 2>/dev/null)" || true
+				read _input
+				_plugin="$(jsonfilter -s "$_input" -e '$.plugin' 2>/dev/null)" || true
 				if [ -z "$_plugin" ]; then
 					echo '{"success":false,"error":"missing plugin name"}'
 				else
@@ -169,7 +170,8 @@ EOF
 				"$CF_IP_AUTO_BIN" --oc-list-backups 2>/dev/null || echo '{"success":false,"error":"failed to list backups"}'
 				;;
 			oc-restore-backup)
-				_backup_id="$(jsonfilter -s "$3" -e '$.id' 2>/dev/null)" || true
+				read _input
+				_backup_id="$(jsonfilter -s "$_input" -e '$.id' 2>/dev/null)" || true
 				if [ -z "$_backup_id" ]; then
 					echo '{"success":false,"error":"missing backup id"}'
 				else
@@ -178,7 +180,8 @@ EOF
 				fi
 				;;
 			oc-delete-backup)
-				_backup_id="$(jsonfilter -s "$3" -e '$.id' 2>/dev/null)" || true
+				read _input
+				_backup_id="$(jsonfilter -s "$_input" -e '$.id' 2>/dev/null)" || true
 				if [ -z "$_backup_id" ]; then
 					echo '{"success":false,"error":"missing backup id"}'
 				else
