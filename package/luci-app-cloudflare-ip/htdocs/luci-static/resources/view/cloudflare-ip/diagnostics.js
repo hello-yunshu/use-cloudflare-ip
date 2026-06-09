@@ -138,6 +138,10 @@ return view.extend({
 
 		logSection.appendChild(logArea);
 
+		/* Auto-scroll to bottom after initial load */
+		if (logData.success === true && logData.logs && logData.logs.trim())
+			requestAnimationFrame(function() { logArea.scrollTop = logArea.scrollHeight; });
+
 		if (status.error && status.error !== 'Status file not found') {
 			logSection.appendChild(E('div', { 'class': 'alert-message danger', 'style': 'margin-top:1em' },
 				E('p', {}, '\u2718 ' + _('Last Error: ') + status.error)));
