@@ -626,3 +626,27 @@ msgstr "暂无 IP 历史记录"
 msgid "IP Address"
 msgstr "IP 地址"
 
+msgid "Scheduled"
+msgstr "已计划"
+
+msgid "Success"
+msgstr "成功"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "unknown"
+msgstr "未知"
+
+msgid "Project"
+msgstr "项目"
+
+msgid "Failed to trigger speedtest: %s"
+msgstr "触发测速失败：%s"
+

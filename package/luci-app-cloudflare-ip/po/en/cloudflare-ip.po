@@ -626,3 +626,27 @@ msgstr "No IP history available"
 msgid "IP Address"
 msgstr "IP Address"
 
+msgid "Scheduled"
+msgstr "Scheduled"
+
+msgid "Success"
+msgstr "Success"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Stopped"
+msgstr "Stopped"
+
+msgid "Unknown"
+msgstr "Unknown"
+
+msgid "unknown"
+msgstr "unknown"
+
+msgid "Project"
+msgstr "Project"
+
+msgid "Failed to trigger speedtest: %s"
+msgstr "Failed to trigger speedtest: %s"
+

@@ -626,3 +626,27 @@ msgstr ""
 msgid "IP Address"
 msgstr ""
 
+msgid "Scheduled"
+msgstr ""
+
+msgid "Success"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "unknown"
+msgstr ""
+
+msgid "Project"
+msgstr ""
+
+msgid "Failed to trigger speedtest: %s"
+msgstr ""
+
