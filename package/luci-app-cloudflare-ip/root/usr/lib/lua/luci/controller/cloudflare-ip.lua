@@ -10,7 +10,7 @@ function index()
 		{ id = "passwall",  init = "/etc/init.d/passwall",  title = "PassWall",  order = 40 },
 	}
 
-	for _, p in ipairs(plugins) do
+	for _idx, p in ipairs(plugins) do
 		if nixio.fs.access(p.init, "x") then
 			entry({"admin", "services", "cf_ip", p.id},
 				view("cloudflare-ip/" .. p.id),
