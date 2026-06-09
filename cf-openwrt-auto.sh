@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.5.2"
+SCRIPT_VERSION="1.5.3"
 MIN_CONFIG_VERSION="1.3.0"
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
@@ -567,8 +567,16 @@ cleanup_stopped_service() {
 	fi
 }
 
+_on_exit() {
+	cleanup_stopped_service
+	# Abnormal exit: update status to error (normal exit removes this trap first)
+	if [ -f "$STATUS_FILE" ] && grep -q '"running"[[:space:]]*:[[:space:]]*true' "$STATUS_FILE" 2>/dev/null; then
+		write_status false "error" "script exited unexpectedly"
+	fi
+}
+
 update_passwall() {
-	local sections=() section idx ip old_remarks new_remarks
+	local sections=() section idx ip old_remarks new_remarks base_name
 
 	need_cmd uci
 	while IFS= read -r section; do
@@ -584,7 +592,8 @@ update_passwall() {
 		if [[ -n "$PASSWALL_NAME_SUFFIX" ]]; then
 			old_remarks="$(uci_unquote "$(uci get "passwall.${section}.remarks" 2>/dev/null || printf '')")"
 			if [[ -n "$old_remarks" ]]; then
-				new_remarks="${old_remarks}$(expand_suffix "$PASSWALL_NAME_SUFFIX" "$((idx + 1))" "$ip")"
+				base_name="$(passwall_base_name "$old_remarks")"
+				new_remarks="${base_name}$(expand_suffix "$PASSWALL_NAME_SUFFIX" "$((idx + 1))" "$ip")"
 				uci set "passwall.${section}.remarks=${new_remarks}" >/dev/null || die "failed to update passwall.${section}.remarks"
 				log "PassWall ${section}.remarks '${old_remarks}' -> '${new_remarks}'; address -> ${ip}"
 			else
@@ -627,6 +636,15 @@ find_passwall_sections() {
 			break
 		done
 	done < <(uci show passwall)
+}
+
+passwall_base_name() {
+	local name="$1"
+
+	while [[ "$name" =~ ^(.*)[[:space:]]\[CF-[0-9]+\][^[:space:]]*$ ]]; do
+		name="${BASH_REMATCH[1]}"
+	done
+	printf '%s' "$name"
 }
 
 trim_scalar() {
@@ -746,7 +764,7 @@ openclash_variant_count() {
 openclash_generated_index() {
 	local proxy_name="$1"
 
-	if [[ "$proxy_name" =~ [[:space:]]\[CF-([0-9]+)\][[:space:]]*$ ]]; then
+	if [[ "$proxy_name" =~ [[:space:]]\[CF-([0-9]+)\][^[:space:]]*$ ]]; then
 		printf '%s' "${BASH_REMATCH[1]}"
 		return 0
 	fi
@@ -756,11 +774,10 @@ openclash_generated_index() {
 openclash_base_name() {
 	local proxy_name="$1"
 
-	if [[ "$proxy_name" =~ ^(.*)[[:space:]]\[CF-[0-9]+\][[:space:]]*$ ]]; then
-		printf '%s' "${BASH_REMATCH[1]}"
-	else
-		printf '%s' "$proxy_name"
-	fi
+	while [[ "$proxy_name" =~ ^(.*)[[:space:]]\[CF-[0-9]+\][^[:space:]]*$ ]]; do
+		proxy_name="${BASH_REMATCH[1]}"
+	done
+	printf '%s' "$proxy_name"
 }
 
 openclash_domain_matches() {
@@ -1178,7 +1195,7 @@ main() {
 			passwall) stop_service passwall ;;
 			openclash) stop_service openclash ;;
 		esac
-		trap cleanup_stopped_service EXIT
+		trap _on_exit EXIT
 	fi
 
 	run_speedtest
