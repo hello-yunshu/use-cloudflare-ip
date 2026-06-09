@@ -638,9 +638,6 @@ msgstr "错误"
 msgid "Stopped"
 msgstr "已停止"
 
-msgid "Unknown"
-msgstr "未知"
-
 msgid "unknown"
 msgstr "未知"
 

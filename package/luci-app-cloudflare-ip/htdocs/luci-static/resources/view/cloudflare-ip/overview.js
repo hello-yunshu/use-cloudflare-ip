@@ -50,7 +50,7 @@ var STATUS_LABELS = {
 	success: _('Success'),
 	error: _('Error'),
 	stopped: _('Stopped'),
-	unknown: _('Unknown')
+	unknown: _('unknown')
 };
 
 function translateStatus(status) {

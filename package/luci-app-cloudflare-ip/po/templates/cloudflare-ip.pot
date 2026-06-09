@@ -638,9 +638,6 @@ msgstr ""
 msgid "Stopped"
 msgstr ""
 
-msgid "Unknown"
-msgstr ""
-
 msgid "unknown"
 msgstr ""
 
