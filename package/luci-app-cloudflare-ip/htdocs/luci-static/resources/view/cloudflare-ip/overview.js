@@ -44,6 +44,25 @@ var callDownloadCfst = rpc.declare({
 
 var SPEEDTEST_POLL_INTERVAL = 3000;
 
+var STATUS_LABELS = {
+	scheduled: _('Scheduled'),
+	running: _('Running'),
+	success: _('Success'),
+	error: _('Error'),
+	stopped: _('Stopped'),
+	unknown: _('Unknown')
+};
+
+function translateStatus(status) {
+	if (typeof status !== 'string')
+		return STATUS_LABELS.unknown || status;
+	if (STATUS_LABELS[status])
+		return STATUS_LABELS[status];
+	if (status.indexOf('success') === 0)
+		return STATUS_LABELS.success;
+	return status;
+}
+
 function showSpeedtestModal() {
 	var statusNode = E('span', { 'class': 'cfi-badge orange' }, '\u23F3 ' + _('Running'));
 	var logNode = E('textarea', {
@@ -64,16 +83,16 @@ function showSpeedtestModal() {
 
 		if (status === 'success' || (typeof status === 'string' && status.indexOf('success') === 0)) {
 			statusNode.className = 'cfi-badge green';
-			statusNode.textContent = '\u2714 ' + status;
+			statusNode.textContent = '\u2714 ' + translateStatus(status);
 		} else if (status === 'running') {
 			statusNode.className = 'cfi-badge orange';
-			statusNode.textContent = '\u23F3 ' + _('Running');
+			statusNode.textContent = '\u23F3 ' + translateStatus(status);
 		} else if (status === 'error') {
 			statusNode.className = 'cfi-badge red';
-			statusNode.textContent = '\u2718 ' + status;
+			statusNode.textContent = '\u2718 ' + translateStatus(status);
 		} else {
 			statusNode.className = 'cfi-badge gray';
-			statusNode.textContent = status;
+			statusNode.textContent = translateStatus(status);
 		}
 
 		var logData = result.log_data || {};
@@ -370,7 +389,7 @@ return view.extend({
 					callRun().then(function(result) {
 						result = result || {};
 						if (result.success !== true) {
-							ui.addNotification(null, E('p', _('Failed to trigger speedtest: %s').format(result.error || 'unknown')), 'error');
+							ui.addNotification(null, E('p', _('Failed to trigger speedtest: %s').format(result.error || _('unknown'))), 'error');
 							isRunningTest = false;
 							utils.resetBusy(btn);
 							return;
@@ -402,7 +421,7 @@ return view.extend({
 				return callDownloadCfst().then(function(result) {
 					result = result || {};
 					if (result.success !== true) {
-						ui.addNotification(null, E('p', _('CFST operation failed: ') + (result.error || 'unknown')), 'error');
+						ui.addNotification(null, E('p', _('CFST operation failed: ') + (result.error || _('unknown'))), 'error');
 					} else {
 						ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
 						utils.reloadSoon(1500);
@@ -434,13 +453,13 @@ return view.extend({
 
 		var lastResultBadge;
 		if (lastResult === 'running') {
-			lastResultBadge = E('span', { 'class': 'cfi-badge orange', 'style': 'cursor:pointer', 'click': showSpeedtestModal }, '\u23F3 ' + _('Running'));
+			lastResultBadge = E('span', { 'class': 'cfi-badge orange', 'style': 'cursor:pointer', 'click': showSpeedtestModal }, '\u23F3 ' + translateStatus(lastResult));
 		} else if (lastResult === 'success' || (typeof lastResult === 'string' && lastResult.indexOf('success') === 0)) {
-			lastResultBadge = E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + lastResult);
+			lastResultBadge = E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + translateStatus(lastResult));
 		} else if (lastResult === '-' || lastResult === 'unknown') {
 			lastResultBadge = E('span', { 'class': 'cfi-badge gray' }, '\u26A0 ' + '-');
 		} else {
-			lastResultBadge = E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + lastResult);
+			lastResultBadge = E('span', { 'class': 'cfi-badge red' }, '\u2718 ' + translateStatus(lastResult));
 		}
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('Last Result')),

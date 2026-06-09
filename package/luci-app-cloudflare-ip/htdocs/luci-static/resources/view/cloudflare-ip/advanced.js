@@ -46,7 +46,7 @@ return view.extend({
 			return callSelfUpdate().then(function(res) {
 				res = res || {};
 				if (res.success !== true) {
-					ui.addNotification(null, E('p', _('Self-update failed: ') + (res.error || 'unknown')), 'error');
+					ui.addNotification(null, E('p', _('Self-update failed: ') + (res.error || _('unknown'))), 'error');
 				} else if (res.updated) {
 					ui.addNotification(null, E('p', _('Script updated to version %s.').format(res.new_version || res.version || '')), 'info');
 					utils.reloadSoon(2000);

@@ -110,7 +110,7 @@ return view.extend({
 						logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
 						setLogText(_('Log file cleared.'));
 					} else {
-						ui.addNotification(null, E('p', _('Failed to clear logs: ') + (res.error || 'unknown')), 'error');
+						ui.addNotification(null, E('p', _('Failed to clear logs: ') + (res.error || _('unknown'))), 'error');
 					}
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Failed to clear logs: ') + e.message), 'error');

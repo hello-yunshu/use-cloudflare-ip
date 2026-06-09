@@ -11,7 +11,7 @@ var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': 
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
 
 var FOOTER_OPTIONS = {
-	project: 'Cloudflare IP Optimization',
+	project: _('Cloudflare IP Optimization'),
 	repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
 };
 
@@ -151,7 +151,7 @@ function footerVersion(version) {
 
 function renderFooter(options) {
 	options = options || {};
-	var project = options.project || 'Cloudflare IP Optimization';
+	var project = options.project || _('Cloudflare IP Optimization');
 	var version = footerVersion(options.version);
 	var repoUrl = options.repoUrl || 'https://github.com/hello-yunshu/use-cloudflare-ip';
 
@@ -164,7 +164,7 @@ function renderFooter(options) {
 			version ? E('span', { 'class': 'ys-tool-footer-version' }, version) : ''
 		]),
 		E('div', { 'class': 'ys-tool-footer-links' }, [
-			E('span', { 'class': 'ys-tool-footer-project-link' }, footerLink(repoUrl, 'Project')),
+			E('span', { 'class': 'ys-tool-footer-project-link' }, footerLink(repoUrl, _('Project'))),
 			footerSeparator('ys-tool-footer-project-separator'),
 			footerLink('https://github.com/hello-yunshu', 'GitHub', 'github'),
 			footerSeparator(),
