@@ -114,7 +114,14 @@ EOF
 				"$CF_IP_AUTO_BIN" --refresh-env 2>/dev/null || true
 				;;
 			run)
-				"$CF_IP_AUTO_BIN" --run --no-delay 2>/dev/null || true
+				# Check lock before starting background speedtest
+				if [ -d /tmp/cf_ip/cf-ip-auto.lock ]; then
+					echo '{"success":false,"error":"another instance is running"}'
+				else
+					# Start speedtest in background to avoid rpcd timeout
+					( "$CF_IP_AUTO_BIN" --run --no-delay >/dev/null 2>&1 ) &
+					echo '{"success":true,"action":"run","running":true}'
+				fi
 				;;
 			speedtest-status)
 				_status="$("$CF_IP_AUTO_BIN" --status 2>/dev/null)" || true

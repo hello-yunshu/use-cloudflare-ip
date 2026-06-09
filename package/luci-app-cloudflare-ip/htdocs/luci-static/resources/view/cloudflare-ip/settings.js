@@ -1,20 +1,15 @@
 'use strict';
 'require view';
 'require ui';
-'require rpc';
-'require dom';
 'require form';
 'require uci';
 'require cloudflare-ip/utils as utils';
-
-var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
-var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
 
 return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('cf_ip'),
-			callStatus().catch(function() { return {}; })
+			utils.callStatus().catch(function() { return {}; })
 		]);
 	},
 
@@ -124,42 +119,9 @@ return view.extend({
 		o.default = '1';
 		o.rmempty = false;
 
-		m.handleSave = function(ev) {
-			var tasks = [];
-			document.getElementById('maincontent')
-				.querySelectorAll('.cbi-map').forEach(function(map) {
-					tasks.push(dom.callClassMethod(map, 'save'));
-				});
-			return Promise.all(tasks);
-		};
+		utils.createHandleSave(m);
+		utils.createHandleSaveApply(m);
 
-		m.handleSaveApply = function(ev, mode) {
-			return this.handleSave(ev).then(function() {
-				return utils.safeApply();
-			}).then(function() {
-				return uci.load('cf_ip');
-			}).then(function() {
-				if (uci.get('cf_ip', 'main', 'enabled') !== '1') {
-					ui.addNotification(null, E('p', _('Configuration saved and applied.')), 'info');
-					utils.reloadSoon(600);
-					return;
-				}
-
-				ui.addNotification(null, E('p', _('Configuration saved. Restarting service...')), 'info');
-				return callServiceRestart().then(utils.requireSuccess).then(function() {
-					return utils.waitForServiceReady(callStatus);
-				}).then(function(status) {
-					ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
-					utils.reloadSoon(300);
-				});
-			}).catch(function(e) {
-				ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
-			});
-		};
-
-		return utils.renderWithFooter(m.render(), {
-			project: 'Cloudflare IP Optimization',
-			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
-		});
+		return utils.renderWithFooter(m.render(), utils.FOOTER_OPTIONS);
 	}
 });

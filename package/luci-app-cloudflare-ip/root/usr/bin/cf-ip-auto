@@ -2011,10 +2011,18 @@ cmd_sync() {
 
 cmd_write_status() {
 	mkdir -p "$STATUS_DIR"
-	local best_ips="[]"
-	if [[ -f "$STATUS_FILE" ]]; then
-		best_ips="$(jq -c '.best_ips // []' "$STATUS_FILE" 2>/dev/null)" || best_ips="[]"
+
+	# Preserve existing fields, only update running and last_result
+	if [[ -f "$STATUS_FILE" ]] && command -v jq >/dev/null 2>&1; then
+		local tmp="${STATUS_FILE}.tmp"
+		jq -c '. + {"running":true,"last_result":"scheduled"}' "$STATUS_FILE" > "$tmp" 2>/dev/null && \
+			mv "$tmp" "$STATUS_FILE" 2>/dev/null && return 0
+		rm -f "$tmp" 2>/dev/null
 	fi
+
+	# Fallback: write minimal status preserving best_ips
+	local best_ips="[]"
+	[[ -f "$STATUS_FILE" ]] && best_ips="$(jq -c '.best_ips // []' "$STATUS_FILE" 2>/dev/null)" || best_ips="[]"
 	cat > "$STATUS_FILE" <<EOF
 {"running":true,"last_result":"scheduled","last_run":"","best_ips":${best_ips}}
 EOF

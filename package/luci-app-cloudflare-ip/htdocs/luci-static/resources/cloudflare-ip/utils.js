@@ -1,8 +1,19 @@
 'use strict';
 'require uci';
+'require rpc';
+'require ui';
+'require dom';
 'require baseclass';
 
 var FOOTER_VERSION = '@PKG_VERSION@';
+
+var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
+var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
+
+var FOOTER_OPTIONS = {
+	project: 'Cloudflare IP Optimization',
+	repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
+};
 
 function safeApply() {
 	return uci.apply().catch(function(e) {
@@ -39,6 +50,7 @@ function waitForServiceReady(callStatus, options) {
 	options = options || {};
 	var interval = options.interval || 3000;
 	var timeout = options.timeout || 120000;
+	var isReady = options.isReady || function(s) { return s && s.running && s.last_result !== 'running'; };
 	var startedAt = Date.now();
 
 	function wait(delay) {
@@ -53,7 +65,7 @@ function waitForServiceReady(callStatus, options) {
 
 		return callStatus().then(function(status) {
 			status = status || {};
-			if (status.running && status.last_result !== 'running')
+			if (isReady(status))
 				return status;
 			if (Date.now() - startedAt >= timeout)
 				return status;
@@ -174,6 +186,43 @@ function renderWithFooter(rendered, options) {
 	});
 }
 
+function createHandleSave(m) {
+	m.handleSave = function(ev) {
+		var tasks = [];
+		document.getElementById('maincontent')
+			.querySelectorAll('.cbi-map').forEach(function(map) {
+				tasks.push(dom.callClassMethod(map, 'save'));
+			});
+		return Promise.all(tasks);
+	};
+}
+
+function createHandleSaveApply(m) {
+	m.handleSaveApply = function(ev, mode) {
+		return this.handleSave(ev).then(function() {
+			return safeApply();
+		}).then(function() {
+			return uci.load('cf_ip');
+		}).then(function() {
+			if (uci.get('cf_ip', 'main', 'enabled') !== '1') {
+				ui.addNotification(null, E('p', _('Configuration saved and applied.')), 'info');
+				reloadSoon(600);
+				return;
+			}
+
+			ui.addNotification(null, E('p', _('Configuration saved. Restarting service...')), 'info');
+			return callServiceRestart().then(requireSuccess).then(function() {
+				return waitForServiceReady(callStatus);
+			}).then(function(status) {
+				ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
+				reloadSoon(300);
+			});
+		}).catch(function(e) {
+			ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
+		});
+	};
+}
+
 return baseclass.extend({
 	safeApply: safeApply,
 	setBusy: setBusy,
@@ -184,5 +233,10 @@ return baseclass.extend({
 	loadSharedCSS: loadSharedCSS,
 	renderFooter: renderFooter,
 	appendFooter: appendFooter,
-	renderWithFooter: renderWithFooter
+	renderWithFooter: renderWithFooter,
+	callStatus: callStatus,
+	callServiceRestart: callServiceRestart,
+	FOOTER_OPTIONS: FOOTER_OPTIONS,
+	createHandleSave: createHandleSave,
+	createHandleSaveApply: createHandleSaveApply
 });

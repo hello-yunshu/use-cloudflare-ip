@@ -2,13 +2,10 @@
 'require view';
 'require ui';
 'require rpc';
-'require dom';
 'require form';
 'require uci';
 'require cloudflare-ip/utils as utils';
 
-var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
-var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
 var callOcListBackups = rpc.declare({ object: 'cf_ip', method: 'oc-list-backups', expect: { '': {} } });
 var callOcRestoreBackup = rpc.declare({ object: 'cf_ip', method: 'oc-restore-backup', params: ['id'], expect: { '': {} } });
 var callOcDeleteBackup = rpc.declare({ object: 'cf_ip', method: 'oc-delete-backup', params: ['id'], expect: { '': {} } });
@@ -26,7 +23,7 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('cf_ip'),
-			callStatus().catch(function() { return {}; }),
+			utils.callStatus().catch(function() { return {}; }),
 			callOcListBackups().catch(function() { return { success: false, backups: [] }; })
 		]);
 	},
@@ -82,38 +79,8 @@ return view.extend({
 		o.placeholder = '3';
 		o.rmempty = false;
 
-		m.handleSave = function(ev) {
-			var tasks = [];
-			document.getElementById('maincontent')
-				.querySelectorAll('.cbi-map').forEach(function(map) {
-					tasks.push(dom.callClassMethod(map, 'save'));
-				});
-			return Promise.all(tasks);
-		};
-
-		m.handleSaveApply = function(ev, mode) {
-			return this.handleSave(ev).then(function() {
-				return utils.safeApply();
-			}).then(function() {
-				return uci.load('cf_ip');
-			}).then(function() {
-				if (uci.get('cf_ip', 'main', 'enabled') !== '1') {
-					ui.addNotification(null, E('p', _('Configuration saved and applied.')), 'info');
-					utils.reloadSoon(600);
-					return;
-				}
-
-				ui.addNotification(null, E('p', _('Configuration saved. Restarting service...')), 'info');
-				return callServiceRestart().then(utils.requireSuccess).then(function() {
-					return utils.waitForServiceReady(callStatus);
-				}).then(function(status) {
-					ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
-					utils.reloadSoon(300);
-				});
-			}).catch(function(e) {
-				ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
-			});
-		};
+		utils.createHandleSave(m);
+		utils.createHandleSaveApply(m);
 
 		/* Build backup section as a separate DOM tree appended after the form */
 		var backupSection = E('div', { 'class': 'cbi-section cfi-section', 'id': 'oc-backups-section' });
@@ -217,9 +184,6 @@ return view.extend({
 			/* Append backup section after the form */
 			node.appendChild(backupSection);
 			return node;
-		}), {
-			project: 'Cloudflare IP Optimization',
-			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
-		});
+		}), utils.FOOTER_OPTIONS);
 	}
 });

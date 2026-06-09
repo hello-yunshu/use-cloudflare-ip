@@ -19,12 +19,9 @@
 }
 .table .tr.cfi-no-hover:hover { background: none !important; }
 .cfi-log-area {
-	min-height: 16em; max-height: 26em; overflow: auto; padding: 1em;
-	background: var(--background-color-low);
-	color: inherit;
-	font-size: 0.85em; line-height: 1.45; border-radius: 6px;
-	border: 1px solid var(--border-color);
-	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	width: 100%; box-sizing: border-box;
+	font-size: 10px;
+	font-family: monospace;
 	white-space: pre;
 	tab-size: 4;
 }

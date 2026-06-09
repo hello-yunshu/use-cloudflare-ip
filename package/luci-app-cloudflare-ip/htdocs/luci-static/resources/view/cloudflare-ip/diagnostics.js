@@ -4,7 +4,6 @@
 'require rpc';
 'require cloudflare-ip/utils as utils';
 
-var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
 var callReadLog = rpc.declare({ object: 'cf_ip', method: 'read-log', expect: { '': {} } });
 var callClearLog = rpc.declare({ object: 'cf_ip', method: 'clear-log', expect: { '': {} } });
 var callIpHistory = rpc.declare({ object: 'cf_ip', method: 'ip-history', expect: { '': {} } });
@@ -26,7 +25,7 @@ var css = `
 return view.extend({
 	load: function() {
 		return Promise.all([
-			callStatus().catch(function() { return {}; }),
+			utils.callStatus().catch(function() { return {}; }),
 			callReadLog().catch(function() { return { success: false, error: 'read-log failed' }; }),
 			callIpHistory().catch(function() { return { success: false, ips: [] }; })
 		]).then(function(results) {
@@ -53,7 +52,16 @@ return view.extend({
 		var logSection = E('div', { 'class': 'cbi-section cfi-section' });
 		logSection.appendChild(E('h3', {}, _('Recent Logs')));
 
-		var logArea = E('pre', { 'class': 'cfi-log-area', 'id': 'log-area' }, '');
+		var logArea = E('textarea', {
+			'class': 'cbi-input-textarea cfi-log-area',
+			'id': 'log-area',
+			'rows': 20,
+			'readonly': 'readonly'
+		}, '');
+
+		function setLogText(text) {
+			logArea.value = text;
+		}
 
 		var logBtnBar = E('div', { 'class': 'cfi-btn-group', 'style': 'margin-bottom:1em' });
 
@@ -62,27 +70,27 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				utils.setBusy(btn, _('Loading...'));
-				logArea.className = 'cfi-log-area is-loading';
-				logArea.textContent = _('Loading...');
+				logArea.className = 'cbi-input-textarea cfi-log-area is-loading';
+				setLogText(_('Loading...'));
 				return callReadLog().then(function(res) {
 					res = res || {};
 					if (res.success !== true) {
-						logArea.className = 'cfi-log-area is-error';
-						logArea.textContent = res.error || _('Failed to read logs');
+						logArea.className = 'cbi-input-textarea cfi-log-area is-error';
+						setLogText(res.error || _('Failed to read logs'));
 					} else if (res.logs) {
-						logArea.className = 'cfi-log-area';
-						logArea.textContent = res.logs;
+						logArea.className = 'cbi-input-textarea cfi-log-area';
+						setLogText(res.logs);
 						if (!res.logs.trim())
-							logArea.className = 'cfi-log-area is-empty';
+							logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
 						else
 							logArea.scrollTop = logArea.scrollHeight;
 					} else {
-						logArea.className = 'cfi-log-area is-empty';
-						logArea.textContent = _('No logs found.');
+						logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
+						setLogText(_('No logs found.'));
 					}
 				}).catch(function(e) {
-					logArea.className = 'cfi-log-area is-error';
-					logArea.textContent = _('Failed to read logs: ') + (e.message || e);
+					logArea.className = 'cbi-input-textarea cfi-log-area is-error';
+					setLogText(_('Failed to read logs: ') + (e.message || e));
 				}).finally(function() {
 					utils.resetBusy(btn);
 				});
@@ -99,8 +107,8 @@ return view.extend({
 				return callClearLog().then(function(res) {
 					res = res || {};
 					if (res.success === true) {
-						logArea.className = 'cfi-log-area is-empty';
-						logArea.textContent = _('Log file cleared.');
+						logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
+						setLogText(_('Log file cleared.'));
 					} else {
 						ui.addNotification(null, E('p', _('Failed to clear logs: ') + (res.error || 'unknown')), 'error');
 					}
@@ -116,16 +124,16 @@ return view.extend({
 
 		/* Populate initial log content */
 		if (logData.success !== true) {
-			logArea.className = 'cfi-log-area is-error';
-			logArea.textContent = logData.error || _('Failed to read logs');
+			logArea.className = 'cbi-input-textarea cfi-log-area is-error';
+			setLogText(logData.error || _('Failed to read logs'));
 		} else if (logData.logs) {
-			logArea.className = 'cfi-log-area';
-			logArea.textContent = logData.logs;
+			logArea.className = 'cbi-input-textarea cfi-log-area';
+			setLogText(logData.logs);
 			if (!logData.logs.trim())
-				logArea.className = 'cfi-log-area is-empty';
+				logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
 		} else {
-			logArea.className = 'cfi-log-area is-empty';
-			logArea.textContent = _('No logs found.');
+			logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
+			setLogText(_('No logs found.'));
 		}
 
 		logSection.appendChild(logArea);
@@ -195,9 +203,6 @@ return view.extend({
 		]));
 		container.appendChild(ipSection);
 
-		return utils.appendFooter(container, {
-			project: 'Cloudflare IP Optimization',
-			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
-		});
+		return utils.appendFooter(container, utils.FOOTER_OPTIONS);
 	}
 });

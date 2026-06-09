@@ -6,12 +6,6 @@
 'require form';
 'require cloudflare-ip/utils as utils';
 
-var callStatus = rpc.declare({
-	object: 'cf_ip',
-	method: 'status',
-	expect: { '': {} }
-});
-
 var callRefreshEnv = rpc.declare({
 	object: 'cf_ip',
 	method: 'refresh-env',
@@ -42,12 +36,6 @@ var callServiceStop = rpc.declare({
 	expect: { '': {} }
 });
 
-var callServiceRestart = rpc.declare({
-	object: 'cf_ip',
-	method: 'restart',
-	expect: { '': {} }
-});
-
 var callDownloadCfst = rpc.declare({
 	object: 'cf_ip',
 	method: 'download-cfst',
@@ -58,8 +46,16 @@ var SPEEDTEST_POLL_INTERVAL = 3000;
 
 function showSpeedtestModal() {
 	var statusNode = E('span', { 'class': 'cfi-badge orange' }, '\u23F3 ' + _('Running'));
-	var logNode = E('pre', { 'class': 'cfi-log-area is-loading' }, _('Loading...'));
+	var logNode = E('textarea', {
+		'class': 'cbi-input-textarea cfi-log-area is-loading',
+		'rows': 20,
+		'readonly': 'readonly'
+	}, _('Loading...'));
 	var modalOpen = true;
+
+	function setLogText(text) {
+		logNode.value = text;
+	}
 
 	function update(result) {
 		result = result || {};
@@ -83,12 +79,12 @@ function showSpeedtestModal() {
 		var logData = result.log_data || {};
 		var logs = logData.logs || '';
 		if (logs && logs.trim()) {
-			logNode.className = 'cfi-log-area';
-			logNode.textContent = logs;
+			logNode.className = 'cbi-input-textarea cfi-log-area';
+			setLogText(logs);
 			logNode.scrollTop = logNode.scrollHeight;
 		} else if (!isRunning) {
-			logNode.className = 'cfi-log-area is-empty';
-			logNode.textContent = _('No log output yet.');
+			logNode.className = 'cbi-input-textarea cfi-log-area is-empty';
+			setLogText(_('No log output yet.'));
 		}
 
 		if (modalOpen && isRunning)
@@ -97,8 +93,8 @@ function showSpeedtestModal() {
 
 	function refresh() {
 		callSpeedtestStatus().then(update).catch(function(err) {
-			logNode.className = 'cfi-log-area is-error';
-			logNode.textContent = _('Failed to get status: ') + String(err);
+			logNode.className = 'cbi-input-textarea cfi-log-area is-error';
+			setLogText(_('Failed to get status: ') + String(err));
 		});
 	}
 
@@ -128,7 +124,7 @@ function showSpeedtestModal() {
 }
 
 function waitReadyAndReload() {
-	return utils.waitForServiceReady(callStatus).then(function(status) {
+	return utils.waitForServiceReady(utils.callStatus).then(function(status) {
 		if (status && status.last_result === 'running')
 			ui.addNotification(null, E('p', _('Service action completed, but speedtest is still in progress. Refreshing current status.')), 'warning');
 		utils.reloadSoon(300);
@@ -211,7 +207,7 @@ var css = `
 return view.extend({
 	load: function() {
 		return Promise.all([
-			callStatus(),
+			utils.callStatus(),
 			uci.load('cf_ip')
 		]).then(function(results) {
 			return results[0];
@@ -260,12 +256,23 @@ return view.extend({
 		container.appendChild(banner);
 
 		if (isRunningTest) {
-			utils.waitForServiceReady(callStatus, {
+			// Auto-show speedtest modal when page loads during active test
+			setTimeout(showSpeedtestModal, 300);
+			utils.waitForServiceReady(utils.callStatus, {
 				isActive: function() { return container.isConnected; }
 			}).then(function() {
 				if (container.isConnected)
 					utils.reloadSoon(300);
 			}).catch(function() {});
+		} else if (running) {
+			// Edge case: page loaded right after callRun() but before backend wrote "running" status
+			// Re-check after short delay to catch the transition
+			setTimeout(function() {
+				utils.callStatus().then(function(s) {
+					if (s && s.last_result === 'running')
+						utils.reloadSoon(300);
+				});
+			}, 2000);
 		}
 
 		var statsGrid = E('div', { 'class': 'cfi-stats-grid' });
@@ -337,7 +344,7 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				utils.setBusy(btn, _('Loading...'));
-				return callServiceRestart().then(utils.requireSuccess).then(function() {
+				return utils.callServiceRestart().then(utils.requireSuccess).then(function() {
 					ui.addNotification(null, E('p', _('Service restarted.')), 'info');
 					return waitReadyAndReload();
 				}).catch(function(e) {
@@ -359,31 +366,21 @@ return view.extend({
 					var btn = this;
 					utils.setBusy(btn, '\u23F3 ' + _('Running...'));
 					isRunningTest = true;
-					// Trigger speedtest in background
+					// Trigger speedtest in background (non-blocking RPC)
 					callRun().then(function(result) {
 						result = result || {};
-						var msg, msgType = 'info';
-						if (result.success === true) {
-							var ips = result.best_ips || [];
-							if (ips.length > 0) {
-								msg = _('Speedtest completed: found %d best IPs.').format(ips.length);
-							} else {
-								msg = _('Speedtest completed but no best IPs found.');
-								msgType = 'warning';
-							}
-						} else if (result.success !== true) {
-							msg = _('Speedtest failed: %s').format(result.error || 'unknown');
-							msgType = 'error';
-						} else {
-							msg = _('Speedtest triggered.');
+						if (result.success !== true) {
+							ui.addNotification(null, E('p', _('Failed to trigger speedtest: %s').format(result.error || 'unknown')), 'error');
+							isRunningTest = false;
+							utils.resetBusy(btn);
+							return;
 						}
-						ui.addNotification(null, E('p', msg), msgType);
-						utils.reloadSoon(2500);
+						// Reload page after short delay; backend writes "running" status almost instantly
+						utils.reloadSoon(1000);
 					}).catch(function(e) {
 						ui.addNotification(null, E('p', _('Speedtest failed: %s').format(e.message)), 'error');
-						utils.resetBusy(btn);
 						isRunningTest = false;
-						btn.textContent = '\u26A1 ' + _('Run Speedtest');
+						utils.resetBusy(btn);
 					});
 				}
 			}, isRunningTest ? '\u23F3 ' + _('Running...') : '\u26A1 ' + _('Run Speedtest'));
@@ -586,10 +583,6 @@ return view.extend({
 		container.appendChild(depSection);
 
 
-		return utils.appendFooter(container, {
-			project: 'Cloudflare IP Optimization',
-			version: scriptVersion,
-			repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
-		});
+		return utils.appendFooter(container, Object.assign({}, utils.FOOTER_OPTIONS, { version: scriptVersion }));
 	}
 });
