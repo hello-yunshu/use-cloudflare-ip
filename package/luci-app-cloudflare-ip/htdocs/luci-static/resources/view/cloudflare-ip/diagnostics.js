@@ -12,6 +12,9 @@ var css = `
 	.cfi-ip-table {
 		width: 100%;
 	}
+	.cfi-table-wrap > .cfi-ip-table {
+		min-width: 0;
+	}
 	.cfi-ip-table th:first-child,
 	.cfi-ip-table td:first-child {
 		width: 3em;

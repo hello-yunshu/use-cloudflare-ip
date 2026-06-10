@@ -93,10 +93,11 @@ return view.extend({
 				'style': 'color:var(--subtext-color);font-style:italic;padding:0.5em 0'
 			}, _('No backups available. Backups are created automatically when the config is updated.')));
 		} else {
-			var table = E('table', { 'class': 'table' });
+			var headers = [_('Backup Time'), _('Size'), _('Actions')];
+			var table = E('table', { 'class': 'table cfi-responsive-table' });
 			var thead = E('thead');
 			var headerRow = E('tr');
-			[_('Backup Time'), _('Size'), _('Actions')].forEach(function(title) {
+			headers.forEach(function(title) {
 				headerRow.appendChild(E('th', {}, title));
 			});
 			thead.appendChild(headerRow);
@@ -106,15 +107,13 @@ return view.extend({
 
 			backups.forEach(function(backup) {
 				var row = E('tr');
-				row.appendChild(E('td', {}, backup.timestamp || backup.id || '-'));
-				row.appendChild(E('td', {}, formatSize(backup.size)));
+				row.appendChild(E('td', { 'data-label': headers[0] }, backup.timestamp || backup.id || '-'));
+				row.appendChild(E('td', { 'data-label': headers[1] }, formatSize(backup.size)));
 
-				var actionsCell = E('td');
-				actionsCell.style.whiteSpace = 'nowrap';
+				var actionsCell = E('td', { 'class': 'cfi-actions', 'data-label': headers[2] });
 
 				actionsCell.appendChild(E('button', {
 					'class': 'cbi-button cbi-button-apply',
-					'style': 'margin-right:0.5em',
 					'click': function() {
 						ui.showModal(_('Confirm Restore'), [
 							E('div', { 'class': 'alert-message warning' },
