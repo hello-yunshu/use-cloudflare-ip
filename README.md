@@ -89,7 +89,7 @@ CFST 未安装时，点击「下载 CFST」按钮即可自动下载；已安装�
 | IP 数量 | 保留的优选 IP 个数 | 4 |
 | IP 类型 | ipv4 / ipv6 / both | ipv4 |
 | 测速协议 | tcp / http | tcp |
-| 运行间隔 | 自动运行间隔（分钟） | 360 |
+| 运行调度 | 自动运行间隔，支持 `6h`/`30m`/cron 表达式，可选 Custom 自定义 | 6h |
 
 ### PassWall 设置
 
@@ -109,6 +109,7 @@ CFST 未安装时，点击「下载 CFST」按钮即可自动下载；已安装�
 | 名称后缀 | 节点名称后缀，支持 `{n}` 序号和 `{ip}` 占位符 | ` [CF-{n}]` |
 | 传输协议过滤 | 按传输协议筛选节点（如 `ws,grpc`） | — |
 | 备份数量 | 保留的配置备份数 | 3 |
+| 配置备份管理 | 在 OpenClash 设置页可直接管理 YAML 备份（列出、恢复、删除） | — |
 
 查找 `server` 匹配目标域名的节点，按 IP 数量生成 `[CF-1]`、`[CF-2]` 等节点。`servername` 和 `Host` 保留原域名。支持 vless / vmess / trojan，需满足 `tls: true` 或 `network` 为 ws / xhttp / grpc / h2 / http。
 
@@ -141,7 +142,7 @@ root/
 │   └── init.d/cf_ip                          # procd 服务脚本
 └── usr/
     ├── bin/cf-ip-auto                        # 核心业务脚本
-    ├── libexec/rpcd/cf_ip                    # RPC 后端（13 个 API 方法）
+ │   ├── libexec/rpcd/cf_ip                    # RPC 后端（15 个 API 方法）
     └── share/
         ├── luci/menu.d/                      # LuCI 菜单注册
         └── rpcd/acl.d/                       # RPC 权限控制
@@ -164,7 +165,7 @@ htdocs/luci-static/resources/
 ```
 ┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
 │  LuCI 前端    │ ──────────────→  │  rpcd 后端        │ ──────────→ │  UCI 配置     │
-│  (6 个 JS 视图)│ ←──────────────  │  (13 个 API 方法)  │ ←──────────  │  cf_ip        │
+│  (6 个 JS 视图)│ ←──────────────  │  (15 个 API 方法)  │ ←──────────  │  cf_ip        │
 └──────────────┘     JSON 响应      └──────────────────┘              └──────┬───────┘
                                                                             │
                                                               cf-ip-auto

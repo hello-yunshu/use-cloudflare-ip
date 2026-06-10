@@ -89,7 +89,7 @@ When CFST is not installed, click "Download CFST" to auto-download; when install
 | IP Count | Number of optimized IPs to keep | 4 |
 | IP Type | ipv4 / ipv6 / both | ipv4 |
 | Benchmark Protocol | tcp / http | tcp |
-| Run Interval | Auto-run interval in minutes | 360 |
+| Run Schedule | Auto-run interval: `6h`/`30m`/cron expression, or Custom for full cron | 6h |
 
 ### PassWall Settings
 
@@ -109,6 +109,7 @@ Filters nodes where `address` matches the target domain, replaces with optimized
 | Name Suffix | Node name suffix, supports `{n}` index and `{ip}` placeholder | ` [CF-{n}]` |
 | Transport Filter | Filter nodes by transport protocol (e.g. `ws,grpc`) | — |
 | Backup Count | Number of config backups to keep | 3 |
+| Backup Management | Manage YAML backups from the OpenClash page (list, restore, delete) | — |
 
 Finds nodes where `server` matches the target domain, generates `[CF-1]`, `[CF-2]`, etc. based on IP count. `servername` and `Host` preserve the original domain. Supports vless / vmess / trojan, requiring `tls: true` or `network` being ws / xhttp / grpc / h2 / http.
 
@@ -141,7 +142,7 @@ root/
 │   └── init.d/cf_ip                          # procd service script
 └── usr/
     ├── bin/cf-ip-auto                        # Core business script
-    ├── libexec/rpcd/cf_ip                    # RPC backend (13 API methods)
+ │   ├── libexec/rpcd/cf_ip                    # RPC backend (15 API methods)
     └── share/
         ├── luci/menu.d/                      # LuCI menu registration
         └── rpcd/acl.d/                       # RPC access control
@@ -164,7 +165,7 @@ htdocs/luci-static/resources/
 ```
 ┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
 │  LuCI Frontend│ ──────────────→  │  rpcd Backend     │ ──────────→ │  UCI Config   │
-│  (6 JS views) │ ←──────────────  │  (13 API methods) │ ←──────────  │  cf_ip        │
+│  (6 JS views) │ ←──────────────  │  (15 API methods) │ ←──────────  │  cf_ip        │
 └──────────────┘     JSON response └──────────────────┘              └──────┬───────┘
                                                                             │
                                                               cf-ip-auto
