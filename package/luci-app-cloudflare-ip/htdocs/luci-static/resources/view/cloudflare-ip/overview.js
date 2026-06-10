@@ -192,7 +192,7 @@ var css = `
 	.cfi-status-banner.running { border-left: 5px solid var(--success-color, #3aa657); }
 	.cfi-status-banner.stopped { border-left: 5px solid var(--warning-color, #d89b00); }
 	.cfi-status-banner.running-test { border-left: 5px solid var(--main-color, #0069d9); }
-	.cfi-status-icon { font-size: 2.5em; line-height: 1; }
+	.cfi-status-icon { font-size: 2.5em; line-height: 1; flex-shrink: 0; }
 	.cfi-status-icon.running { color: var(--success-color, #3aa657); }
 	.cfi-status-icon.stopped { color: var(--warning-color, #d89b00); }
 	.cfi-status-icon.running-test { color: var(--main-color, #0069d9); animation: cfi-pulse 1.5s ease-in-out infinite; }
@@ -220,6 +220,19 @@ var css = `
 	.cfi-stat-card .cfi-stat-label {
 		font-size: 0.85em; color: var(--subtext-color, #666);
 		margin-top: 0.3em;
+	}
+	@media (max-width: 600px) {
+		.cfi-status-banner {
+			flex-wrap: wrap; gap: 0.6em; padding: 1em;
+		}
+		.cfi-status-icon { font-size: 1.8em; }
+		.cfi-status-text h3 { font-size: 1.1em; }
+		.cfi-status-text p { font-size: 0.85em; }
+		.cfi-stats-grid {
+			grid-template-columns: repeat(2, 1fr); gap: 0.6em;
+		}
+		.cfi-stat-card .cfi-stat-value { font-size: 1.4em; }
+		.cfi-stat-card .cfi-stat-label { font-size: 0.78em; }
 	}
 	`;
 
@@ -492,7 +505,7 @@ return view.extend({
 			}, 'hello-yunshu/use-cloudflare-ip'))
 		]));
 
-		infoSection.appendChild(infoTable);
+		infoSection.appendChild(E('div', { 'class': 'cfi-table-wrap' }, infoTable));
 		container.appendChild(infoSection);
 
 		/* Environment Detection */
@@ -544,7 +557,7 @@ return view.extend({
 			]));
 		}
 
-		envSection.appendChild(envTable);
+		envSection.appendChild(E('div', { 'class': 'cfi-table-wrap' }, envTable));
 
 		var envBtnBar = E('div', { 'class': 'cfi-btn-group', 'style': 'margin-top:1em' });
 		envBtnBar.appendChild(E('button', {

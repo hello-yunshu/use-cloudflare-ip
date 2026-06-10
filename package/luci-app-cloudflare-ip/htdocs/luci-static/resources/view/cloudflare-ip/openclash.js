@@ -110,6 +110,7 @@ return view.extend({
 				row.appendChild(E('td', {}, formatSize(backup.size)));
 
 				var actionsCell = E('td');
+				actionsCell.style.whiteSpace = 'nowrap';
 
 				actionsCell.appendChild(E('button', {
 					'class': 'cbi-button cbi-button-apply',
@@ -177,7 +178,7 @@ return view.extend({
 			});
 
 			table.appendChild(tbody);
-			backupSection.appendChild(table);
+			backupSection.appendChild(E('div', { 'class': 'cfi-table-wrap' }, table));
 		}
 
 		return utils.renderWithFooter(m.render().then(function(node) {

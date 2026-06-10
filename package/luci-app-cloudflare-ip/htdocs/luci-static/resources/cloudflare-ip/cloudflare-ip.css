@@ -16,6 +16,7 @@
 	background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
 	border: 1px solid var(--border-color);
 	font-family: monospace; font-size: 0.9em;
+	overflow-x: auto; white-space: pre-wrap; word-break: break-all;
 }
 .table .tr.cfi-no-hover:hover { background: none !important; }
 .cfi-log-area {
@@ -30,6 +31,7 @@
 .cfi-log-area.is-error { color: var(--danger-color); }
 .cfi-value-full .cbi-value-title { float: none; width: auto; }
 .cfi-value-full .cbi-value-field { width: 100%; }
+.cfi-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 .ys-tool-footer {
 	--ys-footer-blue: #2f7df6;
@@ -118,5 +120,19 @@
 	}
 	.ys-tool-footer-links .ys-tool-footer-link-label {
 		display: none;
+	}
+	.cfi-btn-group {
+		gap: 0.5em;
+	}
+	.cfi-btn-group .cbi-button {
+		font-size: 0.85em;
+		padding: 0.4em 0.8em;
+	}
+	.cfi-log-area {
+		font-size: 9px;
+	}
+	.cfi-cmd-box {
+		font-size: 0.8em;
+		padding: 0.6em 0.8em;
 	}
 }

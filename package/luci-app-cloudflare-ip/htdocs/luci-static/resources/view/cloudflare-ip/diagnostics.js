@@ -19,6 +19,12 @@ var css = `
 	}
 	.cfi-ip-table td {
 		font-family: monospace;
+		word-break: break-all;
+	}
+	@media (max-width: 600px) {
+		.cfi-ip-table td {
+			font-size: 0.85em;
+		}
 	}
 `;
 
@@ -198,13 +204,13 @@ return view.extend({
 
 		renderIpHistory(historyData);
 
-		ipSection.appendChild(E('table', { 'class': 'table cfi-ip-table' }, [
+		ipSection.appendChild(E('div', { 'class': 'cfi-table-wrap' }, E('table', { 'class': 'table cfi-ip-table' }, [
 			E('thead', {}, E('tr', { 'class': 'tr' }, [
 				E('th', { 'class': 'th' }, '#'),
 				E('th', { 'class': 'th' }, _('IP Address'))
 			])),
 			ipTableBody
-		]));
+		])));
 		container.appendChild(ipSection);
 
 		return utils.appendFooter(container, utils.FOOTER_OPTIONS);
