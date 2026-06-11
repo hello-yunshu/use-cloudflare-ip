@@ -53,21 +53,6 @@
 	white-space: nowrap;
 }
 
-/* IP address display */
-.cfi-ip {
-	background: var(--background-color-low, rgba(0, 0, 0, 0.04));
-	padding: 0.15em 0.45em;
-	border-radius: 3px;
-	font-size: 0.9em;
-}
-
-/* Muted hint for empty proxy list */
-.cfi-muted-hint {
-	color: var(--subtext-color, #666);
-	font-style: italic;
-	padding: 0.5em 0;
-}
-
 .ys-tool-footer {
 	--ys-footer-blue: #2f7df6;
 	--ys-footer-blue-bg: rgba(47, 125, 246, 0.12);

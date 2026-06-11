@@ -82,40 +82,6 @@ return view.extend({
 		utils.createHandleSave(m);
 		utils.createHandleSaveApply(m);
 
-		/* Proxies section: show Cloudflare-optimized proxy nodes from status */
-		var proxySection = E('div', { 'class': 'cbi-section cfi-section' });
-		proxySection.appendChild(E('h3', {}, _('Optimized Proxies')));
-
-		var proxies = env.openclash_proxies || [];
-		if (proxies.length === 0) {
-			proxySection.appendChild(E('div', {
-				'class': 'cfi-muted-hint'
-			}, _('No optimized proxies yet. Run a speed test to find the best Cloudflare IPs and update your config.')));
-		} else {
-			var pxHeaders = [_('Proxy Name'), _('IP Address'), _('Domain'), _('Type'), _('Network')];
-			var pxTable = E('table', { 'class': 'table cfi-responsive-table' });
-			var pxThead = E('thead');
-			var pxHeaderRow = E('tr');
-			pxHeaders.forEach(function(title) {
-				pxHeaderRow.appendChild(E('th', {}, title));
-			});
-			pxThead.appendChild(pxHeaderRow);
-			pxTable.appendChild(pxThead);
-
-			var pxTbody = E('tbody');
-			proxies.forEach(function(proxy) {
-				var row = E('tr');
-				row.appendChild(E('td', { 'data-label': pxHeaders[0] }, proxy.name || '-'));
-				row.appendChild(E('td', { 'data-label': pxHeaders[1] }, E('code', { 'class': 'cfi-ip' }, proxy.ip || '-')));
-				row.appendChild(E('td', { 'data-label': pxHeaders[2] }, proxy.domain || '-'));
-				row.appendChild(E('td', { 'data-label': pxHeaders[3] }, proxy.type || '-'));
-				row.appendChild(E('td', { 'data-label': pxHeaders[4] }, proxy.network || '-'));
-				pxTbody.appendChild(row);
-			});
-			pxTable.appendChild(pxTbody);
-			proxySection.appendChild(E('div', { 'class': 'cfi-table-wrap' }, pxTable));
-		}
-
 		/* Build backup section as a separate DOM tree appended after the form */
 		var backupSection = E('div', { 'class': 'cbi-section cfi-section', 'id': 'oc-backups-section' });
 		backupSection.appendChild(E('h3', {}, _('Config Backups')));
@@ -215,8 +181,7 @@ return view.extend({
 		}
 
 		return utils.renderWithFooter(m.render().then(function(node) {
-			/* Append proxy info and backup sections after the form */
-			node.appendChild(proxySection);
+			/* Append backup section after the form */
 			node.appendChild(backupSection);
 			return node;
 		}), utils.FOOTER_OPTIONS);

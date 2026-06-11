@@ -58,7 +58,6 @@ OPENCLASH_TEMPLATE_TEXT=()
 OPENCLASH_TEMPLATE_BASE_NAME=()
 OPENCLASH_SEEN=()
 OPENCLASH_MATCHED_DOMAIN=""
-OPENCLASH_PROXY_INFO=()
 
 RELEASE_API="${RELEASE_API:-https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest}"
 RELEASE_DOWNLOAD_BASE="${RELEASE_DOWNLOAD_BASE:-https://github.com/XIU2/CloudflareSpeedTest/releases/download}"
@@ -215,9 +214,6 @@ write_status() {
 	error="${error//\"/\\\"}"
 	error="${error//$'\n'/\\n}"
 
-	local oc_proxies_json
-	oc_proxies_json="$(build_oc_proxies_json)"
-
 	cat > "$STATUS_FILE" <<EOF
 {
   "running": ${running},
@@ -230,37 +226,9 @@ write_status() {
   "best_ips": ${best_ips_json},
   "cfst_version": "${cfst_ver}",
   "script_version": "${SCRIPT_VERSION}",
-  "error": "${error}",
-  "openclash_proxies": ${oc_proxies_json}
+  "error": "${error}"
 }
 EOF
-}
-
-build_oc_proxies_json() {
-	local json="[" i
-	for i in "${!OPENCLASH_PROXY_INFO[@]}"; do
-		((i > 0)) && json+=","
-		json+="${OPENCLASH_PROXY_INFO[$i]}"
-	done
-	json+="]"
-	printf '%s' "$json"
-}
-
-write_openclash_proxy_status() {
-	((${#OPENCLASH_PROXY_INFO[@]} > 0)) || return 0
-
-	local oc_proxies_json
-	oc_proxies_json="$(build_oc_proxies_json)"
-
-	# Update status.json to include openclash_proxies
-	if [[ -f "$STATUS_FILE" ]] && command -v jq >/dev/null 2>&1; then
-		local tmp="${STATUS_FILE}.tmp"
-		if jq --argjson proxies "$oc_proxies_json" '. + {"openclash_proxies": $proxies}' "$STATUS_FILE" > "$tmp" 2>/dev/null; then
-			mv "$tmp" "$STATUS_FILE"
-		else
-			rm -f "$tmp"
-		fi
-	fi
 }
 
 # ========== Lock File ==========
@@ -1083,7 +1051,7 @@ restore_openclash_template() {
 emit_openclash_variant() {
 	local seq="$1" ip="$2" base_name="$3" domain="$4"
 	local line idx
-	local name="" type="" tls="" network=""
+	local name="" tls="" network=""
 	local name_idx=-1 server_idx=-1 tls_idx=-1 network_idx=-1 servername_idx=-1 ws_opts_idx=-1 xhttp_opts_idx=-1 headers_idx=-1 host_idx=-1
 	local prop_indent="" new_name
 	local normalized_network opts_idx opt_key
@@ -1094,8 +1062,6 @@ emit_openclash_variant() {
 		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*(.+)$ ]]; then
 			name="$(trim_scalar "${BASH_REMATCH[1]}")"
 			name_idx="$idx"
-		elif [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]]; then
-			type="$(trim_scalar "${BASH_REMATCH[1]}")"
 		elif [[ "$line" =~ ^[[:space:]]*server:[[:space:]]*(.+)$ ]]; then
 			server_idx="$idx"
 			[[ -n "$prop_indent" ]] || prop_indent="$(line_indent "$line")"
@@ -1181,15 +1147,6 @@ emit_openclash_variant() {
 			log "OpenClash proxy '${name:-unknown}' server -> ${ip}; domain kept as ${domain}"
 		fi
 	fi
-
-	# Collect proxy info for persistence
-	local _esc_name _esc_ip _esc_domain _esc_type _esc_network
-	_esc_name="${new_name//\\/\\\\}"; _esc_name="${_esc_name//\"/\\\"}"
-	_esc_ip="${ip//\\/\\\\}"; _esc_ip="${_esc_ip//\"/\\\"}"
-	_esc_domain="${domain//\\/\\\\}"; _esc_domain="${_esc_domain//\"/\\\"}"
-	_esc_type="${type//\\/\\\\}"; _esc_type="${_esc_type//\"/\\\"}"
-	_esc_network="${network//\\/\\\\}"; _esc_network="${_esc_network//\"/\\\"}"
-	OPENCLASH_PROXY_INFO+=("{\"name\":\"${_esc_name}\",\"ip\":\"${_esc_ip}\",\"domain\":\"${_esc_domain}\",\"type\":\"${_esc_type}\",\"network\":\"${_esc_network}\"}")
 }
 
 append_missing_openclash_variants() {
@@ -1292,7 +1249,6 @@ update_openclash() {
 	OPENCLASH_SEEN=()
 	OPENCLASH_WROTE_PROXY=false
 	OPENCLASH_LAST_LINE_BLANK=true
-	OPENCLASH_PROXY_INFO=()
 	BLOCK_LINES=()
 
 	while IFS= read -r line || [[ -n "$line" ]]; do
@@ -1322,8 +1278,6 @@ update_openclash() {
 	rotate_openclash_backups "$OPENCLASH_CONFIG" "$OPENCLASH_BACKUP_COUNT"
 	mv "$TMP_CONFIG" "$OPENCLASH_CONFIG"
 	log "OpenClash config updated, backup saved to $backup"
-
-	write_openclash_proxy_status
 
 	restart_service openclash
 }
@@ -1448,7 +1402,7 @@ cmd_status() {
 	if [[ -f "$STATUS_FILE" ]]; then
 		status_data="$(cat "$STATUS_FILE")"
 	else
-		status_data="$(printf '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"%s","error":"","openclash_proxies":[]}\n' "$SCRIPT_VERSION")"
+		status_data="$(printf '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"%s","error":""}\n' "$SCRIPT_VERSION")"
 	fi
 
 	# Refresh env cache silently (like upnp-bridge-relay's do_full_status)
