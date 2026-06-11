@@ -45,11 +45,11 @@
 .cfi-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.5em;
 	align-items: center;
 }
+.cfi-actions button,
 .cfi-actions .cbi-button {
-	margin: 0 !important;
+	margin: 0 0.5em 0.4em 0 !important;
 	white-space: nowrap;
 }
 
