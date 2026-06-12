@@ -1,6 +1,13 @@
 msgid ""
 msgstr ""
+"Project-Id-Version: luci-app-cloudflare-ip\n"
+"PO-Revision-Date: 2026-06-13 00:00+0000\n"
+"Last-Translator: yunshu\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 
 msgid "Cloudflare IP Optimization"
 msgstr "Cloudflare IP 优选"
@@ -646,4 +653,3 @@ msgstr "项目"
 
 msgid "Failed to trigger speedtest: %s"
 msgstr "触发测速失败：%s"
-
