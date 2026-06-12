@@ -133,7 +133,6 @@ function showSpeedtestModal() {
 				'click': function() {
 					modalOpen = false;
 					ui.hideModal();
-					location.reload();
 				}
 			}, _('Close'))
 		])
@@ -452,7 +451,7 @@ return view.extend({
 		var infoSection = E('div', { 'class': 'cbi-section cfi-section' });
 		infoSection.appendChild(E('h3', {}, _('Service Information')));
 
-		var infoTable = E('table', { 'class': 'table' });
+		var infoTable = E('table', { 'class': 'table cfi-kv-table' });
 
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('Mode')),
@@ -512,7 +511,7 @@ return view.extend({
 		var envSection = E('div', { 'class': 'cbi-section cfi-section' });
 		envSection.appendChild(E('h3', {}, _('Environment Detection')));
 
-		var envTable = E('table', { 'class': 'table' });
+		var envTable = E('table', { 'class': 'table cfi-kv-table' });
 
 		var envItems = [
 			{ label: _('bash'), key: 'bash' },
