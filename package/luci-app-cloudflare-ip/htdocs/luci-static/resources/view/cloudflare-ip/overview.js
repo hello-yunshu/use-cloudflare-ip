@@ -167,19 +167,17 @@ function makePluginBadge(installed, running) {
 }
 
 function buildDepSection(missingDeps, pkgManager) {
+	if (!missingDeps || missingDeps.length === 0)
+		return null;
+
 	var section = E('div', { 'class': 'cbi-section cfi-section' });
 	section.appendChild(E('h3', {}, _('Missing Dependencies & Fix Commands')));
-	if (missingDeps.length > 0) {
-		var installCmd = pkgManager === 'apk' ?
-			'apk add --allow-untrusted ' + missingDeps.join(' ') :
-			'opkg install ' + missingDeps.join(' ');
-		section.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00);margin-bottom:0.5em' },
-			'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
-		section.appendChild(E('div', { 'class': 'cfi-cmd-box' }, installCmd));
-	} else {
-		section.appendChild(E('p', { 'style': 'color:var(--success-color, #3aa657)' },
-			'\u2714 ' + _('All dependencies are installed.')));
-	}
+	var installCmd = pkgManager === 'apk' ?
+		'apk add --allow-untrusted ' + missingDeps.join(' ') :
+		'opkg install ' + missingDeps.join(' ');
+	section.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00);margin-bottom:0.5em' },
+		'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
+	section.appendChild(E('div', { 'class': 'cfi-cmd-box' }, installCmd));
 	return section;
 }
 
@@ -239,9 +237,10 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			utils.callStatus(),
+			utils.callCheckEnv().catch(function() { return {}; }),
 			uci.load('cf_ip')
 		]).then(function(results) {
-			return results[0];
+			return Object.assign({}, results[0] || {}, results[1] || {});
 		});
 	},
 
@@ -514,13 +513,8 @@ return view.extend({
 		var envTable = E('table', { 'class': 'table cfi-kv-table' });
 
 		var envItems = [
-			{ label: _('bash'), key: 'bash' },
-			{ label: _('curl'), key: 'curl' },
 			{ label: _('tar'), key: 'tar' },
 			{ label: _('jq'), key: 'jq' },
-			{ label: _('awk'), key: 'awk' },
-			{ label: _('sed'), key: 'sed' },
-			{ label: _('uci'), key: 'uci' },
 			{ label: _('PassWall'), key: 'passwall_installed', plugin: true, runningKey: 'passwall_running' },
 			{ label: _('OpenClash'), key: 'openclash_installed', plugin: true, runningKey: 'openclash_running' },
 			{ label: _('CFST'), key: 'cfst_installed', cfst: true }
@@ -591,12 +585,17 @@ return view.extend({
 					}
 
 					var newMissing = result.missing_deps || [];
-					var depSectionParent = depSection.parentNode;
-					if (depSectionParent) {
-						var newDepSection = buildDepSection(newMissing, result.package_manager || 'opkg');
-						depSectionParent.replaceChild(newDepSection, depSection);
-						depSection = newDepSection;
+					var newDepSection = buildDepSection(newMissing, result.package_manager || 'opkg');
+					if (depSection && depSection.parentNode) {
+						var depSectionParent = depSection.parentNode;
+						if (newDepSection)
+							depSectionParent.replaceChild(newDepSection, depSection);
+						else
+							depSectionParent.removeChild(depSection);
+					} else if (newDepSection) {
+						container.insertBefore(newDepSection, envSection.nextSibling);
 					}
+					depSection = newDepSection;
 
 					utils.resetBusy(btn);
 					ui.addNotification(null, E('p', _('Environment detection refreshed.')), 'info');
@@ -611,7 +610,8 @@ return view.extend({
 
 		var missingDeps = data.missing_deps || [];
 		var depSection = buildDepSection(missingDeps, data.package_manager || 'opkg');
-		container.appendChild(depSection);
+		if (depSection)
+			container.appendChild(depSection);
 
 
 		return utils.appendFooter(container, Object.assign({}, utils.FOOTER_OPTIONS, { version: scriptVersion }));

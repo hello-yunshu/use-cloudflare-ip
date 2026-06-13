@@ -8,6 +8,7 @@
 var FOOTER_VERSION = '@PKG_VERSION@';
 
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
+var callCheckEnv = rpc.declare({ object: 'cf_ip', method: 'check-env', expect: { '': {} } });
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
 
 var FOOTER_OPTIONS = {
@@ -235,6 +236,7 @@ return baseclass.extend({
 	appendFooter: appendFooter,
 	renderWithFooter: renderWithFooter,
 	callStatus: callStatus,
+	callCheckEnv: callCheckEnv,
 	callServiceRestart: callServiceRestart,
 	FOOTER_OPTIONS: FOOTER_OPTIONS,
 	createHandleSave: createHandleSave,

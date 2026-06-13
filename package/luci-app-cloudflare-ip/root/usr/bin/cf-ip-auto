@@ -1405,9 +1405,6 @@ cmd_status() {
 		status_data="$(printf '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"%s","error":""}\n' "$SCRIPT_VERSION")"
 	fi
 
-	# Refresh env cache silently (like upnp-bridge-relay's do_full_status)
-	cmd_refresh_env >/dev/null 2>&1 || true
-
 	# Merge env cache into status
 	local env_data=""
 	if [[ -f "$ENV_CACHE_FILE" ]]; then
@@ -1459,7 +1456,7 @@ cmd_check_env() {
 	# Real-time detection without writing cache (like upnp-bridge-relay's do_check_env)
 	local deps="" missing_deps="" missing_arr=()
 	local cmd_name pkg_name
-	for cmd_name in bash curl tar jq awk sed tr uci; do
+	for cmd_name in bash curl tar jq; do
 		if command -v "$cmd_name" >/dev/null 2>&1; then
 			[[ -n "$deps" ]] && deps+=","
 			deps+="\"${cmd_name}\":true"
@@ -1467,10 +1464,6 @@ cmd_check_env() {
 			[[ -n "$deps" ]] && deps+=","
 			deps+="\"${cmd_name}\":false"
 			pkg_name="$cmd_name"
-			case "$cmd_name" in
-				jq) pkg_name="jq" ;;
-				tr) pkg_name="coreutils-tr" ;;
-			esac
 			missing_arr+=("$pkg_name")
 		fi
 	done
@@ -1516,7 +1509,7 @@ cmd_refresh_env() {
 	JSON_MODE=true
 	local deps="" missing_deps="" missing_arr=()
 	local cmd_name pkg_name
-	for cmd_name in bash curl tar jq awk sed tr uci; do
+	for cmd_name in bash curl tar jq; do
 		if command -v "$cmd_name" >/dev/null 2>&1; then
 			[[ -n "$deps" ]] && deps+=","
 			deps+="\"${cmd_name}\":true"
@@ -1524,10 +1517,6 @@ cmd_refresh_env() {
 			[[ -n "$deps" ]] && deps+=","
 			deps+="\"${cmd_name}\":false"
 			pkg_name="$cmd_name"
-			case "$cmd_name" in
-				jq) pkg_name="jq" ;;
-				tr) pkg_name="coreutils-tr" ;;
-			esac
 			missing_arr+=("$pkg_name")
 		fi
 	done
@@ -2212,7 +2201,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 			load_uci_config
 			[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
 			if ! acquire_lock 0; then
-				local lock_pid=""
+				lock_pid=""
 				[[ -f "$LOCK_FILE/pid" ]] && lock_pid="$(<"$LOCK_FILE/pid")"
 				echo "[cloudflare-ip] ERROR: another instance is running (pid=$lock_pid)" >&2
 				exit 1

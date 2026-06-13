@@ -11,7 +11,7 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('cf_ip'),
-			utils.callStatus().catch(function() { return {}; })
+			utils.callCheckEnv().catch(function() { return {}; })
 		]);
 	},
 
