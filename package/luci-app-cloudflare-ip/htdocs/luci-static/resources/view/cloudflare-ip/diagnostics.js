@@ -35,13 +35,11 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			utils.callStatus().catch(function() { return {}; }),
-			callReadLog().catch(function() { return { success: false, error: 'read-log failed' }; }),
 			callIpHistory().catch(function() { return { success: false, ips: [] }; })
 		]).then(function(results) {
 			return {
 				status: results[0],
-				logData: results[1],
-				historyData: results[2]
+				historyData: results[1]
 			};
 		});
 	},
@@ -49,7 +47,6 @@ return view.extend({
 	render: function(data) {
 		utils.loadSharedCSS();
 		var status = data.status || {};
-		var logData = data.logData || {};
 		var historyData = data.historyData || {};
 
 		var container = E('div', { 'class': 'cbi-map cfi-dashboard' });
@@ -62,7 +59,7 @@ return view.extend({
 		logSection.appendChild(E('h3', {}, _('Recent Logs')));
 
 		var logArea = E('textarea', {
-			'class': 'cbi-input-textarea cfi-log-area',
+			'class': 'cbi-input-textarea cfi-log-area is-loading',
 			'id': 'log-area',
 			'rows': 20,
 			'readonly': 'readonly'
@@ -72,37 +69,44 @@ return view.extend({
 			logArea.value = text;
 		}
 
+		function renderLogResult(res) {
+			res = res || {};
+			if (res.success !== true) {
+				logArea.className = 'cbi-input-textarea cfi-log-area is-error';
+				setLogText(res.error || _('Failed to read logs'));
+			} else if (res.logs) {
+				logArea.className = 'cbi-input-textarea cfi-log-area';
+				setLogText(res.logs);
+				if (!res.logs.trim())
+					logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
+				else
+					logArea.scrollTop = logArea.scrollHeight;
+			} else {
+				logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
+				setLogText(_('No logs found.'));
+			}
+		}
+
+		function refreshLogs(btn) {
+			if (btn)
+				utils.setBusy(btn, _('Loading...'));
+			logArea.className = 'cbi-input-textarea cfi-log-area is-loading';
+			setLogText(_('Loading...'));
+			return callReadLog().then(renderLogResult).catch(function(e) {
+				logArea.className = 'cbi-input-textarea cfi-log-area is-error';
+				setLogText(_('Failed to read logs: ') + (e.message || e));
+			}).finally(function() {
+				if (btn)
+					utils.resetBusy(btn);
+			});
+		}
+
 		var logBtnBar = E('div', { 'class': 'cfi-btn-group', 'style': 'margin-bottom:1em' });
 
 		logBtnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
-				var btn = this;
-				utils.setBusy(btn, _('Loading...'));
-				logArea.className = 'cbi-input-textarea cfi-log-area is-loading';
-				setLogText(_('Loading...'));
-				return callReadLog().then(function(res) {
-					res = res || {};
-					if (res.success !== true) {
-						logArea.className = 'cbi-input-textarea cfi-log-area is-error';
-						setLogText(res.error || _('Failed to read logs'));
-					} else if (res.logs) {
-						logArea.className = 'cbi-input-textarea cfi-log-area';
-						setLogText(res.logs);
-						if (!res.logs.trim())
-							logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
-						else
-							logArea.scrollTop = logArea.scrollHeight;
-					} else {
-						logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
-						setLogText(_('No logs found.'));
-					}
-				}).catch(function(e) {
-					logArea.className = 'cbi-input-textarea cfi-log-area is-error';
-					setLogText(_('Failed to read logs: ') + (e.message || e));
-				}).finally(function() {
-					utils.resetBusy(btn);
-				});
+				return refreshLogs(this);
 			}
 		}, '\u21BB ' + _('Refresh')));
 
@@ -130,26 +134,9 @@ return view.extend({
 		}, '\u2716 ' + _('Clear Logs')));
 
 		logSection.appendChild(logBtnBar);
-
-		/* Populate initial log content */
-		if (logData.success !== true) {
-			logArea.className = 'cbi-input-textarea cfi-log-area is-error';
-			setLogText(logData.error || _('Failed to read logs'));
-		} else if (logData.logs) {
-			logArea.className = 'cbi-input-textarea cfi-log-area';
-			setLogText(logData.logs);
-			if (!logData.logs.trim())
-				logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
-		} else {
-			logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
-			setLogText(_('No logs found.'));
-		}
-
+		setLogText(_('Loading...'));
 		logSection.appendChild(logArea);
-
-		/* Auto-scroll to bottom after initial load */
-		if (logData.success === true && logData.logs && logData.logs.trim())
-			requestAnimationFrame(function() { logArea.scrollTop = logArea.scrollHeight; });
+		window.setTimeout(refreshLogs, 0);
 
 		if (status.error && status.error !== 'Status file not found') {
 			logSection.appendChild(E('div', { 'class': 'alert-message danger', 'style': 'margin-top:1em' },

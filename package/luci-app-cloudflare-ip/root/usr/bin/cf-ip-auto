@@ -1405,7 +1405,10 @@ cmd_status() {
 		status_data="$(printf '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"%s","error":""}\n' "$SCRIPT_VERSION")"
 	fi
 
-	# Merge env cache into status
+	# Merge env cache into status. Build it once if /tmp was cleared.
+	if [[ ! -s "$ENV_CACHE_FILE" ]]; then
+		cmd_refresh_env >/dev/null 2>&1 || true
+	fi
 	local env_data=""
 	if [[ -f "$ENV_CACHE_FILE" ]]; then
 		env_data="$(cat "$ENV_CACHE_FILE")"
@@ -1588,7 +1591,7 @@ cmd_read_log() {
 	JSON_MODE=true
 	if [[ -f "$LOG_FILE" ]]; then
 		local content
-		content="$(cat "$LOG_FILE")"
+		content="$(tail -n 500 "$LOG_FILE")"
 		content="${content//\\/\\\\}"
 		content="${content//\"/\\\"}"
 		content="${content//$'\n'/\\n}"

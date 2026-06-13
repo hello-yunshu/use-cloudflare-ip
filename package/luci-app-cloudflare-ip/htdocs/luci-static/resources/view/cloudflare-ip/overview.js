@@ -237,10 +237,9 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			utils.callStatus(),
-			utils.callCheckEnv().catch(function() { return {}; }),
 			uci.load('cf_ip')
 		]).then(function(results) {
-			return Object.assign({}, results[0] || {}, results[1] || {});
+			return results[0] || {};
 		});
 	},
 
