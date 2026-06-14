@@ -60,8 +60,8 @@ msgstr "自定义..."
 msgid "Custom Schedule"
 msgstr "自定义计划"
 
-msgid "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
-msgstr "输入可转换为 cron 的时长（如 6h、30m）或 5 字段 crontab 表达式。支持逗号分隔列表（如 0 3,6 * * *）。"
+msgid "Cron duration (e.g. 6h, 30m) or 5-field crontab expression."
+msgstr "可转换为 cron 的时长（如 6h、30m）或 5 字段 crontab 表达式。"
 
 msgid "Speed Test"
 msgstr "测速"
@@ -96,8 +96,8 @@ msgstr "双栈"
 msgid "Speed Test Protocol"
 msgstr "测速协议"
 
-msgid "TCPing measures TCP latency. HTTPing measures HTTP response latency and supports data center filtering."
-msgstr "TCPing 测 TCP 连接延迟，速度快。HTTPing 测 HTTP 响应延迟，更贴近实际使用场景，支持数据中心筛选。"
+msgid "HTTPing supports data center filtering; TCPing does not."
+msgstr "HTTPing 支持数据中心筛选，TCPing 不支持。"
 
 msgid "Data Center Filter"
 msgstr "数据中心筛选"
@@ -114,8 +114,8 @@ msgstr "测试下载速度的 IP 数量。"
 msgid "Average Latency Floor (ms)"
 msgstr "平均延迟下限（ms）"
 
-msgid "Skip IPs with average latency below this value. Useful for filtering out fake/blocked IPs with suspiciously low latency."
-msgstr "跳过平均延迟低于此值的 IP。可过滤延迟异常低的假墙 IP。"
+msgid "Skip IPs with average latency below this value."
+msgstr "跳过平均延迟低于此值的 IP。"
 
 msgid "Average Latency Ceiling (ms)"
 msgstr "平均延迟上限（ms）"
@@ -149,9 +149,6 @@ msgstr "应用配置失败："
 
 msgid "service action failed"
 msgstr "服务操作失败"
-
-msgid "Cloudflare IP Optimization - Overview"
-msgstr "Cloudflare IP 优选 - 概览"
 
 msgid "Speedtest Running"
 msgstr "测速进行中"
@@ -213,17 +210,8 @@ msgstr "重启"
 msgid "Running..."
 msgstr "运行中..."
 
-msgid "Speedtest completed: found %d best IPs."
-msgstr "测速完成：找到 %d 个优选 IP。"
-
-msgid "Speedtest completed but no best IPs found."
-msgstr "测速完成但未找到优选 IP。"
-
 msgid "Speedtest failed: %s"
 msgstr "测速失败：%s"
-
-msgid "Speedtest triggered."
-msgstr "测速已触发。"
 
 msgid "Run Speedtest"
 msgstr "立即测速"
@@ -234,11 +222,11 @@ msgstr "更新中..."
 msgid "Downloading..."
 msgstr "下载中..."
 
-msgid "Updating CFST, this may take a few minutes depending on network conditions. Please wait..."
-msgstr "正在更新 CFST，根据网络情况可能需要几分钟，请耐心等待..."
+msgid "Updating CFST, please wait..."
+msgstr "正在更新 CFST，请耐心等待..."
 
-msgid "Downloading CFST, this may take a few minutes depending on network conditions. Please wait..."
-msgstr "正在下载 CFST，根据网络情况可能需要几分钟，请耐心等待..."
+msgid "Downloading CFST, please wait..."
+msgstr "正在下载 CFST，请耐心等待..."
 
 msgid "CFST operation failed: "
 msgstr "CFST 操作失败："
@@ -273,26 +261,11 @@ msgstr "GitHub"
 msgid "Environment Detection"
 msgstr "环境检测"
 
-msgid "bash"
-msgstr "bash"
-
-msgid "curl"
-msgstr "curl"
-
 msgid "tar"
 msgstr "tar"
 
 msgid "jq"
 msgstr "jq"
-
-msgid "awk"
-msgstr "awk"
-
-msgid "sed"
-msgstr "sed"
-
-msgid "uci"
-msgstr "uci"
 
 msgid "PassWall"
 msgstr "PassWall"
@@ -302,9 +275,6 @@ msgstr "OpenClash"
 
 msgid "CFST"
 msgstr "CFST"
-
-msgid "CFST Core"
-msgstr "CFST 核心"
 
 msgid "Installed"
 msgstr "已安装"
@@ -323,9 +293,6 @@ msgstr "缺失依赖及安装命令"
 
 msgid "Missing dependencies: "
 msgstr "缺失依赖："
-
-msgid "All dependencies are installed."
-msgstr "所有依赖已安装。"
 
 msgid "Checking..."
 msgstr "检测中..."
@@ -363,9 +330,6 @@ msgstr "日志"
 msgid "Close"
 msgstr "关闭"
 
-msgid "Cloudflare IP - OpenClash"
-msgstr "Cloudflare IP - OpenClash"
-
 msgid "OpenClash Not Found"
 msgstr "未找到 OpenClash"
 
@@ -402,15 +366,6 @@ msgstr "备份数量"
 msgid "Number of OpenClash config backups to keep."
 msgstr "OpenClash 配置备份保留数量。"
 
-msgid "Sync Schedule"
-msgstr "同步计划"
-
-msgid "How often to sync Cloudflare best IPs to OpenClash. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
-msgstr "将 Cloudflare 优选 IP 同步到 OpenClash 的频率。选择「跟随主程序」时，使用与主测速服务相同的计划。"
-
-msgid "Follow main program"
-msgstr "跟随主程序"
-
 msgid "Config Backups"
 msgstr "配置备份"
 
@@ -441,9 +396,6 @@ msgstr "恢复中..."
 msgid "Please wait..."
 msgstr "请稍候..."
 
-msgid "Restore failed"
-msgstr "恢复失败"
-
 msgid "Backup restored successfully."
 msgstr "备份恢复成功。"
 
@@ -464,9 +416,6 @@ msgstr "备份已删除"
 
 msgid "Delete"
 msgstr "删除"
-
-msgid "Cloudflare IP - PassWall"
-msgstr "Cloudflare IP - PassWall"
 
 msgid "PassWall Not Found"
 msgstr "未找到 PassWall"
@@ -489,15 +438,6 @@ msgstr "节点名称后缀"
 msgid "Suffix appended to the original node name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
 msgstr "修改节点后在原始名称后追加的后缀。占位符：{n} = 序号，{ip} = IP 地址。留空不修改名称。"
 
-msgid "How often to sync Cloudflare best IPs to PassWall. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
-msgstr "将 Cloudflare 优选 IP 同步到 PassWall 的频率。选择「跟随主程序」时，使用与主测速服务相同的计划。"
-
-msgid "Custom Sync Schedule"
-msgstr "自定义同步计划"
-
-msgid "Cloudflare IP - Advanced"
-msgstr "Cloudflare IP - 高级"
-
 msgid "Advanced"
 msgstr "高级"
 
@@ -507,8 +447,8 @@ msgstr "自动更新"
 msgid "Auto Update Script"
 msgstr "自动更新脚本"
 
-msgid "Check for script updates on startup and auto-upgrade if newer. Only replaces the script, not the configuration."
-msgstr "启动时检查脚本版本，有新版自动升级。只替换脚本，不会覆盖配置。"
+msgid "Auto-check and update script on startup."
+msgstr "启动时自动检查并更新脚本。"
 
 msgid "Self Update URL"
 msgstr "更新地址"
@@ -543,8 +483,8 @@ msgstr "下载"
 msgid "GitHub Mirror"
 msgstr "GitHub 镜像"
 
-msgid "Prepend this URL to GitHub download links. Useful in mainland China. Leave empty for direct downloads. Must end with /."
-msgstr "在 GitHub 下载链接前拼接此 URL。中国大陆网络环境可用。留空直接从 GitHub 下载。必须以 / 结尾。"
+msgid "GitHub download proxy URL. Leave empty for direct downloads. Must end with /."
+msgstr "GitHub 下载代理 URL。留空直接从 GitHub 下载。必须以 / 结尾。"
 
 msgid "Download Retries"
 msgstr "下载重试次数"
@@ -564,8 +504,8 @@ msgstr "启动"
 msgid "Startup Delay"
 msgstr "启动延迟"
 
-msgid "Random delay upper bound in seconds. Useful for staggering startup on multiple routers. Empty or 'random' = 0~300s, '0' = no delay."
-msgstr "随机延迟上限（秒）。多台路由器同时运行时可错开启动。留空或 random = 0~300秒，0 = 不等待。"
+msgid "Random delay upper bound (seconds). Empty/random = 0~300s, 0 = no delay."
+msgstr "随机延迟上限（秒）。留空/random = 0~300秒，0 = 不等待。"
 
 msgid "Verbose Logging"
 msgstr "详细日志"
@@ -576,14 +516,11 @@ msgstr "输出详细的过程日志。"
 msgid "Work Directory"
 msgstr "工作目录"
 
-msgid "Leave empty to use the script directory. The cfst binary, IP lists, and results are stored in a cfst/ subdirectory."
-msgstr "留空使用脚本所在目录。cfst 二进制、IP 列表、结果等保存在 cfst/ 子目录中。"
+msgid "Leave empty to use the script directory."
+msgstr "留空使用脚本所在目录。"
 
 msgid "Service action completed, but speedtest is still in progress. Refreshing current status."
 msgstr "服务操作已完成，但测速仍在进行中。正在刷新状态。"
-
-msgid "Cloudflare IP - Logs & Records"
-msgstr "Cloudflare IP - 日志与记录"
 
 msgid "Logs & Records"
 msgstr "日志与记录"

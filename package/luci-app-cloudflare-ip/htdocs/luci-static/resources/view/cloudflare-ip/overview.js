@@ -78,7 +78,7 @@ function showSpeedtestModal() {
 
 	function update(result) {
 		result = result || {};
-		var status = result.last_result || 'unknown';
+		var status = result.last_result || STATUS_LABELS.unknown;
 		var isRunning = status === 'running';
 
 		if (status === 'success' || (typeof status === 'string' && status.indexOf('success') === 0)) {
@@ -426,8 +426,8 @@ return view.extend({
 				var btn = this;
 				utils.setBusy(btn, cfstInstalled ? _('Updating...') : _('Downloading...'));
 				ui.addNotification(null, E('p', cfstInstalled
-					? _('Updating CFST, this may take a few minutes depending on network conditions. Please wait...')
-					: _('Downloading CFST, this may take a few minutes depending on network conditions. Please wait...')), 'info');
+					? _('Updating CFST, please wait...')
+					: _('Downloading CFST, please wait...')), 'info');
 				return callDownloadCfst().then(function(result) {
 					result = result || {};
 					if (result.success !== true) {

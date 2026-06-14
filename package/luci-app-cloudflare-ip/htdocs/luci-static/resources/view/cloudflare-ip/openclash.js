@@ -128,7 +128,7 @@ return view.extend({
 										callOcRestoreBackup(backup.id).then(function(result) {
 											ui.hideModal();
 											if (result && result.error) {
-												ui.addNotification(null, E('p', {}, _('Restore failed') + ': ' + result.error), 'error');
+												ui.addNotification(null, E('p', {}, _('Restore failed: ') + result.error), 'error');
 											} else {
 												ui.addNotification(null, E('p', {}, _('Backup restored successfully.')), 'info');
 												setTimeout(function() { location.reload(); }, 500);

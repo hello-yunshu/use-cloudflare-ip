@@ -26,7 +26,7 @@ return view.extend({
 		s.anonymous = true;
 
 		o = s.option(form.Flag, 'auto_update', _('Auto Update Script'),
-			_('Check for script updates on startup and auto-upgrade if newer. Only replaces the script, not the configuration.'));
+			_('Auto-check and update script on startup.'));
 		o.default = '1';
 		o.rmempty = false;
 
@@ -63,7 +63,7 @@ return view.extend({
 		s.anonymous = true;
 
 		o = s.option(form.Value, 'github_mirror', _('GitHub Mirror'),
-			_('Prepend this URL to GitHub download links. Useful in mainland China. Leave empty for direct downloads. Must end with /.'));
+			_('GitHub download proxy URL. Leave empty for direct downloads. Must end with /.'));
 		o.placeholder = 'https://ghp.ci/';
 		o.rmempty = true;
 		o.datatype = 'string';
@@ -85,7 +85,7 @@ return view.extend({
 		s.anonymous = true;
 
 		o = s.option(form.Value, 'startup_delay', _('Startup Delay'),
-			_("Random delay upper bound in seconds. Useful for staggering startup on multiple routers. Empty or 'random' = 0~300s, '0' = no delay."));
+			_("Random delay upper bound (seconds). Empty/random = 0~300s, 0 = no delay."));
 		o.placeholder = 'random';
 		o.rmempty = true;
 		o.datatype = 'string';
@@ -95,7 +95,7 @@ return view.extend({
 		o.default = '0';
 
 		o = s.option(form.Value, 'work_dir', _('Work Directory'),
-			_('Leave empty to use the script directory. The cfst binary, IP lists, and results are stored in a cfst/ subdirectory.'));
+			_('Leave empty to use the script directory.'));
 		o.placeholder = '/root/cf-ip';
 		o.rmempty = true;
 		o.datatype = 'string';

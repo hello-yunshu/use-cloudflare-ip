@@ -53,7 +53,7 @@ msgstr ""
 msgid "Custom Schedule"
 msgstr ""
 
-msgid "Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *)."
+msgid "Cron duration (e.g. 6h, 30m) or 5-field crontab expression."
 msgstr ""
 
 msgid "Speed Test"
@@ -89,7 +89,7 @@ msgstr ""
 msgid "Speed Test Protocol"
 msgstr ""
 
-msgid "TCPing measures TCP latency. HTTPing measures HTTP response latency and supports data center filtering."
+msgid "HTTPing supports data center filtering; TCPing does not."
 msgstr ""
 
 msgid "Data Center Filter"
@@ -107,7 +107,7 @@ msgstr ""
 msgid "Average Latency Floor (ms)"
 msgstr ""
 
-msgid "Skip IPs with average latency below this value. Useful for filtering out fake/blocked IPs with suspiciously low latency."
+msgid "Skip IPs with average latency below this value."
 msgstr ""
 
 msgid "Average Latency Ceiling (ms)"
@@ -141,9 +141,6 @@ msgid "Failed to apply configuration: "
 msgstr ""
 
 msgid "service action failed"
-msgstr ""
-
-msgid "Cloudflare IP Optimization - Overview"
 msgstr ""
 
 msgid "Speedtest Running"
@@ -206,16 +203,7 @@ msgstr ""
 msgid "Running..."
 msgstr ""
 
-msgid "Speedtest completed: found %d best IPs."
-msgstr ""
-
-msgid "Speedtest completed but no best IPs found."
-msgstr ""
-
 msgid "Speedtest failed: %s"
-msgstr ""
-
-msgid "Speedtest triggered."
 msgstr ""
 
 msgid "Run Speedtest"
@@ -227,10 +215,10 @@ msgstr ""
 msgid "Downloading..."
 msgstr ""
 
-msgid "Updating CFST, this may take a few minutes depending on network conditions. Please wait..."
+msgid "Updating CFST, please wait..."
 msgstr ""
 
-msgid "Downloading CFST, this may take a few minutes depending on network conditions. Please wait..."
+msgid "Downloading CFST, please wait..."
 msgstr ""
 
 msgid "CFST operation failed: "
@@ -266,25 +254,10 @@ msgstr ""
 msgid "Environment Detection"
 msgstr ""
 
-msgid "bash"
-msgstr ""
-
-msgid "curl"
-msgstr ""
-
 msgid "tar"
 msgstr ""
 
 msgid "jq"
-msgstr ""
-
-msgid "awk"
-msgstr ""
-
-msgid "sed"
-msgstr ""
-
-msgid "uci"
 msgstr ""
 
 msgid "PassWall"
@@ -294,9 +267,6 @@ msgid "OpenClash"
 msgstr ""
 
 msgid "CFST"
-msgstr ""
-
-msgid "CFST Core"
 msgstr ""
 
 msgid "Installed"
@@ -315,9 +285,6 @@ msgid "Missing Dependencies & Fix Commands"
 msgstr ""
 
 msgid "Missing dependencies: "
-msgstr ""
-
-msgid "All dependencies are installed."
 msgstr ""
 
 msgid "Checking..."
@@ -356,9 +323,6 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-msgid "Cloudflare IP - OpenClash"
-msgstr ""
-
 msgid "OpenClash Not Found"
 msgstr ""
 
@@ -395,15 +359,6 @@ msgstr ""
 msgid "Number of OpenClash config backups to keep."
 msgstr ""
 
-msgid "Sync Schedule"
-msgstr ""
-
-msgid "How often to sync Cloudflare best IPs to OpenClash. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
-msgstr ""
-
-msgid "Follow main program"
-msgstr ""
-
 msgid "Config Backups"
 msgstr ""
 
@@ -434,9 +389,6 @@ msgstr ""
 msgid "Please wait..."
 msgstr ""
 
-msgid "Restore failed"
-msgstr ""
-
 msgid "Backup restored successfully."
 msgstr ""
 
@@ -456,9 +408,6 @@ msgid "Backup deleted"
 msgstr ""
 
 msgid "Delete"
-msgstr ""
-
-msgid "Cloudflare IP - PassWall"
 msgstr ""
 
 msgid "PassWall Not Found"
@@ -482,15 +431,6 @@ msgstr ""
 msgid "Suffix appended to the original node name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
 msgstr ""
 
-msgid "How often to sync Cloudflare best IPs to PassWall. When set to \"Follow main program\", uses the same schedule as the main speedtest service."
-msgstr ""
-
-msgid "Custom Sync Schedule"
-msgstr ""
-
-msgid "Cloudflare IP - Advanced"
-msgstr ""
-
 msgid "Advanced"
 msgstr ""
 
@@ -500,7 +440,7 @@ msgstr ""
 msgid "Auto Update Script"
 msgstr ""
 
-msgid "Check for script updates on startup and auto-upgrade if newer. Only replaces the script, not the configuration."
+msgid "Auto-check and update script on startup."
 msgstr ""
 
 msgid "Self Update URL"
@@ -536,7 +476,7 @@ msgstr ""
 msgid "GitHub Mirror"
 msgstr ""
 
-msgid "Prepend this URL to GitHub download links. Useful in mainland China. Leave empty for direct downloads. Must end with /."
+msgid "GitHub download proxy URL. Leave empty for direct downloads. Must end with /."
 msgstr ""
 
 msgid "Download Retries"
@@ -557,7 +497,7 @@ msgstr ""
 msgid "Startup Delay"
 msgstr ""
 
-msgid "Random delay upper bound in seconds. Useful for staggering startup on multiple routers. Empty or 'random' = 0~300s, '0' = no delay."
+msgid "Random delay upper bound (seconds). Empty/random = 0~300s, 0 = no delay."
 msgstr ""
 
 msgid "Verbose Logging"
@@ -569,13 +509,10 @@ msgstr ""
 msgid "Work Directory"
 msgstr ""
 
-msgid "Leave empty to use the script directory. The cfst binary, IP lists, and results are stored in a cfst/ subdirectory."
+msgid "Leave empty to use the script directory."
 msgstr ""
 
 msgid "Service action completed, but speedtest is still in progress. Refreshing current status."
-msgstr ""
-
-msgid "Cloudflare IP - Logs & Records"
 msgstr ""
 
 msgid "Logs & Records"

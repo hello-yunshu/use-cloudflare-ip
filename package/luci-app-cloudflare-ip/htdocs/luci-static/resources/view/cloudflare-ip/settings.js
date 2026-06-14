@@ -45,7 +45,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'cron_custom', _('Custom Schedule'),
-			_('Enter a cron-compatible duration (e.g. 6h, 30m) or a 5-field crontab expression. Comma-separated lists supported (e.g. 0 3,6 * * *).'));
+			_('Cron duration (e.g. 6h, 30m) or 5-field crontab expression.'));
 		o.placeholder = '6h';
 		o.depends('cron_interval', 'custom');
 
@@ -80,7 +80,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.ListValue, 'speedtest_protocol', _('Speed Test Protocol'),
-			_('TCPing measures TCP latency. HTTPing measures HTTP response latency and supports data center filtering.'));
+			_('HTTPing supports data center filtering; TCPing does not.'));
 		o.value('tcp', 'TCPing');
 		o.value('http', 'HTTPing');
 		o.default = 'tcp';
@@ -98,7 +98,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'speedtest_tll', _('Average Latency Floor (ms)'),
-			_('Skip IPs with average latency below this value. Useful for filtering out fake/blocked IPs with suspiciously low latency.'));
+			_('Skip IPs with average latency below this value.'));
 		o.datatype = 'range(0,1000)';
 		o.placeholder = '40';
 		o.rmempty = false;
