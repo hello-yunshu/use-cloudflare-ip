@@ -252,7 +252,7 @@ STARTUP_DELAY=""
 #   The local cf-openwrt-auto.conf is never overwritten by self-update.
 
 AUTO_UPDATE="true"
-SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/use-cloudflare-ip/main/cf-openwrt-auto.sh"
+SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/luci-app-cloudflare-ip/main/cf-openwrt-auto.sh"
 
 # 下载重试：
 #   GitHub 在路由器网络上偶尔会 TLS 失败或返回 403。

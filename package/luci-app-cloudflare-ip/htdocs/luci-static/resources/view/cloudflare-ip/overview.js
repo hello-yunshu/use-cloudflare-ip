@@ -495,11 +495,11 @@ return view.extend({
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('GitHub')),
 			E('td', { 'class': 'td' }, E('a', {
-				'href': 'https://github.com/hello-yunshu/use-cloudflare-ip',
+				'href': 'https://github.com/hello-yunshu/luci-app-cloudflare-ip',
 				'target': '_blank',
 				'rel': 'noopener',
 				'style': 'color:var(--main-color, #0069d9);text-decoration:none'
-			}, 'hello-yunshu/use-cloudflare-ip'))
+			}, 'hello-yunshu/luci-app-cloudflare-ip'))
 		]));
 
 		infoSection.appendChild(E('div', { 'class': 'cfi-table-wrap' }, infoTable));

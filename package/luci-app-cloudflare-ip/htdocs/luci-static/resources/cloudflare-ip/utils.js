@@ -13,7 +13,7 @@ var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expec
 
 var FOOTER_OPTIONS = {
 	project: _('Cloudflare IP Optimization'),
-	repoUrl: 'https://github.com/hello-yunshu/use-cloudflare-ip'
+	repoUrl: 'https://github.com/hello-yunshu/luci-app-cloudflare-ip'
 };
 
 function safeApply() {
@@ -154,7 +154,7 @@ function renderFooter(options) {
 	options = options || {};
 	var project = options.project || _('Cloudflare IP Optimization');
 	var version = footerVersion(options.version);
-	var repoUrl = options.repoUrl || 'https://github.com/hello-yunshu/use-cloudflare-ip';
+	var repoUrl = options.repoUrl || 'https://github.com/hello-yunshu/luci-app-cloudflare-ip';
 
 	return E('footer', { 'class': 'ys-tool-footer' }, [
 		E('div', { 'class': 'ys-tool-footer-brand' }, [
