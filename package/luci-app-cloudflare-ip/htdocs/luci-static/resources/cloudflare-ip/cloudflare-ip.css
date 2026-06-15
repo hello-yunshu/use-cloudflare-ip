@@ -56,8 +56,10 @@
 }
 .cfi-actions button,
 .cfi-actions .cbi-button {
-	margin: 0 0.5em 0.4em 0 !important;
+	margin: 0.1em 0.25em 0.1em 0 !important;
 	white-space: nowrap;
+	padding: 0.4rem 0.8rem;
+	line-height: normal;
 }
 
 .ys-tool-footer {
