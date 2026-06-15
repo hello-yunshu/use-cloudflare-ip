@@ -52,7 +52,8 @@
 .cfi-actions {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: center;
+	align-items: stretch;
+	align-content: center;
 }
 .cfi-actions button,
 .cfi-actions .cbi-button {
@@ -216,6 +217,7 @@
 	}
 	.cfi-responsive-table .cfi-actions {
 		justify-content: flex-start;
+		align-items: stretch;
 	}
 	.cfi-responsive-table .cfi-actions::before {
 		flex: 0 0 100%;
