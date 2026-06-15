@@ -142,7 +142,7 @@ root/
 │   └── init.d/cf_ip                          # procd service script
 └── usr/
     ├── bin/cf-ip-auto                        # Core business script
- │   ├── libexec/rpcd/cf_ip                    # RPC backend (15 API methods)
+    │   ├── libexec/rpcd/cf_ip                    # RPC backend (18 API methods)
     └── share/
         ├── luci/menu.d/                      # LuCI menu registration
         └── rpcd/acl.d/                       # RPC access control
@@ -165,7 +165,7 @@ htdocs/luci-static/resources/
 ```
 ┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
 │  LuCI Frontend│ ──────────────→  │  rpcd Backend     │ ──────────→ │  UCI Config   │
-│  (6 JS views) │ ←──────────────  │  (15 API methods) │ ←──────────  │  cf_ip        │
+│  (6 JS views) │ ←──────────────  │  (18 API methods) │ ←──────────  │  cf_ip        │
 └──────────────┘     JSON response └──────────────────┘              └──────┬───────┘
                                                                             │
                                                               cf-ip-auto
@@ -211,6 +211,7 @@ htdocs/luci-static/resources/
 | `verbose` | boolean | 0 | Verbose logging |
 | `work_dir` | string | — | Working directory |
 | `cron_interval` | string | 6h | Auto-run schedule, supports `6h`, `30m`, or a 5-field cron expression |
+| `cfst_persist` | boolean | 1 | Preserve CFST binary across sysupgrade |
 
 ### passwall section
 

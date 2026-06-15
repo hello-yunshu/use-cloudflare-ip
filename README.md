@@ -142,7 +142,7 @@ root/
 │   └── init.d/cf_ip                          # procd 服务脚本
 └── usr/
     ├── bin/cf-ip-auto                        # 核心业务脚本
- │   ├── libexec/rpcd/cf_ip                    # RPC 后端（15 个 API 方法）
+    │   ├── libexec/rpcd/cf_ip                    # RPC 后端（18 个 API 方法）
     └── share/
         ├── luci/menu.d/                      # LuCI 菜单注册
         └── rpcd/acl.d/                       # RPC 权限控制
@@ -165,7 +165,7 @@ htdocs/luci-static/resources/
 ```
 ┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
 │  LuCI 前端    │ ──────────────→  │  rpcd 后端        │ ──────────→ │  UCI 配置     │
-│  (6 个 JS 视图)│ ←──────────────  │  (15 个 API 方法)  │ ←──────────  │  cf_ip        │
+│  (6 个 JS 视图)│ ←──────────────  │  (18 个 API 方法)  │ ←──────────  │  cf_ip        │
 └──────────────┘     JSON 响应      └──────────────────┘              └──────┬───────┘
                                                                             │
                                                               cf-ip-auto
@@ -211,6 +211,7 @@ htdocs/luci-static/resources/
 | `verbose` | boolean | 0 | 详细日志 |
 | `work_dir` | string | — | 工作目录 |
 | `cron_interval` | string | 6h | 自动运行计划，支持 `6h`、`30m` 或 5 字段 cron 表达式 |
+| `cfst_persist` | boolean | 1 | sysupgrade 时保留 CFST 二进制文件 |
 
 ### passwall section
 
