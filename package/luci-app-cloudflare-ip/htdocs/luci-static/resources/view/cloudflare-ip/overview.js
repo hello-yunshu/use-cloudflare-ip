@@ -285,8 +285,7 @@ return view.extend({
 		container.appendChild(banner);
 
 		if (isRunningTest) {
-			// Auto-show speedtest modal when page loads during active test
-			setTimeout(showSpeedtestModal, 300);
+			// Auto-refresh status while speedtest is running; user can click the Running button or Last Result badge to view the log
 			utils.waitForServiceReady(utils.callStatus, {
 				isActive: function() { return container.isConnected; }
 			}).then(function() {
