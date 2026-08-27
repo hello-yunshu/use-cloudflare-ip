@@ -21,9 +21,10 @@ case "$KIND" in
     listing="$TMP/listing"
     mkdir -p "$TMP/root"
     # OpenWrt's apk is an apk-tools v3 build.  Global options must precede
-    # the subcommand, and CI-built packages are intentionally not trusted by
-    # the target root's keyring.
-    "${APK:-apk}" --allow-untrusted --root "$TMP/root" extract "$PACKAGE" >/dev/null
+    # the subcommand, CI-built packages are intentionally not trusted by the
+    # target root's keyring, and --destination is the extract target (whereas
+    # --root selects an apk database root).
+    "${APK:-apk}" --allow-untrusted extract --destination "$TMP/root" "$PACKAGE" >/dev/null
     (cd "$TMP/root" && find . -type f -print | sed 's#^\./##') >"$listing"
     ;;
   *) echo "unsupported package kind: $KIND" >&2; exit 2 ;;
