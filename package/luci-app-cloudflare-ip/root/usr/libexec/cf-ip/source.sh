@@ -110,7 +110,7 @@ cfip_parse_source_file() {
             fam="$(cfip_ip_family "${value%/*}")" || { rejected=$((rejected+1)); continue; }
             cfip_is_public_candidate "${value%/*}" || { rejected=$((rejected+1)); continue; }
             cfip_source_family_allowed "$fam" || continue
-            if [[ "$family_hint" != auto && "$family_hint" != "$fam" ]]; then rejected=$((rejected+1)); continue; fi
+            if [[ "$family_hint" != auto && "$family_hint" != both && "$family_hint" != "$fam" ]]; then rejected=$((rejected+1)); continue; fi
             jq -c --arg value "$value" --arg family "$fam" --arg sourceId "$source_id" --arg sourceClass "$source_class" --argjson stale "$stale" \
               '. + [{kind:"cidr",value:$value,family:$family,sourceId:$sourceId,sourceClass:$sourceClass,stale:$stale}]' "$tmp" >"$tmp.next" && mv "$tmp.next" "$tmp"
             count=$((count+1))
@@ -119,7 +119,7 @@ cfip_parse_source_file() {
                 fam="$(cfip_ip_family "$value")" || { rejected=$((rejected+1)); continue; }
                 cfip_is_public_candidate "$value" || { rejected=$((rejected+1)); continue; }
                 cfip_source_family_allowed "$fam" || continue
-                if [[ "$family_hint" != auto && "$family_hint" != "$fam" ]]; then rejected=$((rejected+1)); continue; fi
+                if [[ "$family_hint" != auto && "$family_hint" != both && "$family_hint" != "$fam" ]]; then rejected=$((rejected+1)); continue; fi
                 jq -c --arg ip "$value" --arg family "$fam" --arg sourceId "$source_id" --arg sourceClass "$source_class" --argjson stale "$stale" \
                   '. + [{kind:"ip",value:$ip,family:$family,sourceId:$sourceId,sourceClass:$sourceClass,stale:$stale}]' "$tmp" >"$tmp.next" && mv "$tmp.next" "$tmp"
                 count=$((count+1))
@@ -261,7 +261,7 @@ cfip_history_pool_json() {
 }
 
 cfip_expand_ipv6_hex() {
-    local addr left right missing=0 g i out=""
+    local addr left right missing=0 g i out="" lg_count=0 rg_count=0
     local -a groups
     local -a lg
     local -a rg
@@ -270,12 +270,17 @@ cfip_expand_ipv6_hex() {
     [[ "$addr" != *:::* && "$addr" != *::*::* ]] || return 1
     if [[ "$addr" == *::* ]]; then
         left="${addr%%::*}"; right="${addr##*::}"
-        [[ -n "$left" ]] && IFS=: read -r -a lg <<<"$left" || lg=()
+        if [[ -n "$left" ]]; then
+            IFS=: read -r -a lg <<<"$left"
+            lg_count=${#lg[@]}
+        fi
         if [[ -n "$right" ]]; then
             IFS=: read -r -a rg <<<"$right"
+            rg_count=${#rg[@]}
         fi
-        missing=$((8-${#lg[@]}-${#rg[@]})); ((missing>=1)) || return 1
-        groups=("${lg[@]}"); for ((i=0;i<missing;i++)); do groups+=(0); done
+        missing=$((8-lg_count-rg_count)); ((missing>=1)) || return 1
+        [[ "$lg_count" -eq 0 ]] || groups=("${lg[@]}")
+        for ((i=0;i<missing;i++)); do groups+=(0); done
         [[ -n "$right" ]] && groups+=("${rg[@]}")
     else
         IFS=: read -r -a groups <<<"$addr"; ((${#groups[@]}==8)) || return 1
