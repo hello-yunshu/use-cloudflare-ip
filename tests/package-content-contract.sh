@@ -27,8 +27,8 @@ case "$KIND" in
     # the package.  Create an isolated empty database so this host-side
     # inspection never depends on the builder container's target root.
     apk_root="$TMP/apk-root"
-    mkdir -p "$apk_root/lib/apk/db"
-    : >"$apk_root/lib/apk/db/installed"
+    "${APK:-apk}" --root "$apk_root" --network=no \
+      --repositories-file /dev/null add --initdb --no-scripts
     "${APK:-apk}" --root "$apk_root" --allow-untrusted manifest "$PACKAGE" |
       awk 'NF >= 2 { print $NF }' >"$listing"
     ;;
