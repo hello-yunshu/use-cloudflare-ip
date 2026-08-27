@@ -5,7 +5,7 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 case "$KIND" in
   ipk)
     listing="$TMP/listing"
-    data_member="$(tar -tf "$PACKAGE" | awk '{sub(/^\.\//, ""); if ($0 ~ /^data\.tar/) {print; exit}}')"
+    data_member="$(tar -tf "$PACKAGE" | awk '{sub(/^\.\//, ""); if ($0 ~ /^data\.tar/ && !found) {print; found=1}}')"
     test -n "$data_member" || { echo 'missing data.tar.* member in IPK' >&2; exit 1; }
     tar -xf "$PACKAGE" -C "$TMP" "./$data_member"
     tar -tf "$TMP/$data_member" | sed 's#^\./##' >"$listing"
