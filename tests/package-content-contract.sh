@@ -3,7 +3,14 @@ set -euo pipefail
 PACKAGE="${1:?package path required}"; KIND="${2:?ipk or apk required}"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 case "$KIND" in
-  ipk) listing="$TMP/listing"; tar -tf "$PACKAGE" | sed 's#^\./##' >"$listing" ;;
+  ipk)
+    listing="$TMP/listing"
+    command -v ar >/dev/null || { echo 'missing ar for IPK inspection' >&2; exit 1; }
+    data_member="$(ar t "$PACKAGE" | awk '/^data\.tar/ {print; exit}')"
+    test -n "$data_member" || { echo 'missing data.tar.* member in IPK' >&2; exit 1; }
+    (cd "$TMP" && ar x "$PACKAGE" "$data_member")
+    tar -tf "$TMP/$data_member" | sed 's#^\./##' >"$listing"
+    ;;
   apk) listing="$TMP/listing"; "${APK:-apk}" extract --root "$TMP/root" "$PACKAGE" >/dev/null; (cd "$TMP/root" && find . -type f -print | sed 's#^\./##') >"$listing" ;;
   *) echo "unsupported package kind: $KIND" >&2; exit 2 ;;
 esac
