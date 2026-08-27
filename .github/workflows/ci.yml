@@ -185,10 +185,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ matrix.pkgtype }}" = apk ]; then
-            # APK accepts the numeric development build form; keep the
-            # source contract exact and override only this command-line
-            # build with an extra numeric component.
-            make PKG_VERSION=2.0.0.1 package/luci-app-cloudflare-ip/compile V=sc
+            # APK rejects the source development suffix. Patch only the
+            # checked-out package Makefile so dependency PKG_VERSION values
+            # remain untouched and the source contract stays exact.
+            sed -i 's/^PKG_VERSION:=2.0.0-dev$/PKG_VERSION:=2.0.0.1/' package/luci-app-cloudflare-ip/Makefile
+            make package/luci-app-cloudflare-ip/compile V=sc
           else
             make package/luci-app-cloudflare-ip/compile V=sc
           fi
