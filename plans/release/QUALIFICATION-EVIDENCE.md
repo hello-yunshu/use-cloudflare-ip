@@ -5,14 +5,14 @@ This file records exact evidence for the clean rebuild branch. It does not autho
 ## Remote branch and baseline
 
 - Branch: `codex/cloudflare-ip-2-0-clean-rebuild-20260827`
-- HEAD: `91b7cf159e25511b837442f58e2122ef725c1830`
+- Qualification target commit: `abca78846cafad7beec4604483675a5adfbcc6b1`
 - `origin/main`: `77a65a86a84b5fdf4cd0a854edc83a9c5c7d7fb1`
-- Ahead of `origin/main`: `9` commits; merged to `main`: `NOT_RUN`
+- Ahead of `origin/main` at qualification: `10` commits; merged to `main`: `NOT_RUN`
 - Prior remote branches `codex/cloudflare-ip-2-0-dev-20260827` and `cloudflare-ip-2-0-rebuild-20260827`: deleted and absent from `origin`
 
 ## GitHub Actions qualification
 
-Run: [33076432782](https://github.com/hello-yunshu/luci-app-cloudflare-ip/actions/runs/33076432782) at the branch HEAD above. Run conclusion: `success`.
+Run: [33079322937](https://github.com/hello-yunshu/luci-app-cloudflare-ip/actions/runs/33079322937) at the qualification target commit above. Run conclusion: `success`.
 
 | Gate | Job conclusion |
 |---|---|
