@@ -17,7 +17,12 @@ case "$KIND" in
       tar -tf "$TMP/$data_member"
     } | sed 's#^\./##' >"$listing"
     ;;
-  apk) listing="$TMP/listing"; "${APK:-apk}" extract --root "$TMP/root" "$PACKAGE" >/dev/null; (cd "$TMP/root" && find . -type f -print | sed 's#^\./##') >"$listing" ;;
+  apk)
+    listing="$TMP/listing"
+    mkdir -p "$TMP/root"
+    "${APK:-apk}" extract --root "$TMP/root" "$PACKAGE" >/dev/null
+    (cd "$TMP/root" && find . -type f -print | sed 's#^\./##') >"$listing"
+    ;;
   *) echo "unsupported package kind: $KIND" >&2; exit 2 ;;
 esac
 required=(
