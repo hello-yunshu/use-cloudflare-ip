@@ -45,6 +45,9 @@ jobs:
           bash tests/v2-candidate-budget.sh
           bash tests/v2-cfst-exact-input.sh
           bash tests/v2-measurement-deadline.sh
+          bash tests/recovery-deadline.sh
+          bash tests/transaction-commit-failure.sh
+          bash tests/openclash-intended-mapping-negative.sh
           bash tests/security-contract.sh
 
   legacy-contract:
@@ -87,7 +90,9 @@ jobs:
         working-directory: rill-adapter
         run: cargo build --release
       - name: Consumer smoke
-        run: bash tests/rill-adapter-smoke.sh rill-adapter/target/release/cf-ip-rill
+        run: |
+          bash tests/rill-adapter-smoke.sh rill-adapter/target/release/cf-ip-rill
+          bash tests/rill-feedback-integration.sh rill-adapter/target/release/cf-ip-rill
 
   rill-musl-build-and-execute:
     runs-on: ubuntu-latest
@@ -204,9 +209,11 @@ jobs:
           printf '%s\n' "$files" | while IFS= read -r file; do
             cp "$file" "$GITHUB_WORKSPACE/output/"
             case "${file##*.}" in
-              ipk) tar -tf "$file" >/dev/null ;;
+              ipk) tar -tf "$file" >/dev/null
+                   bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" ipk ;;
               apk) test -x /builder/staging_dir/host/bin/apk
-                   /builder/staging_dir/host/bin/apk adbdump "$file" >/dev/null ;;
+                   /builder/staging_dir/host/bin/apk adbdump "$file" >/dev/null
+                   APK=/builder/staging_dir/host/bin/apk bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" apk ;;
             esac
           done
           sha256sum "$GITHUB_WORKSPACE/output"/* > "$GITHUB_WORKSPACE/output/SHA256SUMS"
@@ -226,7 +233,11 @@ jobs:
         run: |
           set -euo pipefail
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
-          test "$version" = 2.0.0-dev
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            [[ "$version" != *-dev ]]
+          else
+            test "$version" = 2.0.0-dev
+          fi
 
   rpc-luci-contract:
     runs-on: ubuntu-latest
@@ -254,9 +265,51 @@ jobs:
       - name: Lint workflows
         run: "${{ runner.temp }}/bin/actionlint"
 
+  real-cfst-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Download and execute real CFST
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cfst"
+          release_json="$RUNNER_TEMP/cfst/release.json"
+          curl -fsSL --retry 3 https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest -o "$release_json"
+          asset_url=$(jq -r '.assets[] | select(.name|test("linux_amd64.*tar.gz$"; "i")) | .browser_download_url' "$release_json" | head -n1)
+          test -n "$asset_url"
+          curl -fsSL --retry 3 "$asset_url" -o "$RUNNER_TEMP/cfst/archive"
+          tar -xf "$RUNNER_TEMP/cfst/archive" -C "$RUNNER_TEMP/cfst"
+          cfst=$(find "$RUNNER_TEMP/cfst" -type f -name cfst | head -n1)
+          test -n "$cfst"
+          chmod +x "$cfst"
+          cat > "$RUNNER_TEMP/cfst/input.txt" <<'EOF_INPUT'
+          104.16.1.1/32
+          2606:4700::1111/128
+          EOF_INPUT
+          bash tests/cfst-real-smoke.sh "$cfst" "$RUNNER_TEMP/cfst/input.txt"
+
+  release-asset-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify complete release asset/checksum contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$RUNNER_TEMP/release-contract"
+          mkdir -p "$tmp"
+          version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
+          touch "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.ipk" "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.apk"
+          for arch in x86_64 aarch64 riscv64 armv7 i686; do touch "$tmp/cf-ip-rill-${version}-linux-${arch}-musl"; done
+          (cd "$tmp" && sha256sum luci-app-cloudflare-ip* cf-ip-rill-* > sha256sums.txt)
+          bash tests/release-asset-contract.sh "$tmp" "$version"
+
   qualification-guard:
     if: always()
-    needs: [host-contract, legacy-contract, rpc-luci-contract, rill-native, rill-musl-build-and-execute, openwrt-package, package-release-guard, workflow-lint]
+    needs: [host-contract, legacy-contract, rpc-luci-contract, rill-native, rill-musl-build-and-execute, openwrt-package, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
     runs-on: ubuntu-latest
     steps:
       - name: Require every qualification job
@@ -266,3 +319,42 @@ jobs:
           set -euo pipefail
           echo "$RESULTS" | jq -e 'to_entries | all(.value.result == "success")'
           echo QUALIFICATION_COMPLETE
+
+  evidence-manifest:
+    if: always()
+    needs: [host-contract, legacy-contract, rpc-luci-contract, rill-native, rill-musl-build-and-execute, openwrt-package, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Generate exact qualification manifest
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARTIFACTS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate --jq '[.artifacts[] | {name: .name, digest: (.digest // null), size: .size_in_bytes}]' | jq -s 'add')"
+          asset_dir="$RUNNER_TEMP/qualification-assets"
+          mkdir -p "$asset_dir"
+          for artifact in \
+            luci-app-cloudflare-ip-ipk-v24.10.5 \
+            luci-app-cloudflare-ip-apk-v25.12.0 \
+            cf-ip-rill-linux-x86_64-musl \
+            cf-ip-rill-linux-aarch64-musl \
+            cf-ip-rill-linux-riscv64-musl \
+            cf-ip-rill-linux-armv7-musl \
+            cf-ip-rill-linux-i686-musl; do
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "$asset_dir/$artifact"
+          done
+          asset_files='[]'
+          while IFS= read -r -d '' file; do
+            hash=$(sha256sum "$file" | awk '{print $1}')
+            rel="${file#"$asset_dir"/}"
+            asset_files=$(jq --arg path "$rel" --arg sha "$hash" '. + [{path:$path,sha256:$sha}]' <<<"$asset_files")
+          done < <(find "$asset_dir" -type f \( -name '*.ipk' -o -name '*.apk' -o -name 'cf-ip-rill-*' \) -print0)
+          test "$(jq 'length' <<<"$asset_files")" -eq 7
+          RESULTS="$RESULTS" ARTIFACTS="$ARTIFACTS" ASSET_FILES="$asset_files" bash tests/evidence-manifest.sh qualification.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: qualification-evidence
+          path: qualification.json
+          if-no-files-found: error

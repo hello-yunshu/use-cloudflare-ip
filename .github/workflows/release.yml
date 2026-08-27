@@ -1,208 +1,128 @@
 name: Build and Release
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
 
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-qualification
+  cancel-in-progress: false
 
 permissions:
   contents: write
+  actions: read
 
 env:
-  SDKDIR: /builder
   REPO_NAME: luci-app-cloudflare-ip
-  PKG_NAME: luci-app-cloudflare-ip
 
 jobs:
-  check-version:
+  check-qualification:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.check.outputs.changed }}
-      version: ${{ steps.check.outputs.version }}
-      release: ${{ steps.check.outputs.release }}
+      commit: ${{ steps.verify.outputs.commit }}
+      run_id: ${{ steps.verify.outputs.run_id }}
+      version: ${{ steps.verify.outputs.version }}
+      release: ${{ steps.verify.outputs.release }}
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-      - id: check
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+      - id: verify
+        name: Verify exact SHA qualification manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFICATION_RUN_ID: ${{ github.event.workflow_run.id }}
+          QUALIFICATION_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
         run: |
-          PKG_VERSION=$(grep '^PKG_VERSION:=' package/luci-app-cloudflare-ip/Makefile | cut -d= -f2)
-          PKG_RELEASE=$(grep '^PKG_RELEASE:=' package/luci-app-cloudflare-ip/Makefile | cut -d= -f2)
-          TAG="v${PKG_VERSION}-${PKG_RELEASE}"
-
-          if [[ "$PKG_VERSION" == *-dev ]]; then
-            echo "Development version ${PKG_VERSION} is not releasable"
-            {
-              echo "changed=false"
-              echo "version=${PKG_VERSION}"
-              echo "release=${PKG_RELEASE}"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual trigger, proceeding with build"
-            {
-              echo "changed=true"
-              echo "version=${PKG_VERSION}"
-              echo "release=${PKG_RELEASE}"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if git tag -l "$TAG" | grep -q .; then
-            echo "Tag ${TAG} already exists, skipping"
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "New version detected: ${TAG}"
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/qualification"
+          gh run download "$QUALIFICATION_RUN_ID" --repo "$GITHUB_REPOSITORY" --name qualification-evidence --dir "$RUNNER_TEMP/qualification"
+          manifest="$RUNNER_TEMP/qualification/qualification.json"
+          test -f "$manifest"
+          jq -e --arg sha "$QUALIFICATION_SHA" '.schemaVersion==1 and .commit==$sha and .releaseEligible==true and .qualificationState=="automated-qualification" and (.assetFiles|length)==7 and all(.assetFiles[]; (.sha256|test("^[0-9a-fA-F]{64}$")))' "$manifest" >/dev/null
+          version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
+          release=$(sed -n 's/^PKG_RELEASE:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
+          [[ "$version" != *-dev ]]
           {
-            echo "changed=true"
-            echo "version=${PKG_VERSION}"
-            echo "release=${PKG_RELEASE}"
+            echo "commit=$QUALIFICATION_SHA"
+            echo "run_id=$QUALIFICATION_RUN_ID"
+            echo "version=$version"
+            echo "release=$release"
           } >> "$GITHUB_OUTPUT"
 
-  build:
-    needs: check-version
-    if: needs.check-version.outputs.changed == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - branch: "v24.10.5"
-            pkgtype: ipk
-            arch: x86_64
-          - branch: "v25.12.0"
-            pkgtype: apk
-            arch: x86_64
-    name: "Build ${{ matrix.pkgtype }} (${{ matrix.branch }})"
+  collect:
+    needs: check-qualification
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/openwrt/sdk:${{ matrix.arch }}-${{ matrix.branch }}
-      options: --user root
     steps:
       - uses: actions/checkout@v7
-        with:
-          path: ${{ env.REPO_NAME }}
-
-      - name: Fix SDK paths
+      - name: Collect exact qualification artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFICATION_RUN_ID: ${{ needs.check-qualification.outputs.run_id }}
+          VERSION: ${{ needs.check-qualification.outputs.version }}
+        shell: bash
         run: |
-          mkdir -p "$SDKDIR/shared-workdir"
-          rm -rf "$SDKDIR/shared-workdir/build"
-          ln -sf "$SDKDIR" "$SDKDIR/shared-workdir/build"
-
-      - name: Update feeds
-        working-directory: ${{ env.SDKDIR }}
-        run: |
-          ./scripts/feeds update base packages luci
-          ./scripts/feeds install luci-base bash curl tar jq ca-bundle ca-certificates
-
-      - name: Prepare package source
-        working-directory: ${{ env.SDKDIR }}
-        run: |
-          cp -r "$GITHUB_WORKSPACE/$REPO_NAME/package/$PKG_NAME" ./package/
-
-      - name: Configure
-        working-directory: ${{ env.SDKDIR }}
-        run: |
-          echo "CONFIG_PACKAGE_${PKG_NAME}=y" >> .config
-          make defconfig
-
-      - name: Build package
-        working-directory: ${{ env.SDKDIR }}
-        run: |
-          make "package/$PKG_NAME/compile" V=sc
-
-      - name: Collect package
-        working-directory: ${{ env.SDKDIR }}
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/output"
-          package_files="$(find ./bin/ -type f -name "${PKG_NAME}*.${{ matrix.pkgtype }}")"
-          if [ -z "$package_files" ]; then
-            echo "::error::No ${PKG_NAME} .${{ matrix.pkgtype }} package was produced"
-            find ./bin/ -type f -name "*.${{ matrix.pkgtype }}" -print
-            exit 1
-          fi
-          printf '%s\n' "$package_files" | while IFS= read -r file; do
-            cp "$file" "$GITHUB_WORKSPACE/output/"
+          set -euo pipefail
+          work="$RUNNER_TEMP/qualification-assets"
+          mkdir -p "$work" release
+          for artifact in \
+            luci-app-cloudflare-ip-ipk-v24.10.5 \
+            luci-app-cloudflare-ip-apk-v25.12.0 \
+            cf-ip-rill-linux-x86_64-musl \
+            cf-ip-rill-linux-aarch64-musl \
+            cf-ip-rill-linux-riscv64-musl \
+            cf-ip-rill-linux-armv7-musl \
+            cf-ip-rill-linux-i686-musl \
+            qualification-evidence; do
+            gh run download "$QUALIFICATION_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "$work/$artifact"
           done
-          ls -la "$GITHUB_WORKSPACE/output/"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
+          find "$work" -type f \( -name '*.ipk' -o -name '*.apk' -o -name "cf-ip-rill-${VERSION}-linux-*" -o -name qualification.json \) -exec cp {} release/ \;
+          test "$(find release -type f -name '*.ipk' | wc -l | tr -d ' ')" -eq 1
+          test "$(find release -type f -name '*.apk' | wc -l | tr -d ' ')" -eq 1
+          test "$(find release -type f -name 'cf-ip-rill-*' | wc -l | tr -d ' ')" -eq 5
+          test -f release/qualification.json
+      - name: Generate relative checksums and verify asset contract
+        env:
+          VERSION: ${{ needs.check-qualification.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd release && sha256sum luci-app-cloudflare-ip*.ipk luci-app-cloudflare-ip*.apk cf-ip-rill-* > sha256sums.txt)
+          bash tests/release-asset-contract.sh release "$VERSION"
+      - uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.pkgtype }}
-          path: output/
+          name: release-bundle
+          path: release/
+          if-no-files-found: error
 
   release:
-    needs: [check-version, build]
+    needs: [check-qualification, collect]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
         with:
+          name: release-bundle
           path: release/
-
-      - name: List artifacts
-        run: |
-          find release/ -type f -ls
-
-      - name: Generate checksums
-        working-directory: release
-        run: |
-          find . -type f \( -name '*.ipk' -o -name '*.apk' \) -exec sha256sum {} + > sha256sums.txt
-          cat sha256sums.txt
-
-      - name: Delete existing release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release delete "$TAG" --yes --cleanup-tag
-          fi
-
-      - name: Create Release
+      - name: Publish exact qualified release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
-          name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+          tag_name: v${{ needs.check-qualification.outputs.version }}-${{ needs.check-qualification.outputs.release }}
+          name: v${{ needs.check-qualification.outputs.version }}-${{ needs.check-qualification.outputs.release }}
           body: |
-            Cloudflare IP Optimization v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+            Cloudflare IP Optimization v${{ needs.check-qualification.outputs.version }}-${{ needs.check-qualification.outputs.release }}
 
-            Package: `luci-app-cloudflare-ip` (LuCI web interface + service, includes Chinese and English translations)
+            This release is promoted only from the exact SHA and successful automated qualification run recorded in `qualification.json`.
 
-            Both `.ipk` (opkg) and `.apk` (apk) formats are provided.
+            Assets include OpenWrt IPK/APK packages, five Rill 1.5.3 Stable Full Runtime musl adapters, and relative SHA256 checksums.
 
-            ## Installation (opkg - OpenWrt 23.05 / 24.10)
-            ```bash
-            opkg install luci-app-cloudflare-ip_*.ipk
-            ```
-
-            ## Installation (apk - OpenWrt 25.12+)
-            ```bash
-            apk add --allow-untrusted ./luci-app-cloudflare-ip*.apk
-            ```
-
-            ## Upgrade
-            ```bash
-            # Download new packages from Release, then install the same way as above.
-            # opkg/apk will automatically detect and upgrade the existing version.
-            # Your UCI config (/etc/config/cf_ip) is preserved.
-
-            # Clear LuCI cache after upgrade:
-            rm -rf /tmp/luci-*
-            # Then force-refresh browser: Ctrl+Shift+R
-            ```
-
-            ## Requirements
-            - OpenWrt 23.05+ with bash, curl, tar, jq
-            - PassWall or OpenClash (optional, at least one recommended)
+            Real OpenWrt device runtime, hardware coverage, PassWall/OpenClash version matrix, and 24-hour soak remain separate evidence boundaries unless explicitly recorded in the qualification manifest.
           files: |
-            release/ipk/*.ipk
-            release/apk/*.apk
+            release/*.ipk
+            release/*.apk
+            release/cf-ip-rill-*
             release/sha256sums.txt
+            release/qualification.json

@@ -19,7 +19,7 @@ jobs:
           KEEP_DAYS=14
           KEEP_MIN=5
 
-          mapfile -t lines < <(gh run list --limit 100 --json databaseId,createdAt --jq '.[] | "\(.databaseId)\t\(.createdAt)"')
+          mapfile -t lines < <(gh run list --limit 100 --json databaseId,createdAt,name,event,headBranch --jq '.[] | "\(.databaseId)\t\(.createdAt)\t\(.name)\t\(.event)\t\(.headBranch)"')
 
           total=${#lines[@]}
           echo "Found $total workflow runs"
@@ -32,11 +32,17 @@ jobs:
 
             run_id=$(echo "${lines[$i]}" | cut -f1)
             run_date=$(echo "${lines[$i]}" | cut -f2)
+            run_name=$(echo "${lines[$i]}" | cut -f3)
+            run_branch=$(echo "${lines[$i]}" | cut -f5)
+            if [ "$run_name" = "Build and Release" ] || { [ "$run_name" = "CI" ] && [ "$run_branch" = "main" ]; }; then
+              echo "Keeping qualification/release evidence run $run_id"
+              continue
+            fi
             age_days=$(( ( $(date +%s) - $(date -d "$run_date" +%s) ) / 86400 ))
 
             if [ "$age_days" -ge "$KEEP_DAYS" ]; then
               echo "Deleting run $run_id (age: ${age_days}d)"
-              gh run delete "$run_id" --confirm 2>/dev/null || true
+              gh run delete "$run_id" --confirm
             else
               echo "Run $run_id is only ${age_days}d old, skipping"
             fi

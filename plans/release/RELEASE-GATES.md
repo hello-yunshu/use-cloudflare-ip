@@ -1,3 +1,3 @@
 # Release gates
 
-Development version is `2.0.0-dev`; no stable tag is allowed. `QUALIFICATION_COMPLETE` can be generated only when all 18 legacy items, host/legacy/RPC-LuCI/Rill jobs, five musl targets, IPK/APK builds, rollback gates and real CFST smoke are green. Device/hardware evidence is separate and cannot be inferred from Docker or package builds.
+Development version is `2.0.0-dev`; no stable tag is allowed on development branches. `QUALIFICATION_COMPLETE` can be generated only when all legacy items, host/legacy/RPC-LuCI/Rill jobs, five musl targets, IPK/APK builds, behavior rollback gates, release-asset contract, and real CFST smoke are green. The generated `qualification.json` binds the result to the exact commit and run ID. Release promotion is triggered only from a successful CI `workflow_run` on `main` and rechecks that same SHA/evidence manifest. Device/hardware evidence is separate and cannot be inferred from Docker or package builds.

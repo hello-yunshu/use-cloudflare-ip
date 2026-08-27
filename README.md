@@ -17,7 +17,7 @@
 - **LuCI Web 界面**：概览仪表盘、设置表单、日志维护，全部可视化操作
 - **PassWall / OpenClash 双模式**：自动检测已安装的代理服务，按需显示对应配置页
 - **CFST 自动管理**：首次使用时一键下载 CloudflareSpeedTest，支持在线更新
-- **定时任务**：通过 procd 守护进程自动运行，可配置间隔时间
+- **定时任务**：通过 cron 托管计划自动运行，可配置间隔时间
 - **IP 类型**：IPv4 / IPv6 / 双栈
 - **测速协议**：TCP（默认）/ HTTP（支持按数据中心筛选）
 - **连通性验证**：测速后逐个验证 IP 可达性，不可用自动跳过
@@ -119,7 +119,7 @@ CFST 未安装时，点击「下载 CFST」按钮即可自动下载；已安装�
 |--------|------|--------|
 | 测速前停止代理 | 避免代理干扰测速结果 | 开 |
 | 启动延迟 | 随机延迟秒数，`random` = 0~300s | — |
-| 自更新 | 启用脚本自更新 | 开 |
+| 自更新 | 已弃用；2.0 由软件包管理 | 关 |
 | GitHub 镜像 | 加速 GitHub 下载的镜像地址 | — |
 | 下载重试次数 | GitHub 下载失败重试次数 | 3 |
 | 重试间隔 | 重试间隔秒数 | 5 |
@@ -139,7 +139,7 @@ CFST 未安装时，点击「下载 CFST」按钮即可自动下载；已安装�
 root/
 ├── etc/
 │   ├── config/cf_ip                          # UCI 配置文件
-│   └── init.d/cf_ip                          # procd 服务脚本
+│   └── init.d/cf_ip                          # 生命周期与 cron 调度脚本
 └── usr/
     ├── bin/cf-ip-auto                        # 核心业务脚本
     │   ├── libexec/rpcd/cf_ip                    # RPC 后端（18 个 API 方法）
@@ -182,7 +182,7 @@ htdocs/luci-static/resources/
 
 1. 前端通过 `ubus call cf_ip <method>` 调用 rpcd 后端
 2. 后端调用 `cf-ip-auto` 执行具体操作
-3. 测速结果写入状态文件 `/tmp/cf_ip/status.json`
+3. 测速结果写入持久状态文件 `/etc/cf_ip/status.json`
 4. 根据 UCI 配置的 mode 更新 PassWall 或 OpenClash 节点
 5. 日志写入 `/tmp/cf_ip/cf-ip-auto.log`
 
@@ -203,7 +203,7 @@ htdocs/luci-static/resources/
 | `speedtest_tl` | integer | — | 平均延迟上限（ms），留空不限制 |
 | `stop_service` | boolean | 1 | 测速前停止代理服务 |
 | `startup_delay` | string | — | 启动延迟，`random` = 0~300s |
-| `auto_update` | boolean | 1 | 启用脚本自更新 |
+| `auto_update` | boolean | 0 | 已弃用的脚本自更新兼容键；2.0 不使用 |
 | `self_update_url` | string | — | 自更新下载地址 |
 | `download_retries` | integer | 3 | GitHub 下载重试次数 |
 | `download_retry_delay` | integer | 5 | 重试间隔秒数 |
@@ -211,7 +211,9 @@ htdocs/luci-static/resources/
 | `verbose` | boolean | 0 | 详细日志 |
 | `work_dir` | string | — | 工作目录 |
 | `cron_interval` | string | 6h | 自动运行计划，支持 `6h`、`30m` 或 5 字段 cron 表达式 |
-| `cfst_persist` | boolean | 1 | sysupgrade 时保留 CFST 二进制文件 |
+| `measurement_timeout` | integer | 60 | 测量与正常应用 deadline（20-300 秒） |
+| `recovery_timeout` | integer | 30 | 回滚、恢复服务与恢复确认 deadline（10-120 秒） |
+| `cfst_persist` | boolean | 1 | sysupgrade 时保留 `${work_dir}/cfst/cfst` |
 
 ### passwall section
 
@@ -246,8 +248,10 @@ htdocs/luci-static/resources/
 
 候选测速数量默认 128，允许 100-512 个唯一候选。历史优质 IP、社区种子和 Cloudflare 官方网段探索约占 1/8、5/8、1/4；官方 CIDR 会先由调度器采样为具体 IP，每个任务只启动一次 CFST。社区源中的 `IP:port` 只贡献 IP，域名候选会被拒绝且不会 DNS 解析。
 
-应用 PassWall 或 OpenClash 前，每个选中 IP 都必须使用正确 SNI/Host 通过目标域名探测。Host transaction 在关闭代理前保存配置和服务状态，使用一个全局代理关闭硬时限，执行纯变换、意图映射回读、重启和健康检查。超时、资格探测失败或重启失败都会回滚并恢复原服务状态；Rill 出错时回退到 Native Rank。
+应用 PassWall 或 OpenClash 前，每个选中 IP 都必须使用正确 SNI/Host 通过目标域名探测。Host transaction 在关闭代理前保存配置和服务状态，测量 deadline 只约束测速、探测、应用和正常重启；失败后进入独立 recovery deadline，执行纯变换、block 级意图映射回读、回滚、恢复服务和健康检查。超时、资格探测失败或重启失败都会回滚并恢复原服务状态；Rill 出错时回退到 Native Rank。
 
 2.0 的自更新已弃用，因为引擎是多文件、由软件包管理。默认 `auto_update=0`，请通过经过验证的 IPK/APK 升级。UCI、CFST、来源 last-good 缓存、managed ownership 和有限历史会保留；运行、探测和 publisher 文件可重建。LAN Publisher 默认关闭，只允许 LAN 绑定，拒绝 `0.0.0.0`，提供 `/ip.txt`、`/best-ipv4.txt`、`/best-ipv6.txt` 和 `/result.json`。
 
 发布状态：仅开发版。稳定发布必须通过完整 legacy 矩阵、Host/RPC/LuCI、Rill native、五个 musl 目标、OpenWrt IPK/APK、回滚和真实 CFST smoke；Docker/软件包检查不等同于真实 OpenWrt 设备或硬件 soak。
+
+候选不足时报告 degraded candidate count，绝不复制最快 IP 伪造数量；多个来源会增加可用 seed 池，但所有候选仍在本地统一重测，来源数量不等于单次测速数量无限增加。LAN Publisher 仅为默认关闭的 LAN 可选兼容输出，不替代 PassWall/OpenClash 直接修改。

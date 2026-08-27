@@ -11,6 +11,21 @@ jq -e '.success==true and .generation==1 and (.candidates|length)==2 and (.decis
 cat >"$TMP/feedback.json" <<'JSON'
 {"schemaVersion":1,"decision":{"runId":"decision-1","generation":1},"outcome":{"validated":true,"observedAt":2000000001,"ip":"104.16.1.1","reward":0.8}}
 JSON
+for fixture in wrong-ip wrong-generation unvalidated missing-reward stale-observed; do
+  cp "$TMP/feedback.json" "$TMP/$fixture.json"
+  case "$fixture" in
+    wrong-ip) jq '.outcome.ip="104.16.1.2"' "$TMP/$fixture.json" >"$TMP/$fixture.next" ;;
+    wrong-generation) jq '.decision.generation=99' "$TMP/$fixture.json" >"$TMP/$fixture.next" ;;
+    unvalidated) jq '.outcome.validated=false' "$TMP/$fixture.json" >"$TMP/$fixture.next" ;;
+    missing-reward) jq 'del(.outcome.reward)' "$TMP/$fixture.json" >"$TMP/$fixture.next" ;;
+    stale-observed) jq '.outcome.observedAt=1' "$TMP/$fixture.json" >"$TMP/$fixture.next" ;;
+  esac
+  mv "$TMP/$fixture.next" "$TMP/$fixture.json"
+  if run_adapter feedback --state "$STATE" --input "$TMP/$fixture.json" >/dev/null 2>&1; then
+    echo "$fixture feedback unexpectedly accepted" >&2
+    exit 1
+  fi
+done
 run_adapter feedback --state "$STATE" --input "$TMP/feedback.json" | jq -e '.success==true and .accepted==true and .generation==2' >/dev/null
 if run_adapter feedback --state "$STATE" --input "$TMP/feedback.json" >/dev/null 2>&1; then echo 'duplicate feedback unexpectedly accepted' >&2; exit 1; fi
 printf '{broken json\n' >"$STATE"; if run_adapter status --state "$STATE" | jq -e '.success==true' >/dev/null 2>&1; then echo 'corrupt state unexpectedly accepted' >&2; exit 1; fi

@@ -2,7 +2,7 @@
 
 ## Fixed baseline and scope
 
-The sole behavior baseline is `main` at `77a65a86a84b5fdf4cd0a854edc83a9c5c7d7fb1`, package `1.8.3`. The two remote experiment branches were exported to `/tmp/cloudflare-ip-2.0-reference/` and deleted before this branch was created. This branch is `codex/cloudflare-ip-2-0-clean-rebuild-20260827`.
+The sole behavior baseline is `main` at `77a65a86a84b5fdf4cd0a854edc83a9c5c7d7fb1`, package `1.8.3`. The active development branch is project-scoped and neutral: `cloudflare-ip-2.0-dev`.
 
 The 2.0 package is an additive rebuild. The legacy implementation remains an independently installed compatibility transformer and the original user-facing surfaces are retained. New source scheduling, observation, ranking, transactions, Rill, and LAN publication are separate responsibilities.
 

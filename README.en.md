@@ -17,7 +17,7 @@
 - **LuCI Web Interface**: Dashboard overview, settings forms, log maintenance — all visual
 - **PassWall / OpenClash Dual Mode**: Auto-detects installed proxy services, shows relevant config pages only
 - **CFST Auto-Management**: One-click download CloudflareSpeedTest on first use, with online updates
-- **Scheduled Tasks**: Automatic runs via procd daemon with configurable intervals
+- **Scheduled Tasks**: Automatic runs via cron-managed schedules with configurable intervals
 - **IP Type**: IPv4 / IPv6 / Dual-stack
 - **Benchmark Protocol**: TCP (default) / HTTP (with data center filtering)
 - **Connectivity Verification**: Validates each IP after benchmarking, skips unreachable ones
@@ -119,7 +119,7 @@ Finds nodes where `server` matches the target domain, generates `[CF-1]`, `[CF-2
 |--------|-------------|---------|
 | Stop Proxy Before Benchmark | Avoid proxy interference with benchmark results | On |
 | Startup Delay | Random delay in seconds, `random` = 0~300s | — |
-| Self-Update | Enable script self-update | On |
+| Self-Update | Deprecated; 2.0 is package-managed | Off |
 | GitHub Mirror | Mirror URL to accelerate GitHub downloads | — |
 | Download Retries | GitHub download retry count | 3 |
 | Retry Delay | Retry interval in seconds | 5 |
@@ -139,7 +139,7 @@ Finds nodes where `server` matches the target domain, generates `[CF-1]`, `[CF-2
 root/
 ├── etc/
 │   ├── config/cf_ip                          # UCI configuration
-│   └── init.d/cf_ip                          # procd service script
+│   └── init.d/cf_ip                          # lifecycle and cron scheduler script
 └── usr/
     ├── bin/cf-ip-auto                        # Core business script
     │   ├── libexec/rpcd/cf_ip                    # RPC backend (18 API methods)
@@ -182,7 +182,7 @@ htdocs/luci-static/resources/
 
 1. Frontend calls rpcd backend via `ubus call cf_ip <method>`
 2. Backend invokes `cf-ip-auto` to execute operations
-3. Benchmark results are written to `/tmp/cf_ip/status.json`
+3. Benchmark results are written to persistent `/etc/cf_ip/status.json`
 4. PassWall or OpenClash nodes are updated based on UCI mode config
 5. Logs are written to `/tmp/cf_ip/cf-ip-auto.log`
 
@@ -203,7 +203,7 @@ htdocs/luci-static/resources/
 | `speedtest_tl` | integer | — | Average latency ceiling (ms), leave empty for no limit |
 | `stop_service` | boolean | 1 | Stop proxy service before benchmarking |
 | `startup_delay` | string | — | Startup delay, `random` = 0~300s |
-| `auto_update` | boolean | 1 | Enable script self-update |
+| `auto_update` | boolean | 0 | Deprecated script self-update compatibility key; unused by 2.0 |
 | `self_update_url` | string | — | Self-update download URL |
 | `download_retries` | integer | 3 | GitHub download retry count |
 | `download_retry_delay` | integer | 5 | Retry interval in seconds |
@@ -211,7 +211,9 @@ htdocs/luci-static/resources/
 | `verbose` | boolean | 0 | Verbose logging |
 | `work_dir` | string | — | Working directory |
 | `cron_interval` | string | 6h | Auto-run schedule, supports `6h`, `30m`, or a 5-field cron expression |
-| `cfst_persist` | boolean | 1 | Preserve CFST binary across sysupgrade |
+| `measurement_timeout` | integer | 60 | Measurement and normal-apply deadline (20-300 seconds) |
+| `recovery_timeout` | integer | 30 | Rollback, service restore and recovery-health deadline (10-120 seconds) |
+| `cfst_persist` | boolean | 1 | Preserve `${work_dir}/cfst/cfst` across sysupgrade |
 
 ### passwall section
 
@@ -246,8 +248,10 @@ Package version `2.0.0-dev` is rebuilt from the complete 1.8.3 behavior baseline
 
 Candidate Budget defaults to 128 and accepts 100-512 unique candidates. Fresh history, community seeds, and official CIDR exploration receive about 1/8, 5/8, and 1/4; deficits flow between pools. Official CIDRs are sampled into concrete IPs and one CFST process measures the merged input. A community `IP:port` contributes only its IP; domain candidates are rejected without DNS resolution.
 
-Before PassWall or OpenClash is changed, every selected IP must pass the configured target-domain probe with the intended SNI/Host. One host transaction captures state before stopping the proxy, enforces one global proxy-off hard limit, invokes a pure transformer, reads back intended mappings, restarts, and verifies health. Timeout, failed eligibility, or restart failure rolls back configuration and managed state. Rill errors always fall back to Native Rank.
+Before PassWall or OpenClash is changed, every selected IP must pass the configured target-domain probe with the intended SNI/Host. One host transaction captures state before stopping the proxy; the measurement deadline covers measurement, probes, apply and normal restart, while failures enter an independent recovery deadline for rollback, service restore and health confirmation. The transaction invokes a pure transformer, performs block-level intended-mapping readback, restarts, and verifies health. Timeout, failed eligibility, or restart failure rolls back configuration and managed state. Rill errors always fall back to Native Rank.
 
 Script self-update is deprecated because 2.0 is multi-file and package-managed. `auto_update=0` is the default; upgrade via a validated IPK/APK package. UCI, CFST, source last-good caches, ownership and bounded history persist across upgrades, while run/probe/publisher files are temporary. LAN Publisher is disabled by default, LAN-only, refuses `0.0.0.0`, and serves `/ip.txt`, `/best-ipv4.txt`, `/best-ipv6.txt`, and `/result.json`.
 
 Release status: development only. Stable publication requires every legacy item, host/RPC/LuCI, Rill native and five musl targets, IPK/APK artifacts, rollback gates, and real CFST smoke. Package or Docker checks do not prove live OpenWrt or hardware soak.
+
+When fewer candidates qualify, the result reports a degraded candidate count and never duplicates the fastest IP. More sources enlarge the seed pool, but all candidates are retested locally; source count does not mean an unbounded number of IPs in one speed test. LAN Publisher is optional, LAN-only, disabled by default, and never replaces direct PassWall/OpenClash updates.
