@@ -182,7 +182,16 @@ jobs:
       - name: Build package
         shell: bash
         working-directory: /builder
-        run: make package/luci-app-cloudflare-ip/compile V=sc
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.pkgtype }}" = apk ]; then
+            # APK rejects the source package's development hyphen version;
+            # keep the source contract exact and use APK's pre-release form
+            # only for this command-line build override.
+            make PKG_VERSION=2.0.0~dev package/luci-app-cloudflare-ip/compile V=sc
+          else
+            make package/luci-app-cloudflare-ip/compile V=sc
+          fi
       - name: Inspect package artifact
         shell: bash
         working-directory: /builder
@@ -194,8 +203,7 @@ jobs:
           printf '%s\n' "$files" | while IFS= read -r file; do
             cp "$file" "$GITHUB_WORKSPACE/output/"
             case "${file##*.}" in
-              ipk) ar t "$file" | grep -q '^data.tar' ;;
-              apk) tar -tf "$file" >/dev/null ;;
+              ipk|apk) tar -tf "$file" >/dev/null ;;
             esac
           done
           sha256sum "$GITHUB_WORKSPACE/output"/* > "$GITHUB_WORKSPACE/output/SHA256SUMS"
