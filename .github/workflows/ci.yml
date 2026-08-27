@@ -212,7 +212,7 @@ jobs:
               ipk) tar -tf "$file" >/dev/null
                    bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" ipk ;;
               apk) test -x /builder/staging_dir/host/bin/apk
-                   /builder/staging_dir/host/bin/apk adbdump "$file" >/dev/null
+                   /builder/staging_dir/host/bin/apk --allow-untrusted adbdump "$file" >/dev/null
                    APK=/builder/staging_dir/host/bin/apk bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" apk ;;
             esac
           done

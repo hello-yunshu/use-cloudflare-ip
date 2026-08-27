@@ -20,7 +20,10 @@ case "$KIND" in
   apk)
     listing="$TMP/listing"
     mkdir -p "$TMP/root"
-    "${APK:-apk}" extract --root "$TMP/root" "$PACKAGE" >/dev/null
+    # OpenWrt's apk is an apk-tools v3 build.  Global options must precede
+    # the subcommand, and CI-built packages are intentionally not trusted by
+    # the target root's keyring.
+    "${APK:-apk}" --allow-untrusted --root "$TMP/root" extract "$PACKAGE" >/dev/null
     (cd "$TMP/root" && find . -type f -print | sed 's#^\./##') >"$listing"
     ;;
   *) echo "unsupported package kind: $KIND" >&2; exit 2 ;;

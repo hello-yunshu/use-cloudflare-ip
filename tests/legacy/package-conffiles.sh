@@ -10,5 +10,5 @@ grep -q 'cf_ip_publisher' "$PKG/Makefile"
 grep -q '/etc/init.d/cf_ip_publisher stop' "$PKG/Makefile"
 grep -q "sed -i 's/^PKG_VERSION:=2.0.0-dev\$/PKG_VERSION:=2.0.0.1/'" "$ROOT/.github/workflows/ci.yml"
 grep -q 'ipk) tar -tf' "$ROOT/.github/workflows/ci.yml"
-grep -q 'apk adbdump' "$ROOT/.github/workflows/ci.yml"
+grep -q 'apk --allow-untrusted adbdump' "$ROOT/.github/workflows/ci.yml"
 echo 'legacy package/conffiles contract passed'
