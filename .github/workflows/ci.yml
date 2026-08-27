@@ -185,10 +185,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ matrix.pkgtype }}" = apk ]; then
-            # APK accepts a development version only when the suffix is a
-            # valid hash; keep the source contract exact and override only
-            # this command-line build with the current commit hash.
-            make PKG_VERSION="2.0.0~${GITHUB_SHA:0:7}" package/luci-app-cloudflare-ip/compile V=sc
+            # APK accepts the numeric development build form; keep the
+            # source contract exact and override only this command-line
+            # build with an extra numeric component.
+            make PKG_VERSION=2.0.0.1 package/luci-app-cloudflare-ip/compile V=sc
           else
             make package/luci-app-cloudflare-ip/compile V=sc
           fi
