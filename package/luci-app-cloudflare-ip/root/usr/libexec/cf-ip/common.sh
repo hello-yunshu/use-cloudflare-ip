@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
+CFIP_INIT_DIR="${CFIP_INIT_DIR:-/etc/init.d}"
+
 cfip_log() {
     local msg="$*" ts
     ts="$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date)"
@@ -109,19 +111,19 @@ cfip_valid_cron() {
 
 cfip_service_running() {
     local service="$1"
-    [[ -x "/etc/init.d/$service" ]] || return 1
-    "/etc/init.d/$service" running >/dev/null 2>&1 || { [[ "$service" == openclash ]] && pidof clash >/dev/null 2>&1; }
+    [[ -x "$CFIP_INIT_DIR/$service" ]] || return 1
+    "$CFIP_INIT_DIR/$service" running >/dev/null 2>&1 || { [[ "$service" == openclash ]] && pidof clash >/dev/null 2>&1; }
 }
 
 cfip_stop_service() {
     local service="$1"
-    [[ -x "/etc/init.d/$service" ]] || return 1
+    [[ -x "$CFIP_INIT_DIR/$service" ]] || return 1
     if [[ "$service" == openclash ]]; then
         CFIP_OPENCLASH_ENABLE_SAVED="$(uci -q get openclash.config.enable 2>/dev/null || printf 1)"
         uci -q set openclash.config.enable=0
         uci -q commit openclash
     fi
-    "/etc/init.d/$service" stop >/dev/null 2>&1 || return 1
+    "$CFIP_INIT_DIR/$service" stop >/dev/null 2>&1 || return 1
     if [[ "$service" == openclash ]]; then
         local i pids
         for i in $(seq 1 30); do
@@ -144,16 +146,21 @@ cfip_stop_service() {
 }
 
 cfip_restart_service() {
-    local service="$1"
-    [[ -x "/etc/init.d/$service" ]] || return 1
+    local service="$1" deadline_class="${2:-normal}" remaining
+    [[ -x "$CFIP_INIT_DIR/$service" ]] || return 1
     if [[ "$service" == openclash && -n "${CFIP_OPENCLASH_ENABLE_SAVED:-}" ]]; then
         uci -q set "openclash.config.enable=${CFIP_OPENCLASH_ENABLE_SAVED}"
         uci -q commit openclash
     fi
-    "/etc/init.d/$service" restart >/dev/null 2>&1 || return 1
+    "$CFIP_INIT_DIR/$service" restart >/dev/null 2>&1 || return 1
     local i
     for i in $(seq 1 20); do
-        [[ "$(cfip_deadline_remaining)" -gt 0 ]] || return 1
+        if [[ "$deadline_class" == recovery ]]; then
+            remaining="$(cfip_recovery_remaining)"
+        else
+            remaining="$(cfip_measurement_remaining)"
+        fi
+        [[ "$remaining" -gt 0 ]] || return 124
         cfip_service_running "$service" && return 0
         sleep 1
     done
@@ -168,11 +175,31 @@ cfip_read_log_json() {
 
 cfip_now_epoch() { date +%s 2>/dev/null || printf 0; }
 
-cfip_deadline_remaining() {
+cfip_measurement_remaining() {
     local deadline="${CFIP_MEASUREMENT_DEADLINE:-0}" now
     ((deadline>0)) || { printf 86400; return 0; }
     now="$(cfip_now_epoch)"
     ((deadline>now)) && printf '%s' "$((deadline-now))" || printf 0
+}
+
+cfip_recovery_remaining() {
+    local deadline="${CFIP_RECOVERY_DEADLINE:-0}" now
+    ((deadline>0)) || { printf 86400; return 0; }
+    now="$(cfip_now_epoch)"
+    ((deadline>now)) && printf '%s' "$((deadline-now))" || printf 0
+}
+
+# Compatibility name for measurement callers. Recovery must use its own clock.
+cfip_deadline_remaining() { cfip_measurement_remaining; }
+
+cfip_begin_recovery() {
+    local now
+    [[ "${CFIP_RECOVERY_ACTIVE:-false}" == true ]] && return 0
+    now="$(cfip_now_epoch)"
+    CFIP_RECOVERY_STARTED_AT="$now"
+    CFIP_RECOVERY_DEADLINE=$((now + ${CFIP_RECOVERY_TIMEOUT:-30}))
+    CFIP_RECOVERY_ACTIVE=true
+    CFIP_RECOVERY_ERROR=""
 }
 
 # Portable watchdog for OpenWrt/Bash; does not require coreutils timeout.

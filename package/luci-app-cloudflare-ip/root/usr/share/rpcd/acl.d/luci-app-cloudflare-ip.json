@@ -6,7 +6,7 @@
 				"cf_ip": [ "status", "check-env", "refresh-env", "speedtest-status", "version", "read-log", "ip-history", "oc-list-backups", "source-status", "source-registry", "publisher-status" ]
 			},
 			"uci": [ "cf_ip" ],
-			"file": [ "/tmp/cf_ip/*" ]
+				"file": [ "/etc/cf_ip/*", "/tmp/cf_ip/*" ]
 		},
 		"write": {
 			"ubus": {

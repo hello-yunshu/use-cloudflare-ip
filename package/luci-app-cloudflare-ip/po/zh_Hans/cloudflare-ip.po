@@ -81,8 +81,14 @@ msgstr "未安装 PassWall 或 OpenClash，请先安装其中之一再使用此�
 msgid "IP Count"
 msgstr "IP 数量"
 
-msgid "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
-msgstr "保留的优选 IP 数量。如果测速结果不足，会用最快的 IP 自动补齐。"
+msgid "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
+msgstr "保留的优选 IP 数量。如果合格 IP 不足，会报告降级候选数量，绝不复制同一 IP。"
+
+msgid "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
+msgstr "停止服务、CFST、探测、应用和正常重启使用的测量 deadline；恢复使用独立 deadline。"
+
+msgid "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
+msgstr "回滚、恢复服务状态和恢复健康确认使用的独立保护 deadline，允许 10-120 秒。"
 
 msgid "IP Type"
 msgstr "IP 类型"

@@ -37,7 +37,7 @@ cf_ip_cron_remove() {
 }
 
 start_service() {
-	local enabled cfst_persist cron_interval cron_custom startup_delay
+	local enabled cfst_persist cron_interval cron_custom startup_delay work_dir cfst_path sysupgrade_tmp
 	config_load cf_ip
 	config_get_bool enabled main enabled 0
 
@@ -52,10 +52,17 @@ start_service() {
 
 	# Handle CFST sysupgrade persistence
 	config_get_bool cfst_persist main cfst_persist 1
+	config_get work_dir main work_dir "/usr/bin"
+	[ -n "$work_dir" ] || work_dir="/usr/bin"
+	cfst_path="${work_dir%/}/cfst/cfst"
 	if [ "$cfst_persist" -eq 1 ]; then
-		grep -qxF '/usr/bin/cfst' /etc/sysupgrade.conf 2>/dev/null || echo '/usr/bin/cfst' >> /etc/sysupgrade.conf
+		mkdir -p "${cfst_path%/*}" 2>/dev/null || true
+		grep -qxF "$cfst_path" /etc/sysupgrade.conf 2>/dev/null || echo "$cfst_path" >> /etc/sysupgrade.conf
 	else
-		sed -i '\|^/usr/bin/cfst$|d' /etc/sysupgrade.conf 2>/dev/null || true
+		if [ -f /etc/sysupgrade.conf ]; then
+			sysupgrade_tmp="/etc/sysupgrade.conf.cfip.$$"
+			grep -Fvx "$cfst_path" /etc/sysupgrade.conf >"$sysupgrade_tmp" 2>/dev/null && mv "$sysupgrade_tmp" /etc/sysupgrade.conf || rm -f "$sysupgrade_tmp"
+		fi
 	fi
 
 	# Pre-download/update CFST in background
@@ -126,7 +133,7 @@ validate_cf_ip() {
 		'cron_custom:string' \
 		'cfst_persist:bool' 'candidate_budget:uinteger' \
 		'probe_top_count:uinteger' 'probe_concurrency:uinteger' \
-		'probe_timeout:uinteger' 'measurement_timeout:uinteger'
+		'probe_timeout:uinteger' 'measurement_timeout:uinteger' 'recovery_timeout:uinteger'
 
 	uci_validate_section cf_ip passwall passwall \
 		'target_domain:string' 'name_suffix:string'

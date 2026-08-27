@@ -28,6 +28,7 @@ config service 'main'
 	option probe_concurrency '4'
 	option probe_timeout '5'
 	option measurement_timeout '60'
+	option recovery_timeout '30'
 	list builtin_sources 'cloudflare-official-v4'
 	list builtin_sources 'cloudflare-official-v6'
 

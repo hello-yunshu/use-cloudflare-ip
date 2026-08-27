@@ -128,10 +128,15 @@ cfip_post_apply_probe() {
     done < <(jq -r '.[]|[.ip,.family]|@tsv' "$selected_json")
     ((count > 0)) || return 2
     observed_at="$(date +%s)"
-    jq -cn --arg runId "$CFIP_RUN_ID" --argjson success "$ok" --argjson probes "$probes" --argjson observedAt "$observed_at" '
-      ($probes|map(select(.success==true))) as $s | ($s|length) as $n |
+    local primary_ip
+    primary_ip="$(jq -r '.[0].ip // empty' "$selected_json")"
+    jq -cn --arg runId "$CFIP_RUN_ID" --arg ip "$primary_ip" --argjson success "$ok" --argjson probes "$probes" --argjson observedAt "$observed_at" '
+      ($probes|map(select(.success==true))) as $s |
+      ($probes|map(select(.ip==$ip))) as $primary |
+      ($primary|map(select(.success==true))) as $primary_ok |
       {schemaVersion:1,runId:$runId,validated:$success,observedAt:$observedAt,probes:$probes,
-       appliedIps:($probes|map(.ip)|unique),
-       reward:(if ($success and $n>0) then (1/(1+(($s|map(.totalMs)|add/$n)/1000))) else null end)}' | cfip_atomic_write "$output"
+       ip:$ip,appliedIps:($probes|map(.ip)|unique),
+       primaryValidated:(($primary|length)>0 and ($primary_ok|length)==($primary|length)),
+       reward:(if (($primary|length)>0 and ($primary_ok|length)==($primary|length)) then 1/(1+(($primary_ok|map(.totalMs)|add/($primary_ok|length))/1000)) else null end) }' | cfip_atomic_write "$output"
     [[ "$ok" == true ]]
 }

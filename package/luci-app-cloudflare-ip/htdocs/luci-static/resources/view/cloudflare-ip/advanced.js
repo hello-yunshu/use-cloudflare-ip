@@ -81,9 +81,15 @@ return view.extend({
 		o.datatype = 'string';
 
 		o = s.option(form.Value, 'measurement_timeout', _('Proxy-off Hard Limit (seconds)'),
-			_('One global deadline covering stop, CFST, probes, apply and restart. Allowed: 20-300 seconds.'));
+			_('Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline.'));
 		o.datatype = 'range(20,300)';
 		o.default = '60';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'recovery_timeout', _('Recovery Deadline (seconds)'),
+			_('Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds.'));
+		o.datatype = 'range(10,120)';
+		o.default = '30';
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'probe_top_count', _('Probe Top Candidates'),

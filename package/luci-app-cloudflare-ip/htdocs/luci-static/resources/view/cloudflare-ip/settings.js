@@ -66,7 +66,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'ip_count', _('IP Count'),
-			_('Number of best IPs to keep. If fewer IPs found, the fastest one is reused.'));
+			_('Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP.'));
 		o.datatype = 'range(1,20)';
 		o.placeholder = '4';
 		o.rmempty = false;

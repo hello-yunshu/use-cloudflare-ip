@@ -1,6 +1,13 @@
 msgid ""
 msgstr ""
+"Project-Id-Version: luci-app-cloudflare-ip\n"
+"PO-Revision-Date: 2026-08-28 00:00+0800\n"
+"Last-Translator: yunshu\n"
+"Language-Team: English\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"MIME-Version: 1.0\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
 
 msgid "Cloudflare IP Optimization"
 msgstr ""
@@ -74,7 +81,13 @@ msgstr ""
 msgid "IP Count"
 msgstr ""
 
-msgid "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
+msgid "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
+msgstr ""
+
+msgid "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
+msgstr ""
+
+msgid "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
 msgstr ""
 
 msgid "IP Type"
@@ -583,4 +596,3 @@ msgstr ""
 
 msgid "Failed to trigger speedtest: %s"
 msgstr ""
-

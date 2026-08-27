@@ -81,8 +81,14 @@ msgstr "PassWall or OpenClash is not installed. Please install one before using 
 msgid "IP Count"
 msgstr "IP Count"
 
-msgid "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
-msgstr "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
+msgid "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
+msgstr "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
+
+msgid "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
+msgstr "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
+
+msgid "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
+msgstr "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
 
 msgid "IP Type"
 msgstr "IP Type"

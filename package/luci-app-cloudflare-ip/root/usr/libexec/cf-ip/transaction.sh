@@ -2,6 +2,7 @@
 # shellcheck shell=bash
 
 CFIP_TXN_DIR=""
+CFIP_TXN_ROLLED_BACK=false
 
 cfip_txn_prepare() {
     local mode="$1"
@@ -9,10 +10,21 @@ cfip_txn_prepare() {
     case "$mode" in
       passwall)
         uci export passwall >"$CFIP_TXN_DIR/passwall.uci" 2>/dev/null || { rm -rf "$CFIP_TXN_DIR"; CFIP_TXN_DIR=""; return 1; }
+        if [[ -f "${CFIP_PASSWALL_STATE_FILE:-${CFIP_STATUS_DIR:-/etc/cf_ip}/passwall-managed.json}" ]]; then
+            cp -p "${CFIP_PASSWALL_STATE_FILE:-${CFIP_STATUS_DIR:-/etc/cf_ip}/passwall-managed.json}" "$CFIP_TXN_DIR/passwall-managed.json" || { rm -rf "$CFIP_TXN_DIR"; CFIP_TXN_DIR=""; return 1; }
+            printf '%s\n' present >"$CFIP_TXN_DIR/passwall-managed.state"
+        else
+            printf '%s\n' absent >"$CFIP_TXN_DIR/passwall-managed.state"
+        fi
         ;;
       openclash)
         [[ -f "$CFIP_OPENCLASH_CONFIG" ]] || { rm -rf "$CFIP_TXN_DIR"; CFIP_TXN_DIR=""; return 1; }
         cp -p "$CFIP_OPENCLASH_CONFIG" "$CFIP_TXN_DIR/openclash.yaml" || { rm -rf "$CFIP_TXN_DIR"; CFIP_TXN_DIR=""; return 1; }
+        if command -v uci >/dev/null 2>&1; then
+            uci -q get openclash.config.enable >"$CFIP_TXN_DIR/openclash.enable" 2>/dev/null || printf '1\n' >"$CFIP_TXN_DIR/openclash.enable"
+        else
+            printf '%s\n' "${CFIP_OPENCLASH_ENABLE_SAVED:-1}" >"$CFIP_TXN_DIR/openclash.enable"
+        fi
         ;;
       *) rm -rf "$CFIP_TXN_DIR"; CFIP_TXN_DIR=""; return 1 ;;
     esac
@@ -21,21 +33,50 @@ cfip_txn_prepare() {
 cfip_txn_rollback() {
     local mode="$1"
     [[ -n "$CFIP_TXN_DIR" && -d "$CFIP_TXN_DIR" ]] || return 1
+    cfip_begin_recovery
+    CFIP_TXN_ROLLED_BACK=false
+    CFIP_RECOVERY_ERROR=""
     rm -f "$CFIP_TXN_DIR/passwall-managed.json.pending" 2>/dev/null || true
     case "$mode" in
       passwall)
         uci -q revert passwall || true
         uci import passwall <"$CFIP_TXN_DIR/passwall.uci" >/dev/null 2>&1 || return 1
         uci commit passwall >/dev/null 2>&1 || return 1
-        cfip_restart_service passwall || return 1
-        uci export passwall 2>/dev/null | cmp -s - "$CFIP_TXN_DIR/passwall.uci"
+        local state_file="${CFIP_PASSWALL_STATE_FILE:-${CFIP_STATUS_DIR:-/etc/cf_ip}/passwall-managed.json}"
+        if [[ "$(cat "$CFIP_TXN_DIR/passwall-managed.state" 2>/dev/null || printf absent)" == present ]]; then
+            mkdir -p "${state_file%/*}" 2>/dev/null || return 1
+            cp -p "$CFIP_TXN_DIR/passwall-managed.json" "${state_file}.rollback.$$" || return 1
+            mv "${state_file}.rollback.$$" "$state_file" || return 1
+        else
+            rm -f "$state_file" || return 1
+        fi
+        local recovery_rc=0
+        cfip_restart_service passwall recovery || recovery_rc=$?
+        if ((recovery_rc != 0)); then
+            ((recovery_rc == 124)) && CFIP_RECOVERY_ERROR="RecoveryTimeout" || CFIP_RECOVERY_ERROR="RecoveryRestartFailed"
+            return 1
+        fi
+        uci export passwall 2>/dev/null | cmp -s - "$CFIP_TXN_DIR/passwall.uci" || return 1
+        CFIP_TXN_ROLLED_BACK=true
         ;;
       openclash)
         cp "$CFIP_TXN_DIR/openclash.yaml" "${CFIP_OPENCLASH_CONFIG}.rollback.$$" || return 1
         mv "${CFIP_OPENCLASH_CONFIG}.rollback.$$" "$CFIP_OPENCLASH_CONFIG" || return 1
-        cfip_restart_service openclash || return 1
-        cmp -s "$CFIP_OPENCLASH_CONFIG" "$CFIP_TXN_DIR/openclash.yaml"
+        CFIP_OPENCLASH_ENABLE_SAVED="$(cat "$CFIP_TXN_DIR/openclash.enable" 2>/dev/null || printf 1)"
+        if command -v uci >/dev/null 2>&1; then
+            uci -q set "openclash.config.enable=${CFIP_OPENCLASH_ENABLE_SAVED}" || return 1
+            uci -q commit openclash || return 1
+        fi
+        local recovery_rc=0
+        cfip_restart_service openclash recovery || recovery_rc=$?
+        if ((recovery_rc != 0)); then
+            ((recovery_rc == 124)) && CFIP_RECOVERY_ERROR="RecoveryTimeout" || CFIP_RECOVERY_ERROR="RecoveryRestartFailed"
+            return 1
+        fi
+        cmp -s "$CFIP_OPENCLASH_CONFIG" "$CFIP_TXN_DIR/openclash.yaml" || return 1
+        CFIP_TXN_ROLLED_BACK=true
         ;;
+      *) return 1 ;;
     esac
 }
 
@@ -137,6 +178,7 @@ cfip_passwall_apply_selected() {
 # compatible and are executed inside this transaction boundary.
 cfip_openclash_apply_selected() {
     local selected="$1"
+    cfip_openclash_intended_from_templates "$selected" "$CFIP_TXN_DIR/openclash.yaml" "$CFIP_TARGET_DOMAINS" "$CFIP_OPENCLASH_NAME_SUFFIX" "$CFIP_OPENCLASH_TRANSPORT_FILTER" "$CFIP_TXN_DIR/openclash-intended.json" || return 1
     cfip_openclash_transform_selected "$selected"
 }
 
