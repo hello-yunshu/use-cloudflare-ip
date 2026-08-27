@@ -206,7 +206,7 @@ jobs:
             case "${file##*.}" in
               ipk) tar -tf "$file" >/dev/null ;;
               apk) test -x /builder/staging_dir/host/bin/apk
-                   /builder/staging_dir/host/bin/apk manifest --allow-untrusted "$file" >/dev/null ;;
+                   /builder/staging_dir/host/bin/apk adbdump "$file" >/dev/null ;;
             esac
           done
           sha256sum "$GITHUB_WORKSPACE/output"/* > "$GITHUB_WORKSPACE/output/SHA256SUMS"
