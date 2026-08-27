@@ -97,6 +97,24 @@ return view.extend({
 		o.placeholder = '10';
 		o.rmempty = false;
 
+		o = s.option(form.Value, 'speedtest_dt', _('Download Seconds per IP'),
+			_('Seconds spent on the download measurement for each shortlisted IP.'));
+		o.datatype = 'range(1,60)';
+		o.default = '6';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'speedtest_threads', _('Speed Test Threads'),
+			_('CFST measurement concurrency. This controls load, not the candidate budget.'));
+		o.datatype = 'range(1,1000)';
+		o.default = '200';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'speedtest_ping_count', _('Ping Count'),
+			_('Number of latency samples per candidate.'));
+		o.datatype = 'range(1,20)';
+		o.default = '3';
+		o.rmempty = false;
+
 		o = s.option(form.Value, 'speedtest_tll', _('Average Latency Floor (ms)'),
 			_('Skip IPs with average latency below this value.'));
 		o.datatype = 'range(0,1000)';

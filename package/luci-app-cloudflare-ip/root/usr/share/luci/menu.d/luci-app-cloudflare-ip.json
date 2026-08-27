@@ -35,6 +35,26 @@
 			"path": "cloudflare-ip/advanced"
 		}
 	},
+	"admin/services/cf_ip/sources": {
+		"title": "Candidate IP Sources",
+		"order": 35,
+		"action": { "type": "view", "path": "cloudflare-ip/sources" }
+	},
+	"admin/services/cf_ip/intelligence": {
+		"title": "Intelligence",
+		"order": 45,
+		"action": { "type": "view", "path": "cloudflare-ip/intelligence" }
+	},
+	"admin/services/cf_ip/passwall": {
+		"title": "PassWall",
+		"order": 55,
+		"action": { "type": "view", "path": "cloudflare-ip/passwall" }
+	},
+	"admin/services/cf_ip/openclash": {
+		"title": "OpenClash",
+		"order": 56,
+		"action": { "type": "view", "path": "cloudflare-ip/openclash" }
+	},
 	"admin/services/cf_ip/logs": {
 		"title": "Logs & Records",
 		"order": 60,

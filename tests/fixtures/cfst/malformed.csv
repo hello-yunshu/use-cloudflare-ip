@@ -1,0 +1,3 @@
+IP,Sent,Received,Loss,Latency,Download,Colo
+not-an-ip,4,4,0,1,999,XXX
+104.16.1.3,4,4,NaN,NaN,NaN,LAX

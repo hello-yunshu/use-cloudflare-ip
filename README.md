@@ -23,7 +23,7 @@
 - **连通性验证**：测速后逐个验证 IP 可达性，不可用自动跳过
 - **多域名支持**：目标域名支持逗号分隔多个
 - **IP 历史记录**：查看历史优选 IP 列表
-- **自更新**：脚本支持从 GitHub 自动更新
+- **升级策略**：2.0 使用软件包升级；旧脚本自更新入口仅保留迁移兼容性
 
 ## 安装
 
@@ -240,3 +240,14 @@ htdocs/luci-static/resources/
 ## 致谢
 
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
+## 2.0 clean-rebuild 引擎（开发版）
+
+包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；候选 IP 来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、可选 RillML 1.5.3 shadow 智能和可选 LAN Publisher 为新增能力。
+
+候选测速数量默认 128，允许 100-512 个唯一候选。历史优质 IP、社区种子和 Cloudflare 官方网段探索约占 1/8、5/8、1/4；官方 CIDR 会先由调度器采样为具体 IP，每个任务只启动一次 CFST。社区源中的 `IP:port` 只贡献 IP，域名候选会被拒绝且不会 DNS 解析。
+
+应用 PassWall 或 OpenClash 前，每个选中 IP 都必须使用正确 SNI/Host 通过目标域名探测。Host transaction 在关闭代理前保存配置和服务状态，使用一个全局代理关闭硬时限，执行纯变换、意图映射回读、重启和健康检查。超时、资格探测失败或重启失败都会回滚并恢复原服务状态；Rill 出错时回退到 Native Rank。
+
+2.0 的自更新已弃用，因为引擎是多文件、由软件包管理。默认 `auto_update=0`，请通过经过验证的 IPK/APK 升级。UCI、CFST、来源 last-good 缓存、managed ownership 和有限历史会保留；运行、探测和 publisher 文件可重建。LAN Publisher 默认关闭，只允许 LAN 绑定，拒绝 `0.0.0.0`，提供 `/ip.txt`、`/best-ipv4.txt`、`/best-ipv6.txt` 和 `/result.json`。
+
+发布状态：仅开发版。稳定发布必须通过完整 legacy 矩阵、Host/RPC/LuCI、Rill native、五个 musl 目标、OpenWrt IPK/APK、回滚和真实 CFST smoke；Docker/软件包检查不等同于真实 OpenWrt 设备或硬件 soak。

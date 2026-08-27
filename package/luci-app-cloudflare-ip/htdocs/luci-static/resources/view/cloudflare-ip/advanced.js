@@ -6,8 +6,6 @@
 'require uci';
 'require cloudflare-ip/utils as utils';
 
-var callSelfUpdate = rpc.declare({ object: 'cf_ip', method: 'self-update', expect: { '': {} } });
-
 return view.extend({
 	title: _('Advanced'),
 
@@ -21,42 +19,24 @@ return view.extend({
 
 		m = new form.Map('cf_ip', _('Advanced'));
 
-		/* Self Update */
+		/* Self Update: 2.x is package-managed; keep the old keys readable but do
+		 * not expose a button that claims to replace one script safely. */
 		s = m.section(form.TypedSection, 'service', _('Self Update'));
 		s.anonymous = true;
 
 		o = s.option(form.Flag, 'auto_update', _('Auto Update Script'),
-			_('Auto-check and update script on startup.'));
-		o.default = '1';
+			_('Deprecated in 2.x. Package upgrades are required to update the engine.'));
+		o.default = '0';
 		o.rmempty = false;
+		o.readonly = true;
 
 		o = s.option(form.Value, 'self_update_url', _('Self Update URL'),
-			_('URL to download the latest script version.'));
+			_('Retained only for migration compatibility; it is not used by the 2.x engine.'));
 		o.placeholder = 'https://raw.githubusercontent.com/...';
 		o.rmempty = false;
 		o.datatype = 'string';
-		o.depends('auto_update', '1');
-
-		o = s.option(form.Button, '_self_update', _('Update Script Now'),
-			_('Manually check for and install the latest script version.'));
-		o.inputtitle = _('Update Script');
-		o.inputstyle = 'apply';
-		o.onclick = function() {
-			ui.addNotification(null, E('p', _('Checking for script updates, this may take a moment. Please wait...')), 'info');
-			return callSelfUpdate().then(function(res) {
-				res = res || {};
-				if (res.success !== true) {
-					ui.addNotification(null, E('p', _('Self-update failed: ') + (res.error || _('unknown'))), 'error');
-				} else if (res.updated) {
-					ui.addNotification(null, E('p', _('Script updated to version %s.').format(res.new_version || res.version || '')), 'info');
-					utils.reloadSoon(2000);
-				} else {
-					ui.addNotification(null, E('p', _('Script is already up to date.')), 'info');
-				}
-			}).catch(function(e) {
-				ui.addNotification(null, E('p', _('Self-update failed: ') + e.message), 'error');
-			});
-		};
+		o = s.option(form.DummyValue, '_self_update_note', _('Update policy'));
+		o.cfgvalue = function() { return _('Deprecated / package-managed'); };
 
 		/* Download */
 		s = m.section(form.TypedSection, 'service', _('Download'));
@@ -99,6 +79,30 @@ return view.extend({
 		o.placeholder = '/root/cf-ip';
 		o.rmempty = true;
 		o.datatype = 'string';
+
+		o = s.option(form.Value, 'measurement_timeout', _('Proxy-off Hard Limit (seconds)'),
+			_('One global deadline covering stop, CFST, probes, apply and restart. Allowed: 20-300 seconds.'));
+		o.datatype = 'range(20,300)';
+		o.default = '60';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'probe_top_count', _('Probe Top Candidates'),
+			_('Number of CFST results to verify against every target domain before ranking.'));
+		o.datatype = 'range(1,32)';
+		o.default = '8';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'probe_concurrency', _('Probe Concurrency'),
+			_('Concurrent target-domain probes, bounded to protect the proxy-off window.'));
+		o.datatype = 'range(1,16)';
+		o.default = '4';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'probe_timeout', _('Probe Timeout (seconds)'),
+			_('Per-domain probe timeout; the global hard limit still wins.'));
+		o.datatype = 'range(1,30)';
+		o.default = '5';
+		o.rmempty = false;
 
 		utils.createHandleSave(m);
 		utils.createHandleSaveApply(m);

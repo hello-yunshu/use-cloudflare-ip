@@ -1,0 +1,4 @@
+# sample modeled after Issue #4 source shape; not a live mirror
+104.16.0.1:443#US
+23.175.201.2:8443#HK
+45.32.251.225:2053#JP

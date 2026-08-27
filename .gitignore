@@ -1,3 +1,4 @@
 cf-openwrt-auto.conf
-cfst/
+/cfst/
+rill-adapter/target/
 .trae/

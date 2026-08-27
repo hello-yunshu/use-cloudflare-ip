@@ -23,7 +23,7 @@
 - **Connectivity Verification**: Validates each IP after benchmarking, skips unreachable ones
 - **Multi-Domain Support**: Comma-separated target domains
 - **IP History**: View historical optimized IP list
-- **Self-Update**: Script auto-updates from GitHub
+- **Upgrade Policy**: 2.0 is package-managed; the legacy script self-update key is retained only for migration compatibility
 
 ## Installation
 
@@ -240,3 +240,14 @@ This project uses GitHub Actions for automated builds:
 ## Acknowledgments
 
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
+## 2.0 clean-rebuild engine (development)
+
+Package version `2.0.0-dev` is rebuilt from the complete 1.8.3 behavior baseline. Overview, Settings, Diagnostics, PassWall, OpenClash, scheduling, CFST, suffixes, multi-IP variants, backups, and upgrade behavior remain available. Candidate IP Sources, bounded scheduling, target-domain Active Probe, Native Rank, transactional apply/rollback, optional RillML 1.5.3 shadow intelligence, and an optional LAN Publisher are additive.
+
+Candidate Budget defaults to 128 and accepts 100-512 unique candidates. Fresh history, community seeds, and official CIDR exploration receive about 1/8, 5/8, and 1/4; deficits flow between pools. Official CIDRs are sampled into concrete IPs and one CFST process measures the merged input. A community `IP:port` contributes only its IP; domain candidates are rejected without DNS resolution.
+
+Before PassWall or OpenClash is changed, every selected IP must pass the configured target-domain probe with the intended SNI/Host. One host transaction captures state before stopping the proxy, enforces one global proxy-off hard limit, invokes a pure transformer, reads back intended mappings, restarts, and verifies health. Timeout, failed eligibility, or restart failure rolls back configuration and managed state. Rill errors always fall back to Native Rank.
+
+Script self-update is deprecated because 2.0 is multi-file and package-managed. `auto_update=0` is the default; upgrade via a validated IPK/APK package. UCI, CFST, source last-good caches, ownership and bounded history persist across upgrades, while run/probe/publisher files are temporary. LAN Publisher is disabled by default, LAN-only, refuses `0.0.0.0`, and serves `/ip.txt`, `/best-ipv4.txt`, `/best-ipv6.txt`, and `/result.json`.
+
+Release status: development only. Stable publication requires every legacy item, host/RPC/LuCI, Rill native and five musl targets, IPK/APK artifacts, rollback gates, and real CFST smoke. Package or Docker checks do not prove live OpenWrt or hardware soak.

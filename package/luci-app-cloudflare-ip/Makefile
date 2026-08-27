@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-cloudflare-ip
-PKG_VERSION:=1.8.3
+PKG_VERSION:=2.0.0-dev
 PKG_RELEASE:=1
 
 PKG_MAINTAINER:=yunshu
@@ -12,8 +12,8 @@ include $(INCLUDE_DIR)/package.mk
 define Package/luci-app-cloudflare-ip
   SECTION:=luci
   CATEGORY:=LuCI
-  TITLE:=Cloudflare IP - Optimize Cloudflare IPs for PassWall/OpenClash on OpenWrt
-  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates
+  TITLE:=Cloudflare IP - Safe endpoint orchestration for PassWall/OpenClash on OpenWrt
+  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates +uhttpd
   PKGARCH:=all
 endef
 
@@ -47,6 +47,8 @@ define Build/Compile
 			"$(STAGING_DIR_HOSTPKG)/bin/po2lmo" "$$$$po_dir/cloudflare-ip.po" "$(PKG_BUILD_DIR)/lmo/cloudflare-ip.$$$$lmo_lang.lmo"; \
 		fi; \
 	done; \
+	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g; s/@PKG_RELEASE@/$(PKG_RELEASE)/g' $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto-v2
+	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto-legacy
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/cf_ip
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/htdocs/luci-static/resources/cloudflare-ip/utils.js
@@ -54,13 +56,17 @@ endef
 
 define Package/luci-app-cloudflare-ip/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto-v2 $(1)/usr/bin/cf-ip-auto
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/bin/cf-ip-auto-legacy $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/root/etc/config/cf_ip $(1)/etc/config/
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/etc/init.d/cf_ip $(1)/etc/init.d/
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/cf_ip $(1)/usr/libexec/rpcd/
+	$(INSTALL_DIR) $(1)/usr/libexec/cf-ip
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/libexec/cf-ip/*.sh $(1)/usr/libexec/cf-ip/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/etc/init.d/cf_ip_publisher $(1)/etc/init.d/
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/cloudflare-ip
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/cloudflare-ip/*.js $(1)/www/luci-static/resources/view/cloudflare-ip/
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/cloudflare-ip
@@ -99,6 +105,7 @@ define Package/luci-app-cloudflare-ip/prerm
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || { \
 	/etc/init.d/cf_ip stop 2>/dev/null; \
+	/etc/init.d/cf_ip_publisher stop 2>/dev/null; \
 	/etc/init.d/cf_ip disable 2>/dev/null; \
 	rm -f /tmp/luci-indexcache.*; \
 	rm -rf /tmp/luci-modulecache/; \

@@ -116,13 +116,17 @@ validate_cf_ip() {
 		'enabled:bool' 'mode:string' 'ip_count:uinteger' \
 		'ip_type:string' 'speedtest_protocol:string' \
 		'speedtest_cfcolo:string' 'speedtest_dn:uinteger' \
+		'speedtest_dt:uinteger' 'speedtest_threads:uinteger' \
+		'speedtest_ping_count:uinteger' \
 		'speedtest_tll:uinteger' 'speedtest_tl:uinteger' 'stop_service:bool' \
 		'startup_delay:string' 'auto_update:bool' \
 		'self_update_url:string' 'download_retries:uinteger' \
 		'download_retry_delay:uinteger' 'github_mirror:string' \
 		'verbose:bool' 'work_dir:string' 'cron_interval:string' \
 		'cron_custom:string' \
-		'cfst_persist:bool'
+		'cfst_persist:bool' 'candidate_budget:uinteger' \
+		'probe_top_count:uinteger' 'probe_concurrency:uinteger' \
+		'probe_timeout:uinteger' 'measurement_timeout:uinteger'
 
 	uci_validate_section cf_ip passwall passwall \
 		'target_domain:string' 'name_suffix:string'
@@ -131,4 +135,11 @@ validate_cf_ip() {
 		'config:string' 'target_domain:string' \
 		'name_suffix:string' 'transport_filter:string' \
 		'backup_count:uinteger'
+
+	uci_validate_section cf_ip rill rill \
+		'enabled:bool' 'mode:string' 'adapter:string' \
+		'state_file:string' 'timeout_ms:uinteger'
+
+	uci_validate_section cf_ip lan lan \
+		'enabled:bool' 'bind_address:string' 'port:port'
 }
