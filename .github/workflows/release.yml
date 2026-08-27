@@ -25,7 +25,7 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       release: ${{ steps.check.outputs.release }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: check
@@ -86,7 +86,7 @@ jobs:
       image: ghcr.io/openwrt/sdk:${{ matrix.arch }}-${{ matrix.branch }}
       options: --user root
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           path: ${{ env.REPO_NAME }}
 
@@ -95,12 +95,6 @@ jobs:
           mkdir -p "$SDKDIR/shared-workdir"
           rm -rf "$SDKDIR/shared-workdir/build"
           ln -sf "$SDKDIR" "$SDKDIR/shared-workdir/build"
-
-      - name: Cache SDK build
-        uses: HiGarfield/cachewrtbuild@main
-        with:
-          mixkey: ${{ matrix.branch }}
-          prefix: ${{ env.SDKDIR }}
 
       - name: Update feeds
         working-directory: ${{ env.SDKDIR }}
@@ -140,7 +134,7 @@ jobs:
           ls -la "$GITHUB_WORKSPACE/output/"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.pkgtype }}
           path: output/
@@ -149,7 +143,7 @@ jobs:
     needs: [check-version, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@main
+      - uses: actions/download-artifact@v8
         with:
           path: release/
 
