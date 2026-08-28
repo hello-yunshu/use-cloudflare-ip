@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: ce1b6cc04e4317d60403b9244327f422231297fd
+          ref: 2837064a8c1431c13f24bc11090d9a32aad27c25
           path: rill-openwrt-packages
       - name: Prepare SDK
         shell: bash
@@ -171,7 +171,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: ce1b6cc04e4317d60403b9244327f422231297fd
+          ref: 2837064a8c1431c13f24bc11090d9a32aad27c25
           path: rill-openwrt-packages
       - name: Build the exact Stable-tag Runtime
         id: runtime
