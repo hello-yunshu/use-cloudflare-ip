@@ -150,7 +150,7 @@ jobs:
 
   package-release-guard:
     runs-on: ubuntu-latest
-    needs: [host-contract, rill-native, openwrt-package]
+    needs: [host-contract, openwrt-package]
     steps:
       - uses: actions/checkout@v7
       - name: Verify development release guard
