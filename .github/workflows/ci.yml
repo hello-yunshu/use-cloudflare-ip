@@ -103,6 +103,15 @@ jobs:
           ln -sf /builder /builder/shared-workdir/build
           ./scripts/feeds update base packages luci
           ./scripts/feeds install luci-base bash curl tar jq ca-bundle ca-certificates uhttpd rust
+          for rust_makefile in feeds/packages/lang/rust/Makefile feeds/packages/lang/rust/rust-host-build.mk; do
+            if [ -f "$rust_makefile" ]; then
+              sed -i 's/--set=llvm.download-ci-llvm=true/--set=llvm.download-ci-llvm=false/g' "$rust_makefile"
+            fi
+          done
+          if grep -R -n -- '--set=llvm.download-ci-llvm=true' feeds/packages/lang/rust; then
+            echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
+            exit 1
+          fi
           cp -r "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/package/luci-app-cloudflare-ip" ./package/
           cp -r "$GITHUB_WORKSPACE/rill-ml/packaging/openwrt/rill-runtime" ./package/
           echo 'CONFIG_PACKAGE_rill-runtime=y' >> .config
