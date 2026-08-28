@@ -110,11 +110,10 @@ jobs:
           make defconfig
       - name: Build package
         shell: bash
-        env:
-          CI: ""
         working-directory: /builder
         run: |
           set -euo pipefail
+          unset CI
           make package/rill-runtime/compile V=sc
           if [ "${{ matrix.pkgtype }}" = apk ]; then
             # APK rejects the source development suffix. Patch only the
