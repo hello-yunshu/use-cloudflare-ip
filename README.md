@@ -244,7 +244,7 @@ htdocs/luci-static/resources/
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
 ## 2.0 clean-rebuild 引擎（开发版）
 
-包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；候选 IP 来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、可选 RillML 1.5.3 shadow 智能和可选 LAN Publisher 为新增能力。
+包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；候选 IP 来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Runtime 由独立 `rill-runtime` OpenWrt 包拥有，CF 只保留消费者映射。
 
 候选测速数量默认 128，允许 100-512 个唯一候选。历史优质 IP、社区种子和 Cloudflare 官方网段探索约占 1/8、5/8、1/4；官方 CIDR 会先由调度器采样为具体 IP，每个任务只启动一次 CFST。社区源中的 `IP:port` 只贡献 IP，域名候选会被拒绝且不会 DNS 解析。
 

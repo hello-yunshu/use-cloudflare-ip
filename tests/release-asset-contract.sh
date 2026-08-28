@@ -4,10 +4,7 @@ ROOT_DIR="${1:?release directory required}"; VERSION="${2:?package version requi
 checksum="$ROOT_DIR/sha256sums.txt"
 test -f "$checksum"
 assets=()
-for pattern in "luci-app-cloudflare-ip*.ipk" "luci-app-cloudflare-ip*.apk" \
-  "cf-ip-rill-${VERSION}-linux-x86_64-musl" "cf-ip-rill-${VERSION}-linux-aarch64-musl" \
-  "cf-ip-rill-${VERSION}-linux-riscv64-musl" "cf-ip-rill-${VERSION}-linux-armv7-musl" \
-  "cf-ip-rill-${VERSION}-linux-i686-musl"; do
+for pattern in "luci-app-cloudflare-ip*.ipk" "luci-app-cloudflare-ip*.apk"; do
   found=()
   while IFS= read -r file; do found+=("$file"); done < <(find "$ROOT_DIR" -type f -name "$pattern" ! -name sha256sums.txt)
   test "${#found[@]}" -eq 1 || { echo "expected one release asset for $pattern" >&2; exit 1; }

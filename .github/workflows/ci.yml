@@ -69,89 +69,6 @@ jobs:
             bash "$test"
           done
 
-  rill-native:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.94.0
-          components: rustfmt, clippy
-      - name: Format
-        working-directory: rill-adapter
-        run: cargo fmt --check
-      - name: Clippy
-        working-directory: rill-adapter
-        run: cargo clippy --all-targets -- -D warnings
-      - name: Test
-        working-directory: rill-adapter
-        run: cargo test
-      - name: Build consumer adapter
-        working-directory: rill-adapter
-        run: cargo build --release
-      - name: Consumer smoke
-        run: |
-          bash tests/rill-adapter-smoke.sh rill-adapter/target/release/cf-ip-rill
-          bash tests/rill-feedback-integration.sh rill-adapter/target/release/cf-ip-rill
-
-  rill-musl-build-and-execute:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-musl
-            qemu: native
-            suffix: linux-x86_64-musl
-          - target: aarch64-unknown-linux-musl
-            qemu: qemu-aarch64-static
-            suffix: linux-aarch64-musl
-          - target: riscv64gc-unknown-linux-musl
-            qemu: qemu-riscv64-static
-            suffix: linux-riscv64-musl
-          - target: armv7-unknown-linux-musleabihf
-            qemu: qemu-arm-static
-            suffix: linux-armv7-musl
-          - target: i686-unknown-linux-musl
-            qemu: qemu-i386-static
-            suffix: linux-i686-musl
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.94.0
-          targets: ${{ matrix.target }}
-      - name: Install cross tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static python3-pip
-          pip3 install --disable-pip-version-check 'cargo-zigbuild==0.20.1'
-      - name: Build consumer-owned adapter
-        working-directory: rill-adapter
-        run: cargo zigbuild --release --target '${{ matrix.target }}'
-      - name: Real-execute target binary
-        shell: bash
-        run: |
-          set -euo pipefail
-          bin="rill-adapter/target/${{ matrix.target }}/release/cf-ip-rill"
-          state="$RUNNER_TEMP/cf-ip-rill-state.json"
-          if [ '${{ matrix.qemu }}' = native ]; then
-            "$bin" status --state "$state" | tee status.json
-            bash tests/rill-adapter-smoke.sh "$bin"
-          else
-            '${{ matrix.qemu }}' "$bin" status --state "$state" | tee status.json
-            RUNNER='${{ matrix.qemu }}' bash tests/rill-adapter-smoke.sh "$bin"
-          fi
-          jq -e '.success == true and .rillVersion == "1.5.3" and .adapterProtocolVersion == 1' status.json
-          mkdir -p dist
-          version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
-          cp "$bin" "dist/cf-ip-rill-${version}-${{ matrix.suffix }}"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: cf-ip-rill-${{ matrix.suffix }}
-          path: dist/cf-ip-rill-*
-          if-no-files-found: error
-
   openwrt-package:
     runs-on: ubuntu-latest
     strategy:
@@ -171,6 +88,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: luci-app-cloudflare-ip
+      - uses: actions/checkout@v7
+        with:
+          repository: hello-yunshu/rill-ml
+          ref: main
+          path: rill-ml
       - name: Prepare SDK
         shell: bash
         run: |
@@ -182,6 +104,8 @@ jobs:
           ./scripts/feeds update base packages luci
           ./scripts/feeds install luci-base bash curl tar jq ca-bundle ca-certificates uhttpd
           cp -r "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/package/luci-app-cloudflare-ip" ./package/
+          cp -r "$GITHUB_WORKSPACE/rill-ml/packaging/openwrt/rill-runtime" ./package/
+          echo 'CONFIG_PACKAGE_rill-runtime=y' >> .config
           echo 'CONFIG_PACKAGE_luci-app-cloudflare-ip=y' >> .config
           make defconfig
       - name: Build package
@@ -189,6 +113,7 @@ jobs:
         working-directory: /builder
         run: |
           set -euo pipefail
+          make package/rill-runtime/compile V=sc
           if [ "${{ matrix.pkgtype }}" = apk ]; then
             # APK rejects the source development suffix. Patch only the
             # checked-out package Makefile so dependency PKG_VERSION values
@@ -303,13 +228,12 @@ jobs:
           mkdir -p "$tmp"
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
           touch "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.ipk" "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.apk"
-          for arch in x86_64 aarch64 riscv64 armv7 i686; do touch "$tmp/cf-ip-rill-${version}-linux-${arch}-musl"; done
-          (cd "$tmp" && sha256sum luci-app-cloudflare-ip* cf-ip-rill-* > sha256sums.txt)
+          (cd "$tmp" && sha256sum luci-app-cloudflare-ip* > sha256sums.txt)
           bash tests/release-asset-contract.sh "$tmp" "$version"
 
   qualification-guard:
     if: always()
-    needs: [host-contract, legacy-contract, rpc-luci-contract, rill-native, rill-musl-build-and-execute, openwrt-package, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
+    needs: [host-contract, legacy-contract, rpc-luci-contract, openwrt-package, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
     runs-on: ubuntu-latest
     steps:
       - name: Require every qualification job
@@ -322,7 +246,7 @@ jobs:
 
   evidence-manifest:
     if: always()
-    needs: [host-contract, legacy-contract, rpc-luci-contract, rill-native, rill-musl-build-and-execute, openwrt-package, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
+    needs: [host-contract, legacy-contract, rpc-luci-contract, openwrt-package, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -335,14 +259,7 @@ jobs:
           ARTIFACTS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate --jq '[.artifacts[] | {name: .name, digest: (.digest // null), size: .size_in_bytes}]' | jq -s 'add')"
           asset_dir="$RUNNER_TEMP/qualification-assets"
           mkdir -p "$asset_dir"
-          for artifact in \
-            luci-app-cloudflare-ip-ipk-v24.10.5 \
-            luci-app-cloudflare-ip-apk-v25.12.0 \
-            cf-ip-rill-linux-x86_64-musl \
-            cf-ip-rill-linux-aarch64-musl \
-            cf-ip-rill-linux-riscv64-musl \
-            cf-ip-rill-linux-armv7-musl \
-            cf-ip-rill-linux-i686-musl; do
+          for artifact in luci-app-cloudflare-ip-ipk-v24.10.5 luci-app-cloudflare-ip-apk-v25.12.0; do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "$asset_dir/$artifact"
           done
           asset_files='[]'
@@ -350,8 +267,8 @@ jobs:
             hash=$(sha256sum "$file" | awk '{print $1}')
             rel="${file#"$asset_dir"/}"
             asset_files=$(jq --arg path "$rel" --arg sha "$hash" '. + [{path:$path,sha256:$sha}]' <<<"$asset_files")
-          done < <(find "$asset_dir" -type f \( -name '*.ipk' -o -name '*.apk' -o -name 'cf-ip-rill-*' \) -print0)
-          test "$(jq 'length' <<<"$asset_files")" -eq 7
+          done < <(find "$asset_dir" -type f \( -name '*.ipk' -o -name '*.apk' \) -print0)
+          test "$(jq 'length' <<<"$asset_files")" -eq 2
           RESULTS="$RESULTS" ARTIFACTS="$ARTIFACTS" ASSET_FILES="$asset_files" bash tests/evidence-manifest.sh qualification.json
       - uses: actions/upload-artifact@v7
         with:

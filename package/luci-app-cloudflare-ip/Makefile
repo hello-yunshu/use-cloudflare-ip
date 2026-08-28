@@ -13,7 +13,7 @@ define Package/luci-app-cloudflare-ip
   SECTION:=luci
   CATEGORY:=LuCI
   TITLE:=Cloudflare IP - Safe endpoint orchestration for PassWall/OpenClash on OpenWrt
-  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates +uhttpd
+  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates +uhttpd +rill-runtime
   PKGARCH:=all
 endef
 

@@ -10,7 +10,7 @@
 		},
 		"write": {
 			"ubus": {
-				"cf_ip": [ "run", "clear-log", "self-update", "download-cfst", "source-refresh", "rill-install", "rill-remove", "start", "stop", "restart", "sync", "oc-restore-backup", "oc-delete-backup" ],
+				"cf_ip": [ "run", "clear-log", "self-update", "download-cfst", "source-refresh", "start", "stop", "restart", "sync", "oc-restore-backup", "oc-delete-backup" ],
 				"luci": [ "setInitAction" ]
 			},
 			"uci": [ "cf_ip" ]

@@ -35,7 +35,7 @@ config service 'main'
 config rill 'rill'
 	option enabled '0'
 	option mode 'shadow'
-	option adapter '/usr/libexec/cf-ip/cf-ip-rill'
+	option runtime '/usr/bin/rill-runtime'
 	option state_file '/etc/cf_ip/rill-state.json'
 	option timeout_ms '2000'
 

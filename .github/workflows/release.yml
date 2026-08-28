@@ -43,7 +43,7 @@ jobs:
           gh run download "$QUALIFICATION_RUN_ID" --repo "$GITHUB_REPOSITORY" --name qualification-evidence --dir "$RUNNER_TEMP/qualification"
           manifest="$RUNNER_TEMP/qualification/qualification.json"
           test -f "$manifest"
-          jq -e --arg sha "$QUALIFICATION_SHA" '.schemaVersion==1 and .commit==$sha and .releaseEligible==true and .qualificationState=="automated-qualification" and (.assetFiles|length)==7 and all(.assetFiles[]; (.sha256|test("^[0-9a-fA-F]{64}$")))' "$manifest" >/dev/null
+          jq -e --arg sha "$QUALIFICATION_SHA" '.schemaVersion==1 and .commit==$sha and .releaseEligible==true and .qualificationState=="automated-qualification" and (.assetFiles|length)==2 and all(.assetFiles[]; (.sha256|test("^[0-9a-fA-F]{64}$")))' "$manifest" >/dev/null
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
           release=$(sed -n 's/^PKG_RELEASE:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
           [[ "$version" != *-dev ]]
@@ -72,18 +72,12 @@ jobs:
           for artifact in \
             luci-app-cloudflare-ip-ipk-v24.10.5 \
             luci-app-cloudflare-ip-apk-v25.12.0 \
-            cf-ip-rill-linux-x86_64-musl \
-            cf-ip-rill-linux-aarch64-musl \
-            cf-ip-rill-linux-riscv64-musl \
-            cf-ip-rill-linux-armv7-musl \
-            cf-ip-rill-linux-i686-musl \
             qualification-evidence; do
             gh run download "$QUALIFICATION_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "$work/$artifact"
           done
-          find "$work" -type f \( -name '*.ipk' -o -name '*.apk' -o -name "cf-ip-rill-${VERSION}-linux-*" -o -name qualification.json \) -exec cp {} release/ \;
+          find "$work" -type f \( -name '*.ipk' -o -name '*.apk' -o -name qualification.json \) -exec cp {} release/ \;
           test "$(find release -type f -name '*.ipk' | wc -l | tr -d ' ')" -eq 1
           test "$(find release -type f -name '*.apk' | wc -l | tr -d ' ')" -eq 1
-          test "$(find release -type f -name 'cf-ip-rill-*' | wc -l | tr -d ' ')" -eq 5
           test -f release/qualification.json
       - name: Generate relative checksums and verify asset contract
         env:
@@ -91,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (cd release && sha256sum luci-app-cloudflare-ip*.ipk luci-app-cloudflare-ip*.apk cf-ip-rill-* > sha256sums.txt)
+          (cd release && sha256sum luci-app-cloudflare-ip*.ipk luci-app-cloudflare-ip*.apk > sha256sums.txt)
           bash tests/release-asset-contract.sh release "$VERSION"
       - uses: actions/upload-artifact@v7
         with:
@@ -117,12 +111,11 @@ jobs:
 
             This release is promoted only from the exact SHA and successful automated qualification run recorded in `qualification.json`.
 
-            Assets include OpenWrt IPK/APK packages, five Rill 1.5.3 Stable Full Runtime musl adapters, and relative SHA256 checksums.
+            Assets include the Cloudflare IP OpenWrt IPK/APK packages and relative SHA256 checksums. The generic `rill-runtime` package is released and owned by Rill, then installed through OpenWrt package management.
 
             Real OpenWrt device runtime, hardware coverage, PassWall/OpenClash version matrix, and 24-hour soak remain separate evidence boundaries unless explicitly recorded in the qualification manifest.
           files: |
             release/*.ipk
             release/*.apk
-            release/cf-ip-rill-*
             release/sha256sums.txt
             release/qualification.json

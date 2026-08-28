@@ -144,7 +144,7 @@ validate_cf_ip() {
 		'backup_count:uinteger'
 
 	uci_validate_section cf_ip rill rill \
-		'enabled:bool' 'mode:string' 'adapter:string' \
+		'enabled:bool' 'mode:string' 'runtime:string' \
 		'state_file:string' 'timeout_ms:uinteger'
 
 	uci_validate_section cf_ip lan lan \
