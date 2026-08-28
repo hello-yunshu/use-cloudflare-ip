@@ -102,7 +102,7 @@ jobs:
           rm -rf /builder/shared-workdir/build
           ln -sf /builder /builder/shared-workdir/build
           ./scripts/feeds update base packages luci
-          ./scripts/feeds install luci-base bash curl tar jq ca-bundle ca-certificates uhttpd
+          ./scripts/feeds install luci-base bash curl tar jq ca-bundle ca-certificates uhttpd rust
           cp -r "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/package/luci-app-cloudflare-ip" ./package/
           cp -r "$GITHUB_WORKSPACE/rill-ml/packaging/openwrt/rill-runtime" ./package/
           echo 'CONFIG_PACKAGE_rill-runtime=y' >> .config
