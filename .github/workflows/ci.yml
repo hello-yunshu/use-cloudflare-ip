@@ -95,6 +95,16 @@ jobs:
           repository: hello-yunshu/rill-openwrt-packages
           ref: 4c39c797d9b435c2c2657e5fae17afbcef71393b
           path: rill-openwrt-packages
+      - name: Cache OpenWrt Rust toolchain and Cargo registry
+        uses: actions/cache@v6
+        with:
+          path: |
+            /builder/dl/cargo
+            /builder/rustup
+            /builder/cargo
+          key: cloudflare-openwrt-rust-${{ runner.os }}-${{ matrix.branch }}-${{ hashFiles('rill-openwrt-packages/package/rill-runtime/Makefile', 'rill-openwrt-packages/scripts/prepare_rust_toolchain.sh') }}
+          restore-keys: |
+            cloudflare-openwrt-rust-${{ runner.os }}-${{ matrix.branch }}-
       - name: Prepare SDK
         shell: bash
         run: |
@@ -177,6 +187,9 @@ jobs:
           repository: hello-yunshu/rill-openwrt-packages
           ref: 4c39c797d9b435c2c2657e5fae17afbcef71393b
           path: rill-openwrt-packages
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rill-ml
       - name: Build the exact Stable-tag Runtime
         id: runtime
         env:
