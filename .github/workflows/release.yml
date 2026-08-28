@@ -75,7 +75,8 @@ jobs:
             qualification-evidence; do
             gh run download "$QUALIFICATION_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "$work/$artifact"
           done
-          find "$work" -type f \( -name '*.ipk' -o -name '*.apk' -o -name qualification.json \) -exec cp {} release/ \;
+          find "$work" -type f \( -name 'luci-app-cloudflare-ip*.ipk' -o -name 'luci-app-cloudflare-ip*.apk' \) ! -name '*-rill*' -exec cp {} release/ \;
+          find "$work" -type f -name qualification.json -exec cp {} release/ \;
           test "$(find release -type f -name '*.ipk' | wc -l | tr -d ' ')" -eq 1
           test "$(find release -type f -name '*.apk' | wc -l | tr -d ' ')" -eq 1
           test -f release/qualification.json

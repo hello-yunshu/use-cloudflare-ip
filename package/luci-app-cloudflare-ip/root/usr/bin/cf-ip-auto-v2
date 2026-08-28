@@ -28,9 +28,10 @@ CFIP_RILL_ENABLED=false; CFIP_RILL_MODE=shadow; CFIP_RILL_RUNTIME="/usr/bin/rill
 CFIP_CANDIDATES_FILE=""; CFIP_PROBED_FILE=""; CFIP_NATIVE_FILE=""; CFIP_SELECTED_FILE=""; CFIP_RILL_FILE=""; CFIP_DECISION_FILE=""; CFIP_OUTCOME_FILE=""; CFIP_TXN_RESULT_FILE=""
 CFIP_INPUT_POOL_FILE=""; CFIP_CANDIDATE_INPUT_FILE=""; CFIP_SOURCE_STATUS_FILE=""; CFIP_MEASUREMENT_DEADLINE=0; CFIP_MEASUREMENT_STARTED_AT=0; CFIP_RECOVERY_DEADLINE=0; CFIP_RECOVERY_STARTED_AT=0; CFIP_RECOVERY_ACTIVE=false; CFIP_RECOVERY_ERROR=""
 
-for lib in common.sh config.sh status.sh source.sh scheduler.sh cfst.sh observe.sh transaction.sh openclash-transform.sh openclash-readback.sh publisher.sh rill.sh; do
+for lib in common.sh config.sh status.sh source.sh scheduler.sh cfst.sh observe.sh transaction.sh openclash-transform.sh openclash-readback.sh publisher.sh rill-disabled.sh; do
     if [[ -r "$CFIP_LIB_DIR/$lib" ]]; then source "$CFIP_LIB_DIR/$lib"; else printf '[cloudflare-ip] ERROR: missing library %s\n' "$CFIP_LIB_DIR/$lib" >&2; exit 1; fi
 done
+if [[ -r "$CFIP_LIB_DIR/rill.sh" ]]; then source "$CFIP_LIB_DIR/rill.sh"; fi
 
 uci_get() { local key="$1" default="${2:-}" value; value="$(uci -q get "$key" 2>/dev/null || true)"; [[ -n "$value" ]] && printf '%s' "$value" || printf '%s' "$default"; }
 
@@ -153,12 +154,12 @@ restore_stopped_service_if_needed(){
 }
 
 build_decision() {
-    local effective="$CFIP_RILL_MODE" reason="" rill_candidates='[]' generation=null decision_id='' selected_arm=null native_order selected_order rill_order
+    local effective="$CFIP_RILL_MODE" reason="" rill_candidates='[]' generation=null decision_id='' selected_action_id='' native_order selected_order rill_order
     [[ "$CFIP_RILL_ENABLED" == true ]] || effective=off
     [[ "$effective" == assisted && "$CFIP_ASSISTED_QUALIFIED" != true ]] && { effective=shadow; reason=assisted_not_consumer_qualified; }
-    if cfip_rill_rank_shadow "$CFIP_NATIVE_FILE" "$CFIP_RILL_FILE"; then rill_candidates="$(jq '.candidates' "$CFIP_RILL_FILE")"; generation="$(jq '.generation//null' "$CFIP_RILL_FILE")"; decision_id="$(jq -r '.decisionId // empty' "$CFIP_RILL_FILE")"; selected_arm="$(jq '.selectedArm // null' "$CFIP_RILL_FILE")"; else [[ "$effective" == shadow ]] && reason="${reason:-rill_unavailable_or_error}"; fi
+    if cfip_rill_rank_shadow "$CFIP_NATIVE_FILE" "$CFIP_RILL_FILE"; then rill_candidates="$(jq '.candidates' "$CFIP_RILL_FILE")"; generation="$(jq '.generation//null' "$CFIP_RILL_FILE")"; decision_id="$(jq -r '.decisionId // empty' "$CFIP_RILL_FILE")"; selected_action_id="$(jq -r '.selectedActionId // empty' "$CFIP_RILL_FILE")"; else [[ "$effective" == shadow ]] && reason="${reason:-rill_unavailable_or_error}"; fi
     native_order="$(jq '[.[].ip]' "$CFIP_NATIVE_FILE")"; selected_order="$(jq '[.[].ip]' "$CFIP_SELECTED_FILE")"; rill_order="$(jq -c '[.[].ip]' <<<"$rill_candidates" 2>/dev/null || printf '[]')"
-    jq -n --arg runId "$CFIP_RUN_ID" --arg requestedMode "$CFIP_RILL_MODE" --arg effectiveMode "$effective" --arg reason "$reason" --arg decisionId "$decision_id" --argjson selectedArm "$selected_arm" --argjson nativeOrder "$native_order" --argjson selectedOrder "$selected_order" --argjson rillOrder "$rill_order" --argjson generation "$generation" '{schemaVersion:1,runId:$runId,decisionId:(if $decisionId=="" then null else $decisionId end),selectedArm:$selectedArm,requestedMode:$requestedMode,effectiveMode:$effectiveMode,fallbackReason:(if $reason=="" then null else $reason end),generation:$generation,nativeOrder:$nativeOrder,rillOrder:$rillOrder,selectedOrder:$selectedOrder,shadowInvariant:($selectedOrder==($nativeOrder[0:($selectedOrder|length)]))}' | cfip_atomic_write "$CFIP_DECISION_FILE"
+    jq -n --arg runId "$CFIP_RUN_ID" --arg requestedMode "$CFIP_RILL_MODE" --arg effectiveMode "$effective" --arg reason "$reason" --arg decisionId "$decision_id" --arg selectedActionId "$selected_action_id" --argjson nativeOrder "$native_order" --argjson selectedOrder "$selected_order" --argjson rillOrder "$rill_order" --argjson generation "$generation" '{schemaVersion:1,runId:$runId,decisionId:(if $decisionId=="" then null else $decisionId end),selectedActionId:(if $selectedActionId=="" then null else $selectedActionId end),requestedMode:$requestedMode,effectiveMode:$effectiveMode,fallbackReason:(if $reason=="" then null else $reason end),generation:$generation,nativeOrder:$nativeOrder,rillOrder:$rillOrder,selectedOrder:$selectedOrder,shadowInvariant:($selectedOrder==($nativeOrder[0:($selectedOrder|length)]))}' | cfip_atomic_write "$CFIP_DECISION_FILE"
 }
 
 fail_run(){ local message="$1" recovery_rc=0; CFIP_LAST_RESULT=error; CFIP_ERROR="$message"; restore_stopped_service_if_needed || recovery_rc=$?; [[ -n "$CFIP_RECOVERY_ERROR" ]] && message="$message; $CFIP_RECOVERY_ERROR"; write_status false failed error "$message" || true; remember_history || true; cfip_log "run failed: $message"; ((recovery_rc==0)) || return 1; return 1; }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-PACKAGE="${1:?package path required}"; KIND="${2:?ipk or apk required}"
+PACKAGE="${1:?package path required}"; KIND="${2:?ipk or apk required}"; MODE="${3:-base}"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 case "$KIND" in
   ipk)
@@ -49,12 +49,17 @@ required=(
   usr/libexec/cf-ip/common.sh
   usr/libexec/cf-ip/transaction.sh
 )
+if [[ "$MODE" == rill ]]; then
+  required=(usr/libexec/cf-ip/rill.sh usr/share/cf-ip/rill-feature-schema-v1.json)
+fi
 for path in "${required[@]}"; do
   grep -Fxq "$path" "$listing" || { echo "missing package path: $path" >&2; exit 1; }
 done
 # IPK stores a plain conffiles member; OpenWrt APK stores
 # lib/apk/packages/<package>.conffiles.
-grep -Eq '(^|/)([^/]+\.)?conffiles$' "$listing" || { echo 'missing conffiles metadata' >&2; exit 1; }
-test "$(grep -Ec 'usr/libexec/cf-ip/[^/]+\.sh$' "$listing")" -ge 10
-test "$(grep -Ec 'usr/lib/lua/luci/i18n/.*\.lmo$' "$listing")" -ge 1
+if [[ "$MODE" == base ]]; then
+  grep -Eq '(^|/)([^/]+\.)?conffiles$' "$listing" || { echo 'missing conffiles metadata' >&2; exit 1; }
+  test "$(grep -Ec 'usr/libexec/cf-ip/[^/]+\.sh$' "$listing")" -ge 10
+  test "$(grep -Ec 'usr/lib/lua/luci/i18n/.*\.lmo$' "$listing")" -ge 1
+fi
 echo "package content contract passed: $KIND"

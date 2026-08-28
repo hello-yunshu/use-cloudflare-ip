@@ -90,9 +90,9 @@ jobs:
           path: luci-app-cloudflare-ip
       - uses: actions/checkout@v7
         with:
-          repository: hello-yunshu/rill-ml
-          ref: main
-          path: rill-ml
+          repository: hello-yunshu/rill-openwrt-packages
+          ref: 1832c8138d3aa9f1db8986d7fa33bdcbf515af90
+          path: rill-openwrt-packages
       - name: Prepare SDK
         shell: bash
         run: |
@@ -113,9 +113,10 @@ jobs:
             exit 1
           fi
           cp -r "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/package/luci-app-cloudflare-ip" ./package/
-          cp -r "$GITHUB_WORKSPACE/rill-ml/packaging/openwrt/rill-runtime" ./package/
+          cp -r "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime" ./package/
           echo 'CONFIG_PACKAGE_rill-runtime=y' >> .config
           echo 'CONFIG_PACKAGE_luci-app-cloudflare-ip=y' >> .config
+          echo 'CONFIG_PACKAGE_luci-app-cloudflare-ip-rill=y' >> .config
           make defconfig
       - name: Build package
         shell: bash
@@ -129,9 +130,9 @@ jobs:
             # checked-out package Makefile so dependency PKG_VERSION values
             # remain untouched and the source contract stays exact.
             sed -i 's/^PKG_VERSION:=2.0.0-dev$/PKG_VERSION:=2.0.0.1/' package/luci-app-cloudflare-ip/Makefile
-            make package/luci-app-cloudflare-ip/compile V=sc
+            make package/luci-app-cloudflare-ip/compile package/luci-app-cloudflare-ip-rill/compile V=sc
           else
-            make package/luci-app-cloudflare-ip/compile V=sc
+            make package/luci-app-cloudflare-ip/compile package/luci-app-cloudflare-ip-rill/compile V=sc
           fi
       - name: Inspect package artifact
         shell: bash
@@ -139,16 +140,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/output"
-          files=$(find ./bin -type f -name "luci-app-cloudflare-ip*.${{ matrix.pkgtype }}")
-          test -n "$files"
-          printf '%s\n' "$files" | while IFS= read -r file; do
+          base_file=$(find ./bin -type f -name "luci-app-cloudflare-ip*.${{ matrix.pkgtype }}" ! -name '*-rill*' | head -n1)
+          rill_file=$(find ./bin -type f -name "luci-app-cloudflare-ip-rill*.${{ matrix.pkgtype }}" | head -n1)
+          test -n "$base_file"; test -n "$rill_file"
+          for file in "$base_file" "$rill_file"; do
             cp "$file" "$GITHUB_WORKSPACE/output/"
+            mode=base; [[ "${file##*/}" == *-rill* ]] && mode=rill
             case "${file##*.}" in
               ipk) tar -tf "$file" >/dev/null
-                   bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" ipk ;;
+                   bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" ipk "$mode" ;;
               apk) test -x /builder/staging_dir/host/bin/apk
                    /builder/staging_dir/host/bin/apk --allow-untrusted adbdump "$file" >/dev/null
-                   APK=/builder/staging_dir/host/bin/apk bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" apk ;;
+                   APK=/builder/staging_dir/host/bin/apk bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" apk "$mode" ;;
             esac
           done
           sha256sum "$GITHUB_WORKSPACE/output"/* > "$GITHUB_WORKSPACE/output/SHA256SUMS"
@@ -274,6 +277,7 @@ jobs:
           done
           asset_files='[]'
           while IFS= read -r -d '' file; do
+            [[ "$file" != *-rill* ]] || continue
             hash=$(sha256sum "$file" | awk '{print $1}')
             rel="${file#"$asset_dir"/}"
             asset_files=$(jq --arg path "$rel" --arg sha "$hash" '. + [{path:$path,sha256:$sha}]' <<<"$asset_files")

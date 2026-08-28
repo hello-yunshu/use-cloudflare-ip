@@ -13,7 +13,7 @@ define Package/luci-app-cloudflare-ip
   SECTION:=luci
   CATEGORY:=LuCI
   TITLE:=Cloudflare IP - Safe endpoint orchestration for PassWall/OpenClash on OpenWrt
-  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates +uhttpd +rill-runtime
+  DEPENDS:=+luci-base +bash +curl +tar +jq +ca-bundle +ca-certificates +uhttpd
   PKGARCH:=all
 endef
 
@@ -65,7 +65,9 @@ define Package/luci-app-cloudflare-ip/install
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/cf_ip $(1)/usr/libexec/rpcd/
 	$(INSTALL_DIR) $(1)/usr/libexec/cf-ip
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/libexec/cf-ip/*.sh $(1)/usr/libexec/cf-ip/
+	for script in common.sh config.sh status.sh source.sh scheduler.sh cfst.sh observe.sh transaction.sh openclash-transform.sh openclash-readback.sh publisher.sh rill-disabled.sh; do \
+		$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/libexec/cf-ip/$$$$script $(1)/usr/libexec/cf-ip/; \
+	done
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/etc/init.d/cf_ip_publisher $(1)/etc/init.d/
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/cloudflare-ip
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/cloudflare-ip/*.js $(1)/www/luci-static/resources/view/cloudflare-ip/
@@ -114,3 +116,26 @@ define Package/luci-app-cloudflare-ip/prerm
 endef
 
 $(eval $(call BuildPackage,luci-app-cloudflare-ip))
+
+define Package/luci-app-cloudflare-ip-rill
+  SECTION:=luci
+  CATEGORY:=LuCI
+  TITLE:=Cloudflare IP optional Rill contextual learner integration
+  DEPENDS:=+luci-app-cloudflare-ip +rill-runtime
+  PKGARCH:=all
+endef
+
+define Package/luci-app-cloudflare-ip-rill/description
+Optional consumer-owned mapping from Cloudflare IP observations to the generic
+Rill Preview contextual learner. The base Cloudflare IP package remains fully
+functional and authoritative when this package is absent.
+endef
+
+define Package/luci-app-cloudflare-ip-rill/install
+	$(INSTALL_DIR) $(1)/usr/libexec/cf-ip
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/libexec/cf-ip/rill.sh $(1)/usr/libexec/cf-ip/
+	$(INSTALL_DIR) $(1)/usr/share/cf-ip
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/root/usr/share/cf-ip/rill-feature-schema-v1.json $(1)/usr/share/cf-ip/
+endef
+
+$(eval $(call BuildPackage,luci-app-cloudflare-ip-rill))
