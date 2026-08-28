@@ -39,7 +39,23 @@ cfip_rill_status_json() {
 }
 
 cfip_rill_actions_json() {
-    jq -c '[.[] | {id:(.ip|tostring),features:[(.avgLatencyMs//0),(.downloadMBps//0),(.lossRate//0),(.connectMs//0),(.tlsMs//0),(.ttfbMs//0),(.totalMs//0),(.nativeRank//0)]}]' "$1"
+    jq -c '
+      def number_or($fallback): if type == "number" and isfinite then . else $fallback end;
+      def bounded($fallback; $minimum; $maximum):
+        (number_or($fallback) | if . < $minimum then $minimum elif . > $maximum then $maximum else . end);
+      def milliseconds($value): (($value | bounded(10000; 0; 10000)) / 1000);
+      [.[] as $candidate |
+        {id:($candidate.ip|tostring),features:[
+          (($candidate.avgLatencyMs | bounded(10000; 0; 10000)) / 1000),
+          (($candidate.downloadMBps | bounded(0; 0; 10000)) / 100),
+          ($candidate.lossRate | bounded(1; 0; 1)),
+          (milliseconds($candidate.probeSummary.connectMs)),
+          (milliseconds($candidate.probeSummary.tlsMs)),
+          (milliseconds($candidate.probeSummary.ttfbMs)),
+          (milliseconds($candidate.probeSummary.totalMs)),
+          (($candidate.nativeRank | bounded(128; 1; 128)) / 128)
+        ]}]
+    ' "$1"
 }
 
 cfip_rill_rank_shadow() {

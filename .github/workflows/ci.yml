@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 1832c8138d3aa9f1db8986d7fa33bdcbf515af90
+          ref: ce1b6cc04e4317d60403b9244327f422231297fd
           path: rill-openwrt-packages
       - name: Prepare SDK
         shell: bash
@@ -163,9 +163,56 @@ jobs:
           path: output/
           if-no-files-found: error
 
+  rill-runtime-integration:
+    name: Same-release generic Runtime integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: hello-yunshu/rill-openwrt-packages
+          ref: ce1b6cc04e4317d60403b9244327f422231297fd
+          path: rill-openwrt-packages
+      - name: Build the exact Stable-tag Runtime
+        id: runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^PKG_VERSION:=//p' rill-openwrt-packages/package/rill-runtime/Makefile)
+          package_hash=$(sed -n 's/^PKG_HASH:=//p' rill-openwrt-packages/package/rill-runtime/Makefile)
+          metadata_hash=$(jq -r '.upstream.archiveSha256' rill-openwrt-packages/metadata/rill-runtime.json)
+          test "$package_hash" = "$metadata_hash"
+          upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
+          git clone --depth 1 --branch "v${version}" https://github.com/hello-yunshu/rill-ml.git rill-ml
+          test "$(git -C rill-ml rev-parse HEAD)" = "$upstream_commit"
+          cargo build --locked --release --manifest-path rill-ml/Cargo.toml -p rill-runtime
+          {
+            echo "version=$version"
+            echo "commit=$upstream_commit"
+            echo "binary_sha256=$(sha256sum rill-ml/target/release/rill-runtime | awk '{print $1}')"
+          } >> "$GITHUB_OUTPUT"
+      - name: Execute the real Cloudflare feedback integration
+        run: bash tests/rill-feedback-integration.sh rill-ml/target/release/rill-runtime
+      - name: Record same-release evidence
+        shell: bash
+        env:
+          VERSION: ${{ steps.runtime.outputs.version }}
+          COMMIT: ${{ steps.runtime.outputs.commit }}
+          BINARY_SHA256: ${{ steps.runtime.outputs.binary_sha256 }}
+        run: |
+          set -euo pipefail
+          jq -n --arg version "$VERSION" --arg commit "$COMMIT" --arg binarySha256 "$BINARY_SHA256" \
+            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",runtime:{version:$version,tag:("v"+$version),commit:$commit,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:true}}' \
+            > rill-runtime-integration.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rill-runtime-integration-evidence
+          path: rill-runtime-integration.json
+          if-no-files-found: error
+
   package-release-guard:
     runs-on: ubuntu-latest
-    needs: [host-contract, openwrt-package]
+    needs: [host-contract, openwrt-package, rill-runtime-integration]
     steps:
       - uses: actions/checkout@v7
       - name: Verify development release guard
@@ -248,7 +295,7 @@ jobs:
 
   qualification-guard:
     if: always()
-    needs: [host-contract, legacy-contract, rpc-luci-contract, openwrt-package, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
+    needs: [host-contract, legacy-contract, rpc-luci-contract, openwrt-package, rill-runtime-integration, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
     runs-on: ubuntu-latest
     steps:
       - name: Require every qualification job
@@ -261,7 +308,7 @@ jobs:
 
   evidence-manifest:
     if: always()
-    needs: [host-contract, legacy-contract, rpc-luci-contract, openwrt-package, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
+    needs: [host-contract, legacy-contract, rpc-luci-contract, openwrt-package, rill-runtime-integration, package-release-guard, workflow-lint, real-cfst-smoke, release-asset-contract]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -277,6 +324,7 @@ jobs:
           for artifact in luci-app-cloudflare-ip-ipk-v24.10.5 luci-app-cloudflare-ip-apk-v25.12.0; do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "$asset_dir/$artifact"
           done
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name rill-runtime-integration-evidence --dir "$asset_dir/rill-runtime-integration"
           asset_files='[]'
           while IFS= read -r -d '' file; do
             [[ "$file" != *-rill* ]] || continue
