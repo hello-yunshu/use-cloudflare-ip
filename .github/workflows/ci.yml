@@ -110,6 +110,8 @@ jobs:
           make defconfig
       - name: Build package
         shell: bash
+        env:
+          CI: ""
         working-directory: /builder
         run: |
           set -euo pipefail
