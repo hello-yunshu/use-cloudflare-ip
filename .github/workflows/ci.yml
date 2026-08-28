@@ -114,9 +114,11 @@ jobs:
           fi
           cp -r "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/package/luci-app-cloudflare-ip" ./package/
           cp -r "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime" ./package/
-          echo 'CONFIG_PACKAGE_rill-runtime=y' >> .config
-          echo 'CONFIG_PACKAGE_luci-app-cloudflare-ip=y' >> .config
-          echo 'CONFIG_PACKAGE_luci-app-cloudflare-ip-rill=y' >> .config
+          {
+            echo 'CONFIG_PACKAGE_rill-runtime=y'
+            echo 'CONFIG_PACKAGE_luci-app-cloudflare-ip=y'
+            echo 'CONFIG_PACKAGE_luci-app-cloudflare-ip-rill=y'
+          } >> .config
           make defconfig
       - name: Build package
         shell: bash
