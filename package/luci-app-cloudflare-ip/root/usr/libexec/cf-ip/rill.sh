@@ -92,20 +92,46 @@ cfip_rill_rank_shadow() {
 }
 
 cfip_rill_feedback() {
-    local decision_json="$1" outcome_json="$2" request rc=0 generation selected_id schema
+    local decision_json="$1" outcome_json="$2" request response_file rc=0
+    local decision_state_generation selected_id schema model_generation state_generation expected_request_id
     [[ "$CFIP_RILL_ENABLED" == true && -x "$CFIP_RILL_RUNTIME" ]] || return 0
     [[ "$(jq -r '.validated//false' "$outcome_json")" == true ]] || return 0
-    generation="$(jq '.generation // null' "$decision_json")"; [[ "$generation" != null ]] || return 0
+    decision_state_generation="$(jq '.generation // null' "$decision_json")"; [[ "$decision_state_generation" != null ]] || return 0
     local decision_id; decision_id="$(jq -r '.decisionId // empty' "$decision_json")"; [[ -n "$decision_id" ]] || return 0
     selected_id="$(jq -r '.selectedActionId // empty' "$decision_json")"; [[ -n "$selected_id" ]] || return 0
     schema="$(cfip_rill_schema_hash)" || return 1
     request="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-feedback.XXXXXX")" || return 1
-    jq -cn --arg id "feedback-$CFIP_RUN_ID" --arg decisionId "$decision_id" --arg selected "$selected_id" --arg schema "$schema" --argjson stateGeneration "$(cfip_rill_state_generation)" --argjson reward "$(jq -r '.reward // 0' "$outcome_json")" --argjson outcomeGeneration "$generation" \
-      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},capability:"org.rill.preview.feedback",featureSchemaHash:$schema,modelGeneration:1,stateGeneration:$stateGeneration,payloadLimit:1048576,request:{method:"feedback",decisionId:$decisionId,selectedActionId:$selected,reward:$reward,outcomeTimeMs:(now*1000|floor),generation:1}}' >"$request"
+    response_file="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-feedback-response.XXXXXX")" || { rm -f "$request"; return 1; }
+    model_generation=1
+    state_generation="$(cfip_rill_state_generation)"
+    expected_request_id="feedback-$CFIP_RUN_ID"
+    jq -cn --arg id "$expected_request_id" --arg decisionId "$decision_id" --arg selected "$selected_id" --arg schema "$schema" --argjson stateGeneration "$state_generation" --argjson reward "$(jq -r '.reward // 0' "$outcome_json")" --argjson modelGeneration "$model_generation" \
+      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},capability:"org.rill.preview.feedback",featureSchemaHash:$schema,modelGeneration:$modelGeneration,stateGeneration:$stateGeneration,payloadLimit:1048576,request:{method:"feedback",decisionId:$decisionId,selectedActionId:$selected,reward:$reward,outcomeTimeMs:(now*1000|floor),generation:$modelGeneration}}' >"$request"
     if command -v timeout >/dev/null 2>&1; then
-        timeout "${CFIP_RILL_TIMEOUT_S}s" sh -c 'cat "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation 1' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" >/dev/null 2>>"$CFIP_LOG_FILE" || rc=$?
+        timeout "${CFIP_RILL_TIMEOUT_S}s" sh -c 'cat "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation "$5"' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" "$model_generation" >"$response_file" 2>>"$CFIP_LOG_FILE" || rc=$?
     else
-        cfip_run_with_timeout "$CFIP_RILL_TIMEOUT_S" sh -c 'cat "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation 1' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" >/dev/null 2>>"$CFIP_LOG_FILE" || rc=$?
+        cfip_run_with_timeout "$CFIP_RILL_TIMEOUT_S" sh -c 'cat "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation "$5"' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" "$model_generation" >"$response_file" 2>>"$CFIP_LOG_FILE" || rc=$?
     fi
-    rm -f "$request"; return "$rc"
+    rm -f "$request"
+    local response_bytes; response_bytes="$(wc -c <"$response_file" 2>/dev/null || printf 0)"
+    if ((rc != 0)); then
+        cfip_log "Rill feedback transport failed: rc=$rc"
+        rm -f "$response_file"
+        return "$rc"
+    fi
+    if ((response_bytes > 262144)) || ! jq -e --arg id "$expected_request_id" '(.requestId|type)=="string" and .requestId==$id and .apiVersion==3 and ((.response.kind=="result" and .response.output.accepted==true) or (.response.kind=="error" and (.response.error.code|type)=="string" and (.response.error.retryable|type)=="boolean"))' "$response_file" >/dev/null 2>&1; then
+        cfip_log "Rill feedback protocol rejected: malformed, oversized, mismatched requestId or apiVersion"
+        rm -f "$response_file"
+        return 8
+    fi
+    if jq -e '.response.kind=="error"' "$response_file" >/dev/null 2>&1; then
+        local error_code retryable
+        error_code="$(jq -r '.response.error.code' "$response_file")"
+        retryable="$(jq -r '.response.error.retryable' "$response_file")"
+        cfip_log "Rill feedback rejected: code=$error_code retryable=$retryable"
+        rm -f "$response_file"
+        return 9
+    fi
+    rm -f "$response_file"
+    return 0
 }

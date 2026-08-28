@@ -45,6 +45,8 @@ jobs:
           bash tests/v2-candidate-budget.sh
           bash tests/v2-cfst-exact-input.sh
           bash tests/v2-measurement-deadline.sh
+          bash tests/rill-feedback-negative.sh
+          jq empty plans/rill/drift-decision.json
           bash tests/recovery-deadline.sh
           bash tests/transaction-commit-failure.sh
           bash tests/openclash-intended-mapping-negative.sh
@@ -91,7 +93,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 2837064a8c1431c13f24bc11090d9a32aad27c25
+          ref: 4c39c797d9b435c2c2657e5fae17afbcef71393b
           path: rill-openwrt-packages
       - name: Prepare SDK
         shell: bash
@@ -112,6 +114,8 @@ jobs:
             echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
             exit 1
           fi
+          RUST_STAGING_DIR=/builder/staging_dir/host \
+            "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/prepare_rust_toolchain.sh"
           cp -r "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/package/luci-app-cloudflare-ip" ./package/
           cp -r "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime" ./package/
           {
@@ -171,17 +175,23 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 2837064a8c1431c13f24bc11090d9a32aad27c25
+          ref: 4c39c797d9b435c2c2657e5fae17afbcef71393b
           path: rill-openwrt-packages
       - name: Build the exact Stable-tag Runtime
         id: runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           version=$(sed -n 's/^PKG_VERSION:=//p' rill-openwrt-packages/package/rill-runtime/Makefile)
           package_hash=$(sed -n 's/^PKG_HASH:=//p' rill-openwrt-packages/package/rill-runtime/Makefile)
+          package_commit=$(git -C rill-openwrt-packages rev-parse HEAD)
           metadata_hash=$(jq -r '.upstream.archiveSha256' rill-openwrt-packages/metadata/rill-runtime.json)
           test "$package_hash" = "$metadata_hash"
+          qualification_run=$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n1)
+          test -n "$qualification_run"
+          gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '.artifacts[] | select(.name=="qualification-evidence" and .expired==false) | .id' | grep -q .
           upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
           git clone --depth 1 --branch "v${version}" https://github.com/hello-yunshu/rill-ml.git rill-ml
           test "$(git -C rill-ml rev-parse HEAD)" = "$upstream_commit"
@@ -192,7 +202,9 @@ jobs:
             echo "binary_sha256=$(sha256sum rill-ml/target/release/rill-runtime | awk '{print $1}')"
           } >> "$GITHUB_OUTPUT"
       - name: Execute the real Cloudflare feedback integration
-        run: bash tests/rill-feedback-integration.sh rill-ml/target/release/rill-runtime
+        run: |
+          bash tests/rill-feedback-integration.sh rill-ml/target/release/rill-runtime
+          bash tests/rill-feedback-negative.sh
       - name: Record same-release evidence
         shell: bash
         env:

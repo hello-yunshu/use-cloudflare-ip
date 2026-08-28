@@ -26,5 +26,18 @@ intelligence/state and cannot write UCI, change PassWall/OpenClash, restart a
 service or commit a router transaction.
 
 Native Rust gates are fmt, clippy `-D warnings`, test, release build and smoke.
-Release qualification additionally executes x86_64, aarch64, riscv64gc, armv7
-and i686 musl binaries with the matching QEMU names.
+The x86_64, aarch64, riscv64gc, armv7 and i686 musl binaries belong to the
+upstream Rill Stable release qualification. Cloudflare IP neither rebuilds nor
+publishes five private Runtime binaries; its consumer gate uses the external
+package-owned `/usr/bin/rill-runtime` and the exact Stable provenance.
+
+## PageHinkley decision
+
+The old Cloudflare adapter's PageHinkley latency detector is formally retired
+from the consumer (`drift-decision.json`). It was responsible for detecting a
+sustained Cloudflare-specific latency distribution shift and requesting a
+model reset. The generic Runtime's bounded learner and model-health signals
+replace only the generic part of that responsibility; no Cloudflare-specific
+drift claim is made. A reset is explicit and state-generation checked. Any
+missing, invalid, stale, rejected, or unhealthy Runtime result keeps native
+ranking authoritative and leaves host mutation unchanged.
