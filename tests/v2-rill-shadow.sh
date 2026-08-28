@@ -11,7 +11,7 @@ cat >"$TMP/fake-runtime" <<'EOF_A'
 read -r request
 method=$(printf '%s' "$request" | jq -r '.request.method')
 case "$method" in
- handshake) echo '{"apiVersion":3,"runtimeIdentity":{"name":"rill-runtime","version":"1.5.5"},"stateGeneration":0,"response":{"kind":"handshake","capabilities":["org.rill.preview.decide","org.rill.preview.feedback"],"featureSchemaHash":"'"$(sha256sum "$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v1.json" | awk '{print $1}')"'","handlerApiVersion":2}}' ;;
+ handshake) echo '{"apiVersion":3,"runtimeIdentity":{"name":"rill-runtime","version":"1.5.6"},"stateGeneration":0,"response":{"kind":"handshake","capabilities":["org.rill.preview.decide","org.rill.preview.feedback"],"featureSchemaHash":"'"$(sha256sum "$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v1.json" | awk '{print $1}')"'","handlerApiVersion":2}}' ;;
  decide) echo '{"requestId":"decision-shadow-test","apiVersion":3,"stateGeneration":1,"response":{"kind":"result","output":{"accepted":true,"selectedActionId":"104.16.1.2","scores":[{"id":"104.16.1.1","score":1},{"id":"104.16.1.2","score":2}]}}}' ;;
  feedback) echo '{"requestId":"feedback-shadow-test","apiVersion":3,"stateGeneration":2,"response":{"kind":"result","output":{"accepted":true}}}' ;;
 esac
