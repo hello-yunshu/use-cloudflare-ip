@@ -130,7 +130,7 @@ Finds nodes where `server` matches the target domain, generates `[CF-1]`, `[CF-2
 - View runtime logs
 - View IP history
 - Manually trigger benchmark
-- Manually update script
+- Self-update only reports “deprecated”; upgrade through the IPK/APK package
 - Start / Stop / Restart service
 
 ## Project Structure
@@ -142,7 +142,7 @@ root/
 │   └── init.d/cf_ip                          # lifecycle and cron scheduler script
 └── usr/
     ├── bin/cf-ip-auto                        # Core business script
-    │   ├── libexec/rpcd/cf_ip                    # RPC backend (18 API methods)
+    │   ├── libexec/rpcd/cf_ip                    # RPC backend (compatibility API + 2.0 extensions)
     └── share/
         ├── luci/menu.d/                      # LuCI menu registration
         └── rpcd/acl.d/                       # RPC access control
@@ -165,7 +165,7 @@ htdocs/luci-static/resources/
 ```
 ┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
 │  LuCI Frontend│ ──────────────→  │  rpcd Backend     │ ──────────→ │  UCI Config   │
-│  (6 JS views) │ ←──────────────  │  (18 API methods) │ ←──────────  │  cf_ip        │
+│  (8 JS views) │ ←──────────────  │  (compatibility + extensions) │ ←────── │  cf_ip │
 └──────────────┘     JSON response └──────────────────┘              └──────┬───────┘
                                                                             │
                                                               cf-ip-auto
@@ -198,7 +198,7 @@ htdocs/luci-static/resources/
 | `ip_type` | enum | ipv4 | IP type: `ipv4` / `ipv6` / `both` |
 | `speedtest_protocol` | enum | tcp | Benchmark protocol: `tcp` / `http` |
 | `speedtest_cfcolo` | string | — | Filter by data center (HTTP protocol only) |
-| `speedtest_dn` | integer | 10 | Download benchmark threads |
+| `speedtest_dn` | integer | 8 | Download benchmark threads |
 | `speedtest_tll` | integer | 40 | Average latency floor (ms), filter fake IPs |
 | `speedtest_tl` | integer | — | Average latency ceiling (ms), leave empty for no limit |
 | `stop_service` | boolean | 1 | Stop proxy service before benchmarking |
@@ -244,7 +244,7 @@ This project uses GitHub Actions for automated builds:
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
 ## 2.0 clean-rebuild engine (development)
 
-Package version `2.0.0-dev` is rebuilt from the complete 1.8.3 behavior baseline. Overview, Settings, Diagnostics, PassWall, OpenClash, scheduling, CFST, suffixes, multi-IP variants, backups, and upgrade behavior remain available. Candidate IP Sources, bounded scheduling, target-domain Active Probe, Native Rank, transactional apply/rollback, optional RillML 1.5.3 shadow intelligence, and an optional LAN Publisher are additive.
+Package version `2.0.0-dev` is rebuilt from the complete 1.8.3 behavior baseline. Overview, Settings, Diagnostics, PassWall, OpenClash, scheduling, CFST, suffixes, multi-IP variants, backups, and upgrade behavior remain available. Candidate IP Sources, bounded scheduling, target-domain Active Probe, Native Rank, transactional apply/rollback, optional generic Rill Runtime v3 Preview shadow intelligence, and an optional LAN Publisher are additive. The generic `rill-runtime` is owned and released by the upstream OpenWrt package; this repository only provides an optional consumer mapping package.
 
 Candidate Budget defaults to 128 and accepts 100-512 unique candidates. Fresh history, community seeds, and official CIDR exploration receive about 1/8, 5/8, and 1/4; deficits flow between pools. Official CIDRs are sampled into concrete IPs and one CFST process measures the merged input. A community `IP:port` contributes only its IP; domain candidates are rejected without DNS resolution.
 

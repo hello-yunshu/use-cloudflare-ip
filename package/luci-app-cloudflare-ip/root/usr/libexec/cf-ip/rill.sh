@@ -16,22 +16,34 @@ cfip_rill_state_generation() {
 }
 
 cfip_rill_runtime_call() {
-    local request="$1" response schema
+    local request="$1" response schema request_file response_file rc=0 response_bytes
     [[ -x "$CFIP_RILL_RUNTIME" ]] || return 3
     schema="$(cfip_rill_schema_hash)" || return 4
     mkdir -p "${CFIP_RILL_STATE%/*}"
-    response="$(printf '%s\n' "$request" | "$CFIP_RILL_RUNTIME" preview-serve --state "$CFIP_RILL_STATE" --feature-schema-hash "$schema" --model-generation 1 2>>"$CFIP_LOG_FILE")" || return 5
+    request_file="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-call.XXXXXX")" || return 4
+    response_file="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-response.XXXXXX")" || { rm -f "$request_file"; return 4; }
+    printf '%s\n' "$request" >"$request_file"
+    cfip_run_with_timeout "${CFIP_RILL_TIMEOUT_S:-2}" sh -c 'cat "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation 1' sh "$request_file" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" >"$response_file" 2>>"$CFIP_LOG_FILE" || rc=$?
+    response_bytes="$(wc -c <"$response_file" 2>/dev/null || printf 0)"
+    if ((rc != 0)); then rm -f "$request_file" "$response_file"; return "$rc"; fi
+    if ((response_bytes > 262144)); then rm -f "$request_file" "$response_file"; return 8; fi
+    response="$(cat "$response_file")"
+    rm -f "$request_file" "$response_file"
     [[ -n "$response" ]] || return 6
     printf '%s' "$response"
 }
 
 cfip_rill_status_json() {
     local request response schema
+    if [[ "${CFIP_RILL_ENABLED:-false}" != true || "${CFIP_RILL_MODE:-off}" == off ]]; then
+        jq -cn '{available:false,state:"disabled",mode:"off"}'
+        return 0
+    fi
     schema="$(cfip_rill_schema_hash 2>/dev/null || true)"
     [[ -n "$schema" ]] || { jq -cn --arg mode "$CFIP_RILL_MODE" '{available:false,state:"schema-unavailable",mode:$mode}'; return 0; }
     request="$(jq -cn --arg id "status-$CFIP_RUN_ID" --arg schema "$schema" '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},featureSchemaHash:$schema,modelGeneration:1,stateGeneration:0,payloadLimit:1048576,request:{method:"handshake"}}')"
     response="$(cfip_rill_runtime_call "$request" 2>/dev/null || true)"
-    if jq -e --arg schema "$schema" '.response.kind=="handshake" and .apiVersion==3 and (.response.capabilities|type=="array") and .response.featureSchemaHash==$schema and (.response.capabilities|index("org.rill.preview.decide")) and (.response.capabilities|index("org.rill.preview.feedback")) and .response.handlerApiVersion==2' <<<"$response" >/dev/null 2>&1; then
+    if jq -e --arg id "status-$CFIP_RUN_ID" --arg schema "$schema" '.requestId==$id and .response.kind=="handshake" and .apiVersion==3 and (.response.capabilities|type=="array") and .response.featureSchemaHash==$schema and (.response.capabilities|index("org.rill.preview.decide")) and (.response.capabilities|index("org.rill.preview.feedback")) and .response.handlerApiVersion==2' <<<"$response" >/dev/null 2>&1; then
         jq -cn --arg mode "$CFIP_RILL_MODE" --argjson s "$response" '{available:true,state:"healthy",mode:$mode,runtimeVersion:$s.runtimeIdentity.version,runtimeApiVersion:$s.apiVersion,capabilities:$s.response.capabilities,featureSchemaHash:$s.response.featureSchemaHash,handlerApiVersion:$s.response.handlerApiVersion}'
     else
         jq -cn --arg mode "$CFIP_RILL_MODE" '{available:false,state:"incompatible",runtimeVersion:"",runtimeApiVersion:3,mode:$mode}'
@@ -75,7 +87,7 @@ cfip_rill_rank_shadow() {
     fi
     rm -f "$request"
     response_bytes="$(wc -c <"$tmp" 2>/dev/null || printf 0)"
-    if ((rc != 0 || response_bytes > 262144)) || ! jq -e '.response.kind=="result" and .response.output.accepted==true and (.response.output.selectedActionId|type=="string") and ((.response.output.selectedActionId|length)>0) and ((.response.output.selectedActionId|length)<=96) and (.response.output.scores|type=="array") and ((.response.output.scores|length)>0) and all(.response.output.scores[]; (.id|type)=="string" and (.score|type)=="number")' "$tmp" >/dev/null 2>&1; then
+    if ((rc != 0 || response_bytes > 262144)) || ! jq -e --arg id "decision-$CFIP_RUN_ID" '.requestId==$id and .response.kind=="result" and .response.output.accepted==true and (.response.output.selectedActionId|type=="string") and ((.response.output.selectedActionId|length)>0) and ((.response.output.selectedActionId|length)<=96) and (.response.output.scores|type=="array") and ((.response.output.scores|length)>0) and all(.response.output.scores[]; (.id|type)=="string" and (.score|type=="number"))' "$tmp" >/dev/null 2>&1; then
         rm -f "$tmp"; return 5
     fi
     selected_id="$(jq -r '.response.output.selectedActionId' "$tmp")"

@@ -43,7 +43,7 @@ jobs:
           gh run download "$QUALIFICATION_RUN_ID" --repo "$GITHUB_REPOSITORY" --name qualification-evidence --dir "$RUNNER_TEMP/qualification"
           manifest="$RUNNER_TEMP/qualification/qualification.json"
           test -f "$manifest"
-          jq -e --arg sha "$QUALIFICATION_SHA" '.schemaVersion==1 and .commit==$sha and .releaseEligible==true and .qualificationState=="automated-qualification" and (.assetFiles|length)==2 and all(.assetFiles[]; (.sha256|test("^[0-9a-fA-F]{64}$")))' "$manifest" >/dev/null
+          jq -e --arg sha "$QUALIFICATION_SHA" '.schemaVersion==1 and .commit==$sha and .releaseEligible==true and .qualificationState=="automated-qualification" and (.assetFiles|length)==4 and (.rill.package.commit|type)=="string" and (.rill.runtime.sourceArchiveSha256|test("^[0-9a-fA-F]{64}$")) and all(.assetFiles[]; (.sha256|test("^[0-9a-fA-F]{64}$")))' "$manifest" >/dev/null
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
           release=$(sed -n 's/^PKG_RELEASE:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
           [[ "$version" != *-dev ]]
@@ -59,6 +59,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.check-qualification.outputs.commit }}
+          fetch-depth: 1
       - name: Collect exact qualification artifacts
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,10 +78,10 @@ jobs:
             qualification-evidence; do
             gh run download "$QUALIFICATION_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "$work/$artifact"
           done
-          find "$work" -type f \( -name 'luci-app-cloudflare-ip*.ipk' -o -name 'luci-app-cloudflare-ip*.apk' \) ! -name '*-rill*' -exec cp {} release/ \;
+          find "$work" -type f \( -name 'luci-app-cloudflare-ip*.ipk' -o -name 'luci-app-cloudflare-ip*.apk' \) -exec cp {} release/ \;
           find "$work" -type f -name qualification.json -exec cp {} release/ \;
-          test "$(find release -type f -name '*.ipk' | wc -l | tr -d ' ')" -eq 1
-          test "$(find release -type f -name '*.apk' | wc -l | tr -d ' ')" -eq 1
+          test "$(find release -type f -name '*.ipk' | wc -l | tr -d ' ')" -eq 2
+          test "$(find release -type f -name '*.apk' | wc -l | tr -d ' ')" -eq 2
           test -f release/qualification.json
       - name: Generate relative checksums and verify asset contract
         env:

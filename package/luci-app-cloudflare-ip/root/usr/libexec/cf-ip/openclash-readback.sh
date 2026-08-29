@@ -2,6 +2,16 @@
 # OpenClash IntendedMappingV1 readback. A server IP alone is insufficient
 # evidence: every expected proxy block is compared as one complete record.
 
+cfip_openclash_protocol_supported() {
+    local type tls network
+    type="$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z')"
+    tls="$(printf '%s' "${2:-}" | tr 'A-Z' 'a-z')"
+    network="$(printf '%s' "${3:-}" | tr 'A-Z' 'a-z')"
+    [[ "$type" == vless || "$type" == vmess || "$type" == trojan ]] || return 1
+    [[ "$tls" == true ]] && return 0
+    [[ "$network" == ws || "$network" == xhttp || "$network" == grpc || "$network" == h2 || "$network" == http ]]
+}
+
 cfip_openclash_mapping_tsv() {
     local config="$1"
     awk '
@@ -39,8 +49,9 @@ cfip_openclash_actual_mapping() {
 
 cfip_openclash_intended_from_templates() {
     local selected="$1" config="$2" domains_csv="$3" suffix="$4" filter="$5" output="$6"
-    local count name type server tls network servername host domain base seq ip idx line tmp
+    local count name type server tls network servername host domain base seq ip idx line tmp filter_lc
     local -a domains=() ips=()
+    filter_lc="$(printf '%s' "$filter" | tr 'A-Z' 'a-z')"
     IFS=',' read -r -a domains <<<"$domains_csv"
     while IFS= read -r ip; do [[ -n "$ip" ]] && ips+=("$ip"); done < <(jq -r '.[].ip' "$selected")
     ((${#ips[@]} > 0)) || return 1
@@ -48,10 +59,8 @@ cfip_openclash_intended_from_templates() {
     printf '[]' >"$tmp"
     while IFS=$'\t' read -r name type server tls network servername host; do
         [[ -n "$name" ]] || continue
-        [[ "$type" == vless || "$type" == vmess || "$type" == trojan ]] || continue
-        [[ "${tls,,}" == true ]] || continue
-        case "${network,,}" in ws|xhttp|grpc|h2|http) ;; *) continue ;; esac
-        if [[ -n "$filter" && ",${filter}," != *",${network,,},"* ]]; then continue; fi
+        cfip_openclash_protocol_supported "$type" "$tls" "$network" || continue
+        if [[ -n "$filter_lc" && ",${filter_lc}," != *",${network},"* ]]; then continue; fi
         domain=""
         for line in "${domains[@]}"; do
             line="${line#${line%%[![:space:]]*}}"; line="${line%${line##*[![:space:]]}}"
@@ -64,8 +73,8 @@ cfip_openclash_intended_from_templates() {
         for ((idx=0; idx<count; idx++)); do
             seq=$((idx+1)); ip="${ips[$idx]}"; line="$suffix"; line="${line//\{n\}/$seq}"; line="${line//\{ip\}/$ip}"
             name="$base$line"
-            jq -cn --arg name "$name" --arg server "$ip" --arg servername "$domain" --arg network "${network,,}" \
-              --argjson hostRequired "$([[ "${network,,}" == ws || "${network,,}" == xhttp ]] && printf true || printf false)" \
+            jq -cn --arg name "$name" --arg server "$ip" --arg servername "$domain" --arg network "$network" \
+              --argjson hostRequired "$([[ "$network" == ws || "$network" == xhttp ]] && printf true || printf false)" \
               '{name:$name,server:$server,servername:$servername,network:$network,host:(if $hostRequired then $servername else null end)}' \
               >"$tmp.row"
             jq --argjson row "$(cat "$tmp.row")" '. + [$row]' "$tmp" >"$tmp.next" && mv "$tmp.next" "$tmp" || { rm -f "$tmp" "$tmp.row"; return 1; }

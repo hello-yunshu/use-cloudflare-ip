@@ -14,6 +14,7 @@ CFIP_SOURCE_TOTAL_TIMEOUT="${CFIP_SOURCE_TOTAL_TIMEOUT:-15}"
 CFIP_SOURCE_MAX_COUNT="${CFIP_SOURCE_MAX_COUNT:-16}"
 CFIP_SOURCE_MAX_VALID_PER_SOURCE="${CFIP_SOURCE_MAX_VALID_PER_SOURCE:-2048}"
 CFIP_SOURCE_MIN_VALID_REMOTE="${CFIP_SOURCE_MIN_VALID_REMOTE:-2}"
+CFIP_HISTORY_MAX_AGE_SECONDS="${CFIP_HISTORY_MAX_AGE_SECONDS:-604800}"
 CFIP_SOURCE_USED_COUNT=0
 
 cfip_builtin_registry_json() {
@@ -249,9 +250,13 @@ cfip_collect_enabled_sources() {
 }
 
 cfip_history_pool_json() {
-    local output="$1"
+    local output="$1" max_age now cutoff
+    max_age="${CFIP_HISTORY_MAX_AGE_SECONDS:-604800}"
+    [[ "$max_age" =~ ^[0-9]+$ ]] || max_age=604800
+    now="$(cfip_now_epoch 2>/dev/null || date +%s)"
+    cutoff=$((now-max_age))
     if [[ -s "${CFIP_RUN_HISTORY:-}" ]]; then
-        jq -s '[.[] | select(.result=="success") | . as $r | (.bestIps[]? | {ip:.,time:($r.time//0)})]
+        jq -s --argjson cutoff "$cutoff" '[.[] | select(.result=="success") | . as $r | (.bestIps[]? | {ip:.,time:($r.time//0)}) | select((.time|type)=="number" and .time >= $cutoff)]
           | group_by(.ip)
           | map({ip:.[0].ip,wins:length,lastSeen:(map(.time)|max),family:(if .[0].ip|contains(":") then "ipv6" else "ipv4" end)})
           | sort_by(-.wins,-.lastSeen,.ip)' "$CFIP_RUN_HISTORY" 2>/dev/null | cfip_atomic_write "$output" || printf '[]' | cfip_atomic_write "$output"
@@ -297,34 +302,36 @@ cfip_ipv6_hex_to_full() {
 }
 
 cfip_sample_ipv4_cidr() {
-    local cidr="$1" addr prefix base size r offset value
+    local cidr="$1" seed="${2:-${CFIP_SAMPLE_SEED:-0}}" addr prefix base size r offset value hash
     addr="${cidr%/*}"; prefix="${cidr##*/}"
     base="$(awk -F. '{printf "%.0f", (($1*256+$2)*256+$3)*256+$4}' <<<"$addr")" || return 1
     size="$(awk -v p="$prefix" 'BEGIN{printf "%.0f",2^(32-p)}')" || return 1
-    r=$(( ((RANDOM << 30) ^ (RANDOM << 15) ^ RANDOM) & 0x7fffffffffffffff ))
+    hash="$(printf '%s' "$seed:$cidr" | sha256sum | awk '{print substr($1,1,8)}')" || return 1
+    r=$((16#$hash))
     offset=$((r % size)); value=$((base - (base % size) + offset))
     awk -v n="$value" 'BEGIN{a=int(n/16777216)%256;b=int(n/65536)%256;c=int(n/256)%256;d=n%256;printf "%d.%d.%d.%d",a,b,c,d}'
 }
 
 cfip_sample_ipv6_cidr() {
-    local cidr="$1" addr prefix hex fixed rem i nib orig mask lowbits rand new out=""
+    local cidr="$1" seed="${2:-${CFIP_SAMPLE_SEED:-0}}" addr prefix hex fixed rem i nib orig mask lowbits rand new out="" hash
     addr="${cidr%/*}"; prefix="${cidr##*/}"
     hex="$(cfip_expand_ipv6_hex "$addr")" || return 1
     fixed=$((prefix/4)); rem=$((prefix%4))
+    hash="$(printf '%s' "$seed:$cidr" | sha256sum | awk '{print $1}')" || return 1
     for ((i=0;i<32;i++)); do
         nib="${hex:i:1}"
         if ((i<fixed)); then out+="$nib"; continue; fi
         if ((i==fixed && rem>0)); then
-            orig=$((16#$nib)); mask=$(( (0xF << (4-rem)) & 0xF )); lowbits=$(( (1 << (4-rem)) - 1 )); rand=$((RANDOM & lowbits)); new=$(( (orig & mask) | rand )); printf -v nib '%x' "$new"; out+="$nib"; continue
+            orig=$((16#$nib)); mask=$(( (0xF << (4-rem)) & 0xF )); lowbits=$(( (1 << (4-rem)) - 1 )); rand=$((16#${hash:i:1} & lowbits)); new=$(( (orig & mask) | rand )); printf -v nib '%x' "$new"; out+="$nib"; continue
         fi
-        printf -v nib '%x' "$((RANDOM & 15))"; out+="$nib"
+        printf -v nib '%x' "$((16#${hash:i:1} & 15))"; out+="$nib"
     done
     cfip_ipv6_hex_to_full "$out"
 }
 
 cfip_sample_one_cidr() {
-    local cidr="$1"
-    cfip_is_ipv4 "${cidr%/*}" && cfip_sample_ipv4_cidr "$cidr" || cfip_sample_ipv6_cidr "$cidr"
+    local cidr="$1" seed="${2:-${CFIP_SAMPLE_SEED:-0}}"
+    cfip_is_ipv4 "${cidr%/*}" && cfip_sample_ipv4_cidr "$cidr" "$seed" || cfip_sample_ipv6_cidr "$cidr" "$seed"
 }
 
 cfip_pick_json_slice() {
@@ -368,12 +375,13 @@ cfip_schedule_family() {
     rm -f "$tmp" "$tmp.top" "$tmp.rest" "$tmp.tail"
 
     # CIDR exploration; sample explicit IPs and avoid selected duplicates.
-    local want current rlen idx attempts=0 ip cidr max_attempts
+    local want current rlen idx attempts=0 ip cidr max_attempts sample_seed
     current="$(jq 'length' "$selected")"; want=$((budget-current)); ((want<oq)) && want=$oq
     rlen="$(jq 'length' "$ranges")"; max_attempts=$((want*20+100)); idx=0
     while ((rlen>0 && $(jq 'length' "$selected") < budget && attempts < max_attempts)); do
         cidr="$(jq -r --argjson i "$((idx%rlen))" '.[$i].value' "$ranges")"; idx=$((idx+1)); attempts=$((attempts+1))
-        ip="$(cfip_sample_one_cidr "$cidr" 2>/dev/null || true)"; [[ -n "$ip" ]] || continue
+        sample_seed="${CFIP_SAMPLE_SEED:-$run_offset}:$idx:$attempts"
+        ip="$(cfip_sample_one_cidr "$cidr" "$sample_seed" 2>/dev/null || true)"; [[ -n "$ip" ]] || continue
         # A public CIDR base does not imply every sampled address is public.
         cfip_is_public_candidate "$ip" || continue
         jq -e --arg ip "$ip" 'map(.ip)|index($ip)!=null' "$selected" >/dev/null && continue

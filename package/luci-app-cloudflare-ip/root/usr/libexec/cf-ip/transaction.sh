@@ -3,9 +3,26 @@
 
 CFIP_TXN_DIR=""
 CFIP_TXN_ROLLED_BACK=false
+CFIP_TXN_STATE=NONE
+CFIP_TXN_MODE=""
+CFIP_TXN_COMMITTED=false
+CFIP_TXN_ORIGINAL_RUNNING=false
+
+cfip_txn_restart_original_service() {
+    local service="$1" deadline_class="${2:-normal}"
+    [[ "${CFIP_TXN_ORIGINAL_RUNNING:-false}" == true ]] || return 0
+    cfip_restart_service "$service" "$deadline_class"
+}
 
 cfip_txn_prepare() {
     local mode="$1"
+    CFIP_TXN_MODE="$mode"
+    CFIP_TXN_COMMITTED=false
+    CFIP_TXN_ROLLED_BACK=false
+    CFIP_TXN_ORIGINAL_RUNNING=false
+    if declare -F cfip_service_running >/dev/null 2>&1 && cfip_service_running "$mode"; then
+        CFIP_TXN_ORIGINAL_RUNNING=true
+    fi
     CFIP_TXN_DIR="$(mktemp -d "${CFIP_RUNTIME_DIR:-/tmp/cf_ip}/txn-${CFIP_RUN_ID}.XXXXXX")" || return 1
     case "$mode" in
       passwall)
@@ -28,12 +45,16 @@ cfip_txn_prepare() {
         ;;
       *) rm -rf "$CFIP_TXN_DIR"; CFIP_TXN_DIR=""; return 1 ;;
     esac
+    CFIP_TXN_STATE=PREPARED
 }
 
 cfip_txn_rollback() {
-    local mode="$1"
+    local mode="$1" txn_dir
+    [[ "${CFIP_TXN_ROLLED_BACK:-false}" == true ]] && return 0
     [[ -n "$CFIP_TXN_DIR" && -d "$CFIP_TXN_DIR" ]] || return 1
+    [[ "${CFIP_TXN_STATE:-NONE}" != COMMITTED ]] || return 0
     cfip_begin_recovery
+    CFIP_TXN_STATE=ROLLING_BACK
     CFIP_TXN_ROLLED_BACK=false
     CFIP_RECOVERY_ERROR=""
     rm -f "$CFIP_TXN_DIR/passwall-managed.json.pending" 2>/dev/null || true
@@ -51,13 +72,14 @@ cfip_txn_rollback() {
             rm -f "$state_file" || return 1
         fi
         local recovery_rc=0
-        cfip_restart_service passwall recovery || recovery_rc=$?
+        cfip_txn_restart_original_service passwall recovery || recovery_rc=$?
         if ((recovery_rc != 0)); then
             ((recovery_rc == 124)) && CFIP_RECOVERY_ERROR="RecoveryTimeout" || CFIP_RECOVERY_ERROR="RecoveryRestartFailed"
             return 1
         fi
         uci export passwall 2>/dev/null | cmp -s - "$CFIP_TXN_DIR/passwall.uci" || return 1
         CFIP_TXN_ROLLED_BACK=true
+        CFIP_TXN_STATE=ROLLED_BACK
         ;;
       openclash)
         cp "$CFIP_TXN_DIR/openclash.yaml" "${CFIP_OPENCLASH_CONFIG}.rollback.$$" || return 1
@@ -68,16 +90,20 @@ cfip_txn_rollback() {
             uci -q commit openclash || return 1
         fi
         local recovery_rc=0
-        cfip_restart_service openclash recovery || recovery_rc=$?
+        cfip_txn_restart_original_service openclash recovery || recovery_rc=$?
         if ((recovery_rc != 0)); then
             ((recovery_rc == 124)) && CFIP_RECOVERY_ERROR="RecoveryTimeout" || CFIP_RECOVERY_ERROR="RecoveryRestartFailed"
             return 1
         fi
         cmp -s "$CFIP_OPENCLASH_CONFIG" "$CFIP_TXN_DIR/openclash.yaml" || return 1
         CFIP_TXN_ROLLED_BACK=true
+        CFIP_TXN_STATE=ROLLED_BACK
         ;;
       *) return 1 ;;
     esac
+    txn_dir="$CFIP_TXN_DIR"
+    CFIP_TXN_DIR=""
+    [[ -z "$txn_dir" ]] || rm -rf "$txn_dir" 2>/dev/null || true
 }
 
 cfip_txn_commit() {
@@ -85,6 +111,8 @@ cfip_txn_commit() {
         mv "$CFIP_TXN_DIR/passwall-managed.json.pending" "${CFIP_PASSWALL_STATE_FILE:-${CFIP_STATUS_DIR:-/etc/cf_ip}/passwall-managed.json}" || return 1
     fi
     [[ -n "$CFIP_TXN_DIR" ]] && rm -rf "$CFIP_TXN_DIR" 2>/dev/null || true
+    CFIP_TXN_STATE=COMMITTED
+    CFIP_TXN_COMMITTED=true
     CFIP_TXN_DIR=""
 }
 
@@ -202,6 +230,8 @@ cfip_passwall_expand_suffix() {
 cfip_txn_apply() {
     local mode="$1" selected="$2"
     [[ -n "$CFIP_TXN_DIR" && -d "$CFIP_TXN_DIR" ]] || cfip_txn_prepare "$mode" || return 10
+    CFIP_TXN_MODE="$mode"
+    CFIP_TXN_STATE=MUTATED
     CFIP_TXN_APPLY=true
     case "$mode" in
       passwall)
@@ -209,10 +239,11 @@ cfip_txn_apply() {
             CFIP_TXN_APPLY=false
             if cfip_txn_rollback "$mode"; then return 11; else return 12; fi
         fi
-        if ! cfip_restart_service passwall; then
+        if ! cfip_txn_restart_original_service passwall normal; then
             CFIP_TXN_APPLY=false
             if cfip_txn_rollback "$mode"; then return 11; else return 12; fi
         fi
+        [[ "${CFIP_TXN_ORIGINAL_RUNNING:-false}" == true ]] && CFIP_TXN_STATE=RESTARTED
         ;;
       openclash)
         if ! cfip_openclash_apply_selected "$selected"; then
@@ -223,10 +254,11 @@ cfip_txn_apply() {
             CFIP_TXN_APPLY=false
             if cfip_txn_rollback "$mode"; then return 15; else return 16; fi
         fi
-        if ! cfip_restart_service openclash; then
+        if ! cfip_txn_restart_original_service openclash normal; then
             CFIP_TXN_APPLY=false
             if cfip_txn_rollback "$mode"; then return 15; else return 16; fi
         fi
+        [[ "${CFIP_TXN_ORIGINAL_RUNNING:-false}" == true ]] && CFIP_TXN_STATE=RESTARTED
         ;;
       *) CFIP_TXN_APPLY=false; return 10 ;;
     esac

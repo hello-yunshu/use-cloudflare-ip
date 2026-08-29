@@ -130,7 +130,7 @@ CFST 未安装时，点击「下载 CFST」按钮即可自动下载；已安装�
 - 查看运行日志
 - 查看 IP 历史记录
 - 手动触发测速
-- 手动更新脚本
+- 自更新入口仅返回“已弃用”；请通过 IPK/APK 包升级
 - 启动 / 停止 / 重启服务
 
 ## 项目结构
@@ -142,7 +142,7 @@ root/
 │   └── init.d/cf_ip                          # 生命周期与 cron 调度脚本
 └── usr/
     ├── bin/cf-ip-auto                        # 核心业务脚本
-    │   ├── libexec/rpcd/cf_ip                    # RPC 后端（18 个 API 方法）
+    │   ├── libexec/rpcd/cf_ip                    # RPC 后端（兼容 API + 2.0 扩展）
     └── share/
         ├── luci/menu.d/                      # LuCI 菜单注册
         └── rpcd/acl.d/                       # RPC 权限控制
@@ -165,7 +165,7 @@ htdocs/luci-static/resources/
 ```
 ┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
 │  LuCI 前端    │ ──────────────→  │  rpcd 后端        │ ──────────→ │  UCI 配置     │
-│  (6 个 JS 视图)│ ←──────────────  │  (18 个 API 方法)  │ ←──────────  │  cf_ip        │
+│  (8 个 JS 视图)│ ←──────────────  │  (兼容 API + 扩展) │ ←──────────  │  cf_ip        │
 └──────────────┘     JSON 响应      └──────────────────┘              └──────┬───────┘
                                                                             │
                                                               cf-ip-auto
@@ -198,7 +198,7 @@ htdocs/luci-static/resources/
 | `ip_type` | enum | ipv4 | IP 类型：`ipv4` / `ipv6` / `both` |
 | `speedtest_protocol` | enum | tcp | 测速协议：`tcp` / `http` |
 | `speedtest_cfcolo` | string | — | 按数据中心筛选（HTTP 协议时有效） |
-| `speedtest_dn` | integer | 10 | 下载测速线程数 |
+| `speedtest_dn` | integer | 8 | 下载测速线程数 |
 | `speedtest_tll` | integer | 40 | 平均延迟下限（ms），过滤假墙 IP |
 | `speedtest_tl` | integer | — | 平均延迟上限（ms），留空不限制 |
 | `stop_service` | boolean | 1 | 测速前停止代理服务 |
@@ -244,7 +244,7 @@ htdocs/luci-static/resources/
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
 ## 2.0 clean-rebuild 引擎（开发版）
 
-包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；候选 IP 来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Runtime 由独立 `rill-runtime` OpenWrt 包拥有，CF 只保留消费者映射。
+包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；候选 IP 来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Runtime 由独立 `rill-runtime` OpenWrt 包拥有，Cloudflare 只保留消费者映射；启用 Rill 时需额外安装同版本 `luci-app-cloudflare-ip-rill`，Runtime 由上游包提供。
 
 候选测速数量默认 128，允许 100-512 个唯一候选。历史优质 IP、社区种子和 Cloudflare 官方网段探索约占 1/8、5/8、1/4；官方 CIDR 会先由调度器采样为具体 IP，每个任务只启动一次 CFST。社区源中的 `IP:port` 只贡献 IP，域名候选会被拒绝且不会 DNS 解析。
 

@@ -47,6 +47,10 @@ start_service() {
 		logger -t cf_ip -p daemon.err "Configuration validation failed, refusing to start"
 		return 1
 	fi
+	if ! cf-ip-auto --validate-config >/dev/null 2>&1; then
+		logger -t cf_ip -p daemon.err "Semantic configuration validation failed, refusing to schedule"
+		return 1
+	fi
 
 	mkdir -p /etc/cf_ip /tmp/cf_ip
 

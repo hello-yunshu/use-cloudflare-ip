@@ -68,6 +68,10 @@ cfip_is_public_candidate() {
         ((first == 192 && second == 168)) && return 1
         ((first == 192 && second == 0 && third == 0)) && return 1
         ((first == 192 && second == 0 && third == 2)) && return 1
+        ((first == 192 && second == 31 && third == 196)) && return 1
+        ((first == 192 && second == 52 && third == 193)) && return 1
+        ((first == 192 && second == 88 && third == 99)) && return 1
+        ((first == 192 && second == 175 && third == 48)) && return 1
         ((first == 198 && second == 18 || first == 198 && second == 19)) && return 1
         ((first == 198 && second == 51 && third == 100)) && return 1
         ((first == 203 && second == 0 && third == 113)) && return 1
@@ -80,7 +84,9 @@ cfip_is_public_candidate() {
     [[ "$hex" != 00000000000000000000000000000000 && "$hex" != 00000000000000000000000000000001 ]] || return 1
     [[ "$hex" != 00000000000000000000ffff* ]] || return 1
     case "${hex:0:2}" in fc|fd|fe|ff) return 1 ;; esac
-    [[ "${hex:0:8}" != 20010db8* ]] || return 1
+    case "$hex" in
+        20010001*|20010002*|20010003*|20010004*|20010005*|20010010*|20010020*|20010030*|20010db8*|20020000*|3fff*|5f00*) return 1 ;;
+    esac
     return 0
 }
 
@@ -115,6 +121,18 @@ cfip_service_running() {
     "$CFIP_INIT_DIR/$service" running >/dev/null 2>&1 || { [[ "$service" == openclash ]] && pidof clash >/dev/null 2>&1; }
 }
 
+cfip_bounded_external() {
+    local deadline_class="$1" remaining
+    shift
+    case "$deadline_class" in
+        recovery) remaining="$(cfip_recovery_remaining)" ;;
+        measurement|normal) remaining="$(cfip_measurement_remaining)" ;;
+        *) return 2 ;;
+    esac
+    ((remaining > 0)) || return 124
+    cfip_run_with_timeout "$remaining" "$@"
+}
+
 cfip_stop_service() {
     local service="$1"
     [[ -x "$CFIP_INIT_DIR/$service" ]] || return 1
@@ -123,7 +141,7 @@ cfip_stop_service() {
         uci -q set openclash.config.enable=0
         uci -q commit openclash
     fi
-    "$CFIP_INIT_DIR/$service" stop >/dev/null 2>&1 || return 1
+    cfip_bounded_external measurement "$CFIP_INIT_DIR/$service" stop >/dev/null 2>&1 || return $?
     if [[ "$service" == openclash ]]; then
         local i pids
         for i in $(seq 1 30); do
@@ -152,7 +170,7 @@ cfip_restart_service() {
         uci -q set "openclash.config.enable=${CFIP_OPENCLASH_ENABLE_SAVED}"
         uci -q commit openclash
     fi
-    "$CFIP_INIT_DIR/$service" restart >/dev/null 2>&1 || return 1
+    cfip_bounded_external "$deadline_class" "$CFIP_INIT_DIR/$service" restart >/dev/null 2>&1 || return $?
     local i
     for i in $(seq 1 20); do
         if [[ "$deadline_class" == recovery ]]; then

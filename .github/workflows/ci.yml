@@ -51,6 +51,18 @@ jobs:
           bash tests/transaction-commit-failure.sh
           bash tests/openclash-intended-mapping-negative.sh
           bash tests/security-contract.sh
+          bash tests/cron-contract.sh
+          bash tests/transaction-signal-rollback.sh
+          bash tests/transaction-hard-deadline.sh
+          bash tests/openclash-protocol-eligibility.sh
+          bash tests/rill-disabled-noexec.sh
+          bash tests/rill-status-timeout.sh
+          bash tests/scheduler-deterministic.sh
+          bash tests/history-freshness.sh
+          bash tests/special-address-contract.sh
+          bash tests/no-delay-contract.sh
+          bash tests/service-state-preservation.sh
+          bash tests/semantic-config-validation.sh
 
   legacy-contract:
     runs-on: ubuntu-latest
@@ -210,13 +222,24 @@ jobs:
           qualification_run=$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n1)
           test -n "$qualification_run"
           gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '.artifacts[] | select(.name=="qualification-evidence" and .expired==false) | .id' | grep -q .
+          evidence_dir="$RUNNER_TEMP/rill-qualification"
+          mkdir -p "$evidence_dir"
+          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name qualification-evidence --dir "$evidence_dir"
+          evidence_file=$(find "$evidence_dir" -type f -name 'qualification.json' -print -quit)
+          test -n "$evidence_file"
+          jq -e --arg commit "$package_commit" '.commit==$commit and .releaseEligible==true and .qualificationState=="automated-qualification"' "$evidence_file" >/dev/null
+          qualification_manifest_sha256=$(sha256sum "$evidence_file" | awk '{print $1}')
           upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
           git clone --depth 1 --branch "v${version}" https://github.com/hello-yunshu/rill-ml.git rill-ml
           test "$(git -C rill-ml rev-parse HEAD)" = "$upstream_commit"
           cargo build --locked --release --manifest-path rill-ml/Cargo.toml -p rill-runtime
           {
             echo "version=$version"
+            echo "package_commit=$package_commit"
+            echo "qualification_run=$qualification_run"
+            echo "qualification_manifest_sha256=$qualification_manifest_sha256"
             echo "commit=$upstream_commit"
+            echo "source_archive_sha256=$metadata_hash"
             echo "binary_sha256=$(sha256sum rill-ml/target/release/rill-runtime | awk '{print $1}')"
           } >> "$GITHUB_OUTPUT"
       - name: Execute the real Cloudflare feedback integration
@@ -227,12 +250,16 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.runtime.outputs.version }}
+          PACKAGE_COMMIT: ${{ steps.runtime.outputs.package_commit }}
+          QUALIFICATION_RUN: ${{ steps.runtime.outputs.qualification_run }}
+          QUALIFICATION_MANIFEST_SHA256: ${{ steps.runtime.outputs.qualification_manifest_sha256 }}
           COMMIT: ${{ steps.runtime.outputs.commit }}
+          SOURCE_ARCHIVE_SHA256: ${{ steps.runtime.outputs.source_archive_sha256 }}
           BINARY_SHA256: ${{ steps.runtime.outputs.binary_sha256 }}
         run: |
           set -euo pipefail
-          jq -n --arg version "$VERSION" --arg commit "$COMMIT" --arg binarySha256 "$BINARY_SHA256" \
-            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",runtime:{version:$version,tag:("v"+$version),commit:$commit,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:true}}' \
+          jq -n --arg version "$VERSION" --arg packageCommit "$PACKAGE_COMMIT" --arg qualificationRun "$QUALIFICATION_RUN" --arg qualificationManifestSha256 "$QUALIFICATION_MANIFEST_SHA256" --arg commit "$COMMIT" --arg sourceArchiveSha256 "$SOURCE_ARCHIVE_SHA256" --arg binarySha256 "$BINARY_SHA256" \
+            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",package:{repository:"hello-yunshu/rill-openwrt-packages",commit:$packageCommit,qualificationRunId:($qualificationRun|tonumber),qualificationManifestSha256:$qualificationManifestSha256},runtime:{version:$version,tag:("v"+$version),commit:$commit,sourceArchiveSha256:$sourceArchiveSha256,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:true}}' \
             > rill-runtime-integration.json
       - uses: actions/upload-artifact@v7
         with:
@@ -319,7 +346,7 @@ jobs:
           tmp="$RUNNER_TEMP/release-contract"
           mkdir -p "$tmp"
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
-          touch "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.ipk" "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.apk"
+          touch "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.ipk" "$tmp/luci-app-cloudflare-ip-rill_2.0.0-dev-1.ipk" "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.apk" "$tmp/luci-app-cloudflare-ip-rill_2.0.0-dev-1.apk"
           (cd "$tmp" && sha256sum luci-app-cloudflare-ip* > sha256sums.txt)
           bash tests/release-asset-contract.sh "$tmp" "$version"
 
@@ -357,13 +384,15 @@ jobs:
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name rill-runtime-integration-evidence --dir "$asset_dir/rill-runtime-integration"
           asset_files='[]'
           while IFS= read -r -d '' file; do
-            [[ "$file" != *-rill* ]] || continue
             hash=$(sha256sum "$file" | awk '{print $1}')
             rel="${file#"$asset_dir"/}"
             asset_files=$(jq --arg path "$rel" --arg sha "$hash" '. + [{path:$path,sha256:$sha}]' <<<"$asset_files")
           done < <(find "$asset_dir" -type f \( -name '*.ipk' -o -name '*.apk' \) -print0)
-          test "$(jq 'length' <<<"$asset_files")" -eq 2
-          RESULTS="$RESULTS" ARTIFACTS="$ARTIFACTS" ASSET_FILES="$asset_files" bash tests/evidence-manifest.sh qualification.json
+          test "$(jq 'length' <<<"$asset_files")" -eq 4
+          rill_evidence_dir="$asset_dir/rill-runtime-integration"
+          rill_evidence_file=$(find "$rill_evidence_dir" -type f -name 'rill-runtime-integration.json' -print -quit)
+          test -n "$rill_evidence_file"
+          RESULTS="$RESULTS" ARTIFACTS="$ARTIFACTS" ASSET_FILES="$asset_files" RILL_EVIDENCE="$(cat "$rill_evidence_file")" bash tests/evidence-manifest.sh qualification.json
       - uses: actions/upload-artifact@v7
         with:
           name: qualification-evidence
