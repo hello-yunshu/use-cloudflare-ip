@@ -169,13 +169,9 @@ jobs:
             # checked-out package Makefile so dependency PKG_VERSION values
             # remain untouched and the source contract stays exact.
             sed -i 's/^PKG_VERSION:=2.0.0-dev$/PKG_VERSION:=2.0.0.1/' package/luci-app-cloudflare-ip/Makefile
-            bash "$build_helper" \
-              package/luci-app-cloudflare-ip/compile \
-              package/luci-app-cloudflare-ip-rill/compile
+            bash "$build_helper" package/luci-app-cloudflare-ip/compile
           else
-            bash "$build_helper" \
-              package/luci-app-cloudflare-ip/compile \
-              package/luci-app-cloudflare-ip-rill/compile
+            bash "$build_helper" package/luci-app-cloudflare-ip/compile
           fi
       - name: Inspect package artifact
         shell: bash
