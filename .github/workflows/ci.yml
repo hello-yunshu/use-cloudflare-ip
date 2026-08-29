@@ -140,15 +140,18 @@ jobs:
         run: |
           set -euo pipefail
           unset CI
-          make package/rill-runtime/compile V=sc
+          build_helper="$GITHUB_WORKSPACE/luci-app-cloudflare-ip/scripts/openwrt-build-diagnostic.sh"
+          bash "$build_helper" package/rill-runtime/compile
           if [ "${{ matrix.pkgtype }}" = apk ]; then
             # APK rejects the source development suffix. Patch only the
             # checked-out package Makefile so dependency PKG_VERSION values
             # remain untouched and the source contract stays exact.
             sed -i 's/^PKG_VERSION:=2.0.0-dev$/PKG_VERSION:=2.0.0.1/' package/luci-app-cloudflare-ip/Makefile
-            make package/luci-app-cloudflare-ip/compile package/luci-app-cloudflare-ip-rill/compile V=sc
+            bash "$build_helper" package/luci-app-cloudflare-ip/compile
+            bash "$build_helper" package/luci-app-cloudflare-ip-rill/compile
           else
-            make package/luci-app-cloudflare-ip/compile package/luci-app-cloudflare-ip-rill/compile V=sc
+            bash "$build_helper" package/luci-app-cloudflare-ip/compile
+            bash "$build_helper" package/luci-app-cloudflare-ip-rill/compile
           fi
       - name: Inspect package artifact
         shell: bash
