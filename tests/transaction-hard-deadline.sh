@@ -9,9 +9,10 @@ EOF
 chmod +x "$TMP/init/passwall"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"
 export CFIP_INIT_DIR="$TMP/init"
-CFIP_MEASUREMENT_DEADLINE=$(( $(date +%s) + 1 )); start=$(date +%s); rc=0; cfip_stop_service passwall || rc=$?; elapsed=$(( $(date +%s)-start ))
+export CFIP_MONOTONIC_SECONDS=100
+CFIP_MEASUREMENT_DEADLINE=101; start=$(date +%s); rc=0; cfip_stop_service passwall || rc=$?; elapsed=$(( $(date +%s)-start ))
 test "$rc" -eq 124; test "$elapsed" -lt 4
-CFIP_RECOVERY_DEADLINE=$(( $(date +%s) + 1 )); rc=0; cfip_restart_service passwall recovery || rc=$?
+CFIP_RECOVERY_DEADLINE=101; rc=0; cfip_restart_service passwall recovery || rc=$?
 test "$rc" -eq 124
 cat >"$TMP/legacy" <<'EOF'
 #!/usr/bin/env bash
@@ -20,6 +21,6 @@ EOF
 chmod +x "$TMP/legacy"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/openclash-transform.sh"
 export CFIP_LEGACY_BIN="$TMP/legacy"
-CFIP_MEASUREMENT_DEADLINE=$(( $(date +%s) + 1 )); rc=0; cfip_openclash_transform_selected "$TMP/legacy" || rc=$?
+CFIP_MEASUREMENT_DEADLINE=101; rc=0; cfip_openclash_transform_selected "$TMP/legacy" || rc=$?
 test "$rc" -eq 124
 echo 'transaction hard-deadline contract passed'

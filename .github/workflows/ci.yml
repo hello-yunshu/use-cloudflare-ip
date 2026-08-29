@@ -142,8 +142,12 @@ jobs:
             echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
             exit 1
           fi
-          RUST_STAGING_DIR=/builder/staging_dir/host \
-            "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/prepare_rust_toolchain.sh"
+          rill_workspace="$GITHUB_WORKSPACE/rill-openwrt-packages"
+          (
+            cd "$rill_workspace"
+            GITHUB_WORKSPACE="$rill_workspace" RUST_STAGING_DIR=/builder/staging_dir/host \
+              ./scripts/prepare_rust_toolchain.sh
+          )
           cp -r "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/package/luci-app-cloudflare-ip" ./package/
           cp -r "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime" ./package/
           {
@@ -210,9 +214,6 @@ jobs:
           repository: hello-yunshu/rill-openwrt-packages
           ref: 29a17d4c608f610503377f699652c9398d3a8bf4
           path: rill-openwrt-packages
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rill-ml
       - name: Build the exact Stable-tag Runtime
         id: runtime
         env:
