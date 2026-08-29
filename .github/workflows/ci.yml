@@ -235,7 +235,7 @@ jobs:
           evidence_file=$(find "$evidence_dir" -type f -name 'qualification.json' -print -quit)
           test -n "$evidence_file"
           expected_release=$(sed -n 's/^PKG_RELEASE:=//p' rill-openwrt-packages/package/rill-runtime/Makefile)
-          expected_upstream_repository=$(jq -r '.upstream.repository' rill-openwrt-packages/metadata/rill-runtime.json)
+          expected_upstream_repository=$(jq -r '.upstream.repository' rill-openwrt-packages/metadata/rill-runtime.json | sed -E 's#^https://github.com/##; s#\.git$##')
           expected_upstream_tag=$(jq -r '.upstream.tag' rill-openwrt-packages/metadata/rill-runtime.json)
           expected_upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
           jq -e \
