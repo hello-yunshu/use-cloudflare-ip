@@ -252,6 +252,6 @@ htdocs/luci-static/resources/
 
 2.0 的自更新已弃用，因为引擎是多文件、由软件包管理。默认 `auto_update=0`，请通过经过验证的 IPK/APK 升级。UCI、CFST、来源 last-good 缓存、managed ownership 和有限历史会保留；运行、探测和 publisher 文件可重建。LAN Publisher 默认关闭，只允许 LAN 绑定，拒绝 `0.0.0.0`，提供 `/ip.txt`、`/best-ipv4.txt`、`/best-ipv6.txt` 和 `/result.json`。
 
-发布状态：仅开发版。稳定发布必须通过完整 legacy 矩阵、Host/RPC/LuCI、Rill native、五个 musl 目标、OpenWrt IPK/APK、回滚和真实 CFST smoke；Docker/软件包检查不等同于真实 OpenWrt 设备或硬件 soak。
+发布状态：仅开发版。稳定发布必须通过完整 legacy 矩阵、Host/RPC/LuCI、同版本通用 Rill consumer integration、OpenWrt 24.10.5 IPK、25.12.0 APK、回滚和真实 CFST smoke；Docker/软件包检查不等同于真实 OpenWrt 设备或硬件 soak。
 
 候选不足时报告 degraded candidate count，绝不复制最快 IP 伪造数量；多个来源会增加可用 seed 池，但所有候选仍在本地统一重测，来源数量不等于单次测速数量无限增加。LAN Publisher 仅为默认关闭的 LAN 可选兼容输出，不替代 PassWall/OpenClash 直接修改。

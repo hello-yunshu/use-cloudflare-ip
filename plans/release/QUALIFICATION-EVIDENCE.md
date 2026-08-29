@@ -5,7 +5,7 @@ The exact qualification source of truth is the CI artifact `qualification.json`,
 ## Automated qualification
 
 - State: generated per exact SHA; only `releaseEligible: true` with `qualificationState: automated-qualification` may trigger promotion.
-- Required gates: host, legacy, RPC/LuCI, workflow lint, Rill native, five musl executions, OpenWrt 24.10.5 IPK, OpenWrt 25.12.0 APK, behavior rollback tests, package content contract, real CFST smoke, and release asset contract.
+- Required gates: host, legacy, RPC/LuCI, workflow lint, same-release generic Rill consumer integration, OpenWrt 24.10.5 IPK, OpenWrt 25.12.0 APK, behavior rollback tests, package content contract, real CFST smoke, and release asset contract. Generic Runtime package qualification is authoritative from the exact successful run and `qualification.json` in `rill-openwrt-packages`.
 - Release workflow: `workflow_run` from successful CI on `main`; it verifies the manifest commit equals the release SHA before collecting assets.
 
 ## Explicit device boundary

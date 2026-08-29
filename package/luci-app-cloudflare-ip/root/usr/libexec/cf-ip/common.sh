@@ -85,7 +85,7 @@ cfip_is_public_candidate() {
     [[ "$hex" != 00000000000000000000ffff* ]] || return 1
     case "${hex:0:2}" in fc|fd|fe|ff) return 1 ;; esac
     case "$hex" in
-        20010001*|20010002*|20010003*|20010004*|20010005*|20010010*|20010020*|20010030*|20010db8*|20020000*|3fff*|5f00*) return 1 ;;
+        64ff9b000000000000000000*|64ff9b000001*|1000000000000000*|1000000000000001*|20010000*|20010001*|20010002*|20010003*|200100040112*|2001001*|2001002*|2001003*|20010db8*|20020000*|2620004f8000*|3ffe*|3fff*|5f00*) return 1 ;;
     esac
     return 0
 }
@@ -108,17 +108,65 @@ cfip_https_url_or_empty() {
 }
 
 cfip_valid_cron() {
-    local expr="$1" f1 f2 f3 f4 f5 extra
+    local expr="$1" f1 f2 f3 f4 f5
     [[ -n "$expr" && "$expr" != *$'\n'* && "$expr" != *$'\r'* ]] || return 1
     [[ "$expr" =~ ^([^[:space:]]+)[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)$ ]] || return 1
     f1="${BASH_REMATCH[1]}"; f2="${BASH_REMATCH[2]}"; f3="${BASH_REMATCH[3]}"; f4="${BASH_REMATCH[4]}"; f5="${BASH_REMATCH[5]}"
-    for extra in "$f1" "$f2" "$f3" "$f4" "$f5"; do [[ "$extra" =~ ^[0-9*/?,\-]+$ ]] || return 1; done
+    cfip_valid_cron_field "$f1" 0 59 || return 1
+    cfip_valid_cron_field "$f2" 0 23 || return 1
+    cfip_valid_cron_field "$f3" 1 31 || return 1
+    cfip_valid_cron_field "$f4" 1 12 || return 1
+    cfip_valid_cron_field "$f5" 0 7 || return 1
+}
+
+cfip_valid_cron_field() {
+    local field="$1" minimum="$2" maximum="$3" term base step left right value
+    local -a terms=()
+    IFS=',' read -r -a terms <<<"$field"
+    ((${#terms[@]} > 0)) || return 1
+    for term in "${terms[@]}"; do
+        [[ -n "$term" && "$term" != *'?'* ]] || return 1
+        step=1; base="$term"
+        if [[ "$term" == */* ]]; then
+            [[ "$term" != */*/* ]] || return 1
+            base="${term%%/*}"; step="${term#*/}"
+            [[ "$step" =~ ^[1-9][0-9]*$ ]] || return 1
+            ((step <= maximum - minimum + 1)) || return 1
+            [[ "$base" == '*' || "$base" =~ ^[0-9]+-[0-9]+$ ]] || return 1
+        fi
+        if [[ "$base" == '*' ]]; then
+            continue
+        elif [[ "$base" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+            left="${BASH_REMATCH[1]}"; right="${BASH_REMATCH[2]}"
+            ((left >= minimum && right <= maximum && left <= right)) || return 1
+        elif [[ "$base" =~ ^[0-9]+$ ]]; then
+            value="$base"; ((value >= minimum && value <= maximum)) || return 1
+            [[ "$step" == 1 ]] || return 1
+        else
+            return 1
+        fi
+    done
+}
+
+cfip_service_status_timeout() {
+    local class="${1:-status}" remaining
+    case "$class" in
+        measurement|normal) remaining="$(cfip_measurement_remaining)" ;;
+        recovery) remaining="$(cfip_recovery_remaining)" ;;
+        status) printf '%s' "${CFIP_STATUS_TIMEOUT_SECONDS:-3}"; return 0 ;;
+        *) [[ "$class" =~ ^[1-9][0-9]*$ ]] || return 2; printf '%s' "$class"; return 0 ;;
+    esac
+    ((remaining > 0)) && printf '%s' "$remaining" || printf 0
 }
 
 cfip_service_running() {
-    local service="$1"
+    local service="$1" timeout_class="${2:-status}" timeout rc=0
     [[ -x "$CFIP_INIT_DIR/$service" ]] || return 1
-    "$CFIP_INIT_DIR/$service" running >/dev/null 2>&1 || { [[ "$service" == openclash ]] && pidof clash >/dev/null 2>&1; }
+    timeout="$(cfip_service_status_timeout "$timeout_class")" || return 2
+    ((timeout > 0)) || return 124
+    cfip_run_with_timeout "$timeout" "$CFIP_INIT_DIR/$service" running >/dev/null 2>&1 || rc=$?
+    ((rc == 0)) && return 0
+    [[ "$service" == openclash ]] && pidof clash >/dev/null 2>&1
 }
 
 cfip_bounded_external() {
@@ -179,7 +227,7 @@ cfip_restart_service() {
             remaining="$(cfip_measurement_remaining)"
         fi
         [[ "$remaining" -gt 0 ]] || return 124
-        cfip_service_running "$service" && return 0
+        cfip_service_running "$service" "$deadline_class" && return 0
         sleep 1
     done
     return 1
@@ -193,17 +241,35 @@ cfip_read_log_json() {
 
 cfip_now_epoch() { date +%s 2>/dev/null || printf 0; }
 
+# Runtime budgets must use Linux's monotonic uptime clock.  The injectable
+# file/value hooks make clock-jump behavior testable without changing the
+# production wall-clock history contract.
+cfip_monotonic_seconds() {
+    if [[ "${CFIP_MONOTONIC_SECONDS:-}" =~ ^[0-9]+$ ]]; then
+        printf '%s' "$CFIP_MONOTONIC_SECONDS"
+    elif [[ -r "${CFIP_MONOTONIC_FILE:-/proc/uptime}" ]]; then
+        awk '{print int($1); exit}' "${CFIP_MONOTONIC_FILE:-/proc/uptime}"
+    elif [[ "${CFIP_MONOTONIC_FALLBACK:-}" =~ ^[0-9]+$ ]]; then
+        printf '%s' "$CFIP_MONOTONIC_FALLBACK"
+    else
+        # Non-Linux development hosts may lack /proc/uptime.  OpenWrt/Linux
+        # always takes the monotonic branch; this explicit last-resort keeps
+        # host contracts runnable without pretending wall time is monotonic.
+        date +%s 2>/dev/null || return 1
+    fi
+}
+
 cfip_measurement_remaining() {
     local deadline="${CFIP_MEASUREMENT_DEADLINE:-0}" now
     ((deadline>0)) || { printf 86400; return 0; }
-    now="$(cfip_now_epoch)"
+    now="$(cfip_monotonic_seconds)" || return 1
     ((deadline>now)) && printf '%s' "$((deadline-now))" || printf 0
 }
 
 cfip_recovery_remaining() {
     local deadline="${CFIP_RECOVERY_DEADLINE:-0}" now
     ((deadline>0)) || { printf 86400; return 0; }
-    now="$(cfip_now_epoch)"
+    now="$(cfip_monotonic_seconds)" || return 1
     ((deadline>now)) && printf '%s' "$((deadline-now))" || printf 0
 }
 
@@ -213,34 +279,75 @@ cfip_deadline_remaining() { cfip_measurement_remaining; }
 cfip_begin_recovery() {
     local now
     [[ "${CFIP_RECOVERY_ACTIVE:-false}" == true ]] && return 0
-    now="$(cfip_now_epoch)"
+    now="$(cfip_monotonic_seconds)" || return 1
     CFIP_RECOVERY_STARTED_AT="$now"
     CFIP_RECOVERY_DEADLINE=$((now + ${CFIP_RECOVERY_TIMEOUT:-30}))
     CFIP_RECOVERY_ACTIVE=true
     CFIP_RECOVERY_ERROR=""
 }
 
+# Stop an operation process group where possible, with a Linux /proc child-tree
+# fallback for BusyBox environments without a usable setsid.
+cfip_process_children() {
+    local pid="$1" children child
+    [[ -r "/proc/$pid/task/$pid/children" ]] || return 0
+    read -r children <"/proc/$pid/task/$pid/children" || true
+    for child in $children; do
+        cfip_process_children "$child"
+        printf '%s\n' "$child"
+    done
+}
+
+cfip_kill_operation_tree() {
+    local pid="${1:-}" pgid="${2:-}" signal="${3:-TERM}" child
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 0
+    if [[ "$pgid" =~ ^[0-9]+$ && "$pgid" != 0 ]]; then
+        kill -"$signal" -- "-$pgid" 2>/dev/null || true
+        return 0
+    fi
+    while IFS= read -r child; do kill -"$signal" "$child" 2>/dev/null || true; done < <(cfip_process_children "$pid")
+    kill -"$signal" "$pid" 2>/dev/null || true
+}
+
+cfip_cancel_active_operation() {
+    local pid="${1:-${CFIP_ACTIVE_PID:-}}" pgid="${2:-${CFIP_ACTIVE_PGID:-}}" grace="${CFIP_TIMEOUT_GRACE_SECONDS:-1}"
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 0
+    cfip_kill_operation_tree "$pid" "$pgid" TERM
+    [[ "$grace" =~ ^[0-9]+$ ]] && ((grace > 0)) && sleep "$grace"
+    kill -0 "$pid" 2>/dev/null && cfip_kill_operation_tree "$pid" "$pgid" KILL
+    wait "$pid" 2>/dev/null || true
+    CFIP_ACTIVE_PID=""
+    CFIP_ACTIVE_PGID=""
+}
+
 # Portable watchdog for OpenWrt/Bash; does not require coreutils timeout.
-# Returns 124 when the watchdog expires.
+# Returns 124 when the watchdog expires and terminates the complete operation.
 cfip_run_with_timeout() {
-    local limit="$1" marker pid watcher rc
+    local limit="$1" marker pid watcher pgid rc timed_out=false
     shift
     [[ "$limit" =~ ^[1-9][0-9]*$ ]] || return 2
     marker="$(mktemp "${TMPDIR:-/tmp}/cfip-timeout.XXXXXX")" || return 2
     rm -f "$marker"
-    "$@" & pid=$!
+    if command -v setsid >/dev/null 2>&1 && [[ "${CFIP_DISABLE_SETSID:-false}" != true ]]; then
+        setsid "$@" & pid=$!
+        pgid="$pid"
+    else
+        "$@" & pid=$!
+        pgid=""
+    fi
+    CFIP_ACTIVE_PID="$pid"
+    CFIP_ACTIVE_PGID="$pgid"
     (
         sleep "$limit"
         if kill -0 "$pid" 2>/dev/null; then
             : >"$marker"
-            kill -TERM "$pid" 2>/dev/null || true
-            sleep 1
-            kill -KILL "$pid" 2>/dev/null || true
+            cfip_cancel_active_operation "$pid" "$pgid"
         fi
     ) & watcher=$!
     rc=0; wait "$pid" 2>/dev/null || rc=$?
     kill "$watcher" 2>/dev/null || true
     wait "$watcher" 2>/dev/null || true
+    [[ "$CFIP_ACTIVE_PID" == "$pid" ]] && { CFIP_ACTIVE_PID=""; CFIP_ACTIVE_PGID=""; }
     if [[ -f "$marker" ]]; then rm -f "$marker"; return 124; fi
     rm -f "$marker"
     return "$rc"

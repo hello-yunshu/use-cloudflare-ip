@@ -252,6 +252,6 @@ Before PassWall or OpenClash is changed, every selected IP must pass the configu
 
 Script self-update is deprecated because 2.0 is multi-file and package-managed. `auto_update=0` is the default; upgrade via a validated IPK/APK package. UCI, CFST, source last-good caches, ownership and bounded history persist across upgrades, while run/probe/publisher files are temporary. LAN Publisher is disabled by default, LAN-only, refuses `0.0.0.0`, and serves `/ip.txt`, `/best-ipv4.txt`, `/best-ipv6.txt`, and `/result.json`.
 
-Release status: development only. Stable publication requires every legacy item, host/RPC/LuCI, Rill native and five musl targets, IPK/APK artifacts, rollback gates, and real CFST smoke. Package or Docker checks do not prove live OpenWrt or hardware soak.
+Release status: development only. Stable publication requires every legacy item, host/RPC/LuCI, same-release generic Rill consumer integration, OpenWrt 24.10.5 IPK, OpenWrt 25.12.0 APK, rollback gates, and real CFST smoke. Package or Docker checks do not prove live OpenWrt or hardware soak.
 
 When fewer candidates qualify, the result reports a degraded candidate count and never duplicates the fastest IP. More sources enlarge the seed pool, but all candidates are retested locally; source count does not mean an unbounded number of IPs in one speed test. LAN Publisher is optional, LAN-only, disabled by default, and never replaces direct PassWall/OpenClash updates.

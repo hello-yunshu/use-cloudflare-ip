@@ -45,6 +45,11 @@ jobs:
           bash tests/v2-candidate-budget.sh
           bash tests/v2-cfst-exact-input.sh
           bash tests/v2-measurement-deadline.sh
+          bash tests/service-running-timeout.sh
+          bash tests/status-running-timeout.sh
+          bash tests/monotonic-deadline.sh
+          bash tests/external-operation-timeout-tree.sh
+          bash tests/cron-semantic-validation.sh
           bash tests/rill-feedback-negative.sh
           jq empty plans/rill/drift-decision.json
           bash tests/recovery-deadline.sh
@@ -53,6 +58,7 @@ jobs:
           bash tests/security-contract.sh
           bash tests/cron-contract.sh
           bash tests/transaction-signal-rollback.sh
+          bash tests/signal-child-tree-rollback.sh
           bash tests/transaction-hard-deadline.sh
           bash tests/openclash-protocol-eligibility.sh
           bash tests/rill-disabled-noexec.sh
@@ -187,7 +193,7 @@ jobs:
                    APK=/builder/staging_dir/host/bin/apk bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" apk "$mode" ;;
             esac
           done
-          sha256sum "$GITHUB_WORKSPACE/output"/* > "$GITHUB_WORKSPACE/output/SHA256SUMS"
+          (cd "$GITHUB_WORKSPACE/output" && sha256sum -- *) > "$GITHUB_WORKSPACE/output/SHA256SUMS"
       - uses: actions/upload-artifact@v7
         with:
           name: luci-app-cloudflare-ip-${{ matrix.pkgtype }}-${{ matrix.branch }}
@@ -227,7 +233,35 @@ jobs:
           gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name qualification-evidence --dir "$evidence_dir"
           evidence_file=$(find "$evidence_dir" -type f -name 'qualification.json' -print -quit)
           test -n "$evidence_file"
-          jq -e --arg commit "$package_commit" '.commit==$commit and .releaseEligible==true and .qualificationState=="automated-qualification"' "$evidence_file" >/dev/null
+          expected_release=$(sed -n 's/^PKG_RELEASE:=//p' rill-openwrt-packages/package/rill-runtime/Makefile)
+          expected_upstream_repository=$(jq -r '.upstream.repository' rill-openwrt-packages/metadata/rill-runtime.json)
+          expected_upstream_tag=$(jq -r '.upstream.tag' rill-openwrt-packages/metadata/rill-runtime.json)
+          expected_upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
+          jq -e \
+            --arg commit "$package_commit" \
+            --arg version "$version" \
+            --arg release "$expected_release" \
+            --arg upstreamRepository "$expected_upstream_repository" \
+            --arg upstreamTag "$expected_upstream_tag" \
+            --arg upstreamCommit "$expected_upstream_commit" \
+            '.schemaVersion==1
+             and .packageCommit==$commit
+             and .qualificationState=="automated-qualification"
+             and .releaseEligible==true
+             and .package.name=="rill-runtime"
+             and .package.version==$version
+             and (.package.release|tostring)==$release
+             and .package.recipe=="package/rill-runtime/Makefile"
+             and .upstream.repository==$upstreamRepository
+             and .upstream.tag==$upstreamTag
+             and .upstream.commit==$upstreamCommit
+             and (.upstream.archiveSha256|test("^[0-9a-fA-F]{64}$"))
+             and (.artifacts|type)=="array"
+             and (.artifacts|length)==2
+             and all(.artifacts[]; (.path|type)=="string" and (.sha256|test("^[0-9a-fA-F]{64}$")))
+             and any(.artifacts[]; (.path|endswith(".ipk")))
+             and any(.artifacts[]; (.path|endswith(".apk")))' \
+            "$evidence_file" >/dev/null
           qualification_manifest_sha256=$(sha256sum "$evidence_file" | awk '{print $1}')
           upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
           git clone --depth 1 --branch "v${version}" https://github.com/hello-yunshu/rill-ml.git rill-ml
@@ -238,6 +272,7 @@ jobs:
             echo "package_commit=$package_commit"
             echo "qualification_run=$qualification_run"
             echo "qualification_manifest_sha256=$qualification_manifest_sha256"
+            echo "upstream_tag=$expected_upstream_tag"
             echo "commit=$upstream_commit"
             echo "source_archive_sha256=$metadata_hash"
             echo "binary_sha256=$(sha256sum rill-ml/target/release/rill-runtime | awk '{print $1}')"
@@ -254,12 +289,13 @@ jobs:
           QUALIFICATION_RUN: ${{ steps.runtime.outputs.qualification_run }}
           QUALIFICATION_MANIFEST_SHA256: ${{ steps.runtime.outputs.qualification_manifest_sha256 }}
           COMMIT: ${{ steps.runtime.outputs.commit }}
+          UPSTREAM_TAG: ${{ steps.runtime.outputs.upstream_tag }}
           SOURCE_ARCHIVE_SHA256: ${{ steps.runtime.outputs.source_archive_sha256 }}
           BINARY_SHA256: ${{ steps.runtime.outputs.binary_sha256 }}
         run: |
           set -euo pipefail
-          jq -n --arg version "$VERSION" --arg packageCommit "$PACKAGE_COMMIT" --arg qualificationRun "$QUALIFICATION_RUN" --arg qualificationManifestSha256 "$QUALIFICATION_MANIFEST_SHA256" --arg commit "$COMMIT" --arg sourceArchiveSha256 "$SOURCE_ARCHIVE_SHA256" --arg binarySha256 "$BINARY_SHA256" \
-            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",package:{repository:"hello-yunshu/rill-openwrt-packages",commit:$packageCommit,qualificationRunId:($qualificationRun|tonumber),qualificationManifestSha256:$qualificationManifestSha256},runtime:{version:$version,tag:("v"+$version),commit:$commit,sourceArchiveSha256:$sourceArchiveSha256,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:true}}' \
+          jq -n --arg version "$VERSION" --arg packageCommit "$PACKAGE_COMMIT" --arg qualificationRun "$QUALIFICATION_RUN" --arg qualificationManifestSha256 "$QUALIFICATION_MANIFEST_SHA256" --arg upstreamTag "$UPSTREAM_TAG" --arg commit "$COMMIT" --arg sourceArchiveSha256 "$SOURCE_ARCHIVE_SHA256" --arg binarySha256 "$BINARY_SHA256" \
+            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",package:{repository:"hello-yunshu/rill-openwrt-packages",commit:$packageCommit,qualificationRunId:($qualificationRun|tonumber),qualificationManifestSha256:$qualificationManifestSha256},runtime:{version:$version,tag:$upstreamTag,commit:$commit,sourceArchiveSha256:$sourceArchiveSha256,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:true}}' \
             > rill-runtime-integration.json
       - uses: actions/upload-artifact@v7
         with:

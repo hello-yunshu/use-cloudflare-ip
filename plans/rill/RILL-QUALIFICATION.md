@@ -28,8 +28,10 @@ service or commit a router transaction.
 Native Rust gates are fmt, clippy `-D warnings`, test, release build and smoke.
 The x86_64, aarch64, riscv64gc, armv7 and i686 musl binaries belong to the
 upstream Rill Stable release qualification. Cloudflare IP neither rebuilds nor
-publishes five private Runtime binaries; its consumer gate uses the external
-package-owned `/usr/bin/rill-runtime` and the exact Stable provenance.
+publishes private Runtime binaries; its consumer gate uses the external
+package-owned `/usr/bin/rill-runtime` and the exact Stable provenance. The
+generic Runtime package repository owns its own exact-commit IPK/APK
+qualification and immutable `qualification.json` evidence.
 
 ## PageHinkley decision
 

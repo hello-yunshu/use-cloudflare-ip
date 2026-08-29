@@ -9,5 +9,5 @@
 | transaction/rollback | transaction and adapter tests | `legacy-contract`, package job | OPEN |
 | RPC dispatch | `rpc-roundtrip.sh` | `rpc-luci-contract` | OPEN |
 | package contents | `package-conffiles.sh` | IPK/APK artifact inspection | OPEN |
-| Rill native/musl | adapter smoke | native + five target jobs | OPEN |
+| Rill consumer/package | same-release adapter smoke; external generic Runtime IPK/APK qualification | exact consumer run plus exact package-repo qualification evidence | OPEN |
 | device runtime | unavailable on host | OpenWrt device evidence | BLOCKED |

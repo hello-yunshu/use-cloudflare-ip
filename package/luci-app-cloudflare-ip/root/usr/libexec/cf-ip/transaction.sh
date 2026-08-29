@@ -20,7 +20,7 @@ cfip_txn_prepare() {
     CFIP_TXN_COMMITTED=false
     CFIP_TXN_ROLLED_BACK=false
     CFIP_TXN_ORIGINAL_RUNNING=false
-    if declare -F cfip_service_running >/dev/null 2>&1 && cfip_service_running "$mode"; then
+    if declare -F cfip_service_running >/dev/null 2>&1 && cfip_service_running "$mode" measurement; then
         CFIP_TXN_ORIGINAL_RUNNING=true
     fi
     CFIP_TXN_DIR="$(mktemp -d "${CFIP_RUNTIME_DIR:-/tmp/cf_ip}/txn-${CFIP_RUN_ID}.XXXXXX")" || return 1

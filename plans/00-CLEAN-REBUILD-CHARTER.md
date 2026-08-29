@@ -23,4 +23,4 @@ The 2.0 package is an additive rebuild. The legacy implementation remains an ind
 
 ## Current boundary
 
-The source, observation, transaction, package, RPC, LuCI, and local contract work is performed on the host. Real OpenWrt runtime, actual PassWall/OpenClash installations, public CFST quality, five musl executions, and hardware behavior remain qualification gates until their exact evidence is recorded.
+The source, observation, transaction, package, RPC, LuCI, and local contract work is performed on the host. Real OpenWrt runtime, actual PassWall/OpenClash installations, public CFST quality, exact generic Runtime package IPK/APK qualification, and hardware behavior remain qualification gates until their exact evidence is recorded.
