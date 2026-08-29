@@ -112,7 +112,7 @@ jobs:
       - name: Build package
         working-directory: ${{ env.SDKDIR }}
         run: |
-          make "package/$PKG_NAME/compile" V=sc
+          bash "$GITHUB_WORKSPACE/$REPO_NAME/scripts/openwrt-build-diagnostic.sh" "package/$PKG_NAME/compile"
 
       - name: Collect package
         working-directory: ${{ env.SDKDIR }}
