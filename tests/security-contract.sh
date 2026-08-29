@@ -12,12 +12,19 @@ CFIP_IP_TYPE=both
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/source.sh"
 
+assert_rejected() {
+    if "$@"; then
+        echo "unexpected success: $*" >&2
+        exit 1
+    fi
+}
+
 for ip in \
     10.0.0.1 100.64.0.1 100.127.255.254 127.0.0.1 169.254.1.1 \
     172.16.0.1 192.168.1.1 192.0.0.1 192.0.2.1 198.18.0.1 \
     198.51.100.1 203.0.113.1 224.0.0.1 \
     :: ::1 ::ffff:c000:201 fc00::1 fd00::1 fe80::1 ff02::1 2001:db8::1; do
-    ! cfip_is_public_candidate "$ip"
+    assert_rejected cfip_is_public_candidate "$ip"
 done
 
 for ip in 23.0.0.1 104.16.1.1 2606:4700::1 2001:4860:4860::8888; do
@@ -39,16 +46,17 @@ jq -e '.records|map(.value)|index("100.64.0.1")==null and index("::ffff:c000:201
 
 sample="$(cfip_sample_one_cidr 2606:4700::/32)"
 cfip_is_public_candidate "$sample"
-! cfip_sample_one_cidr 100.64.0.0/10 >/dev/null
+sample="$(cfip_sample_one_cidr 100.64.0.0/10)"
+assert_rejected cfip_is_public_candidate "$sample"
 
 cfip_valid_cron '*/15 0-6 * * 1-5'
 cfip_valid_cron '0 0 1,15 * *'
-! cfip_valid_cron '0 0 * * *;id'
-! cfip_valid_cron '0 0 * * * extra'
-! cfip_valid_cron $'0 0 * * *\n/etc/passwd'
+assert_rejected cfip_valid_cron '0 0 * * *;id'
+assert_rejected cfip_valid_cron '0 0 * * * extra'
+assert_rejected cfip_valid_cron $'0 0 * * *\n/etc/passwd'
 cfip_https_url_or_empty ''
 cfip_https_url_or_empty 'https://example.com/path'
-! cfip_https_url_or_empty 'http://example.com/path'
-! cfip_https_url_or_empty 'https://example.com/path with-space'
+assert_rejected cfip_https_url_or_empty 'http://example.com/path'
+assert_rejected cfip_https_url_or_empty 'https://example.com/path with-space'
 
 echo 'security contract passed'

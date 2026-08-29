@@ -56,8 +56,28 @@ cfip_ip_family() {
     return 1
 }
 
+cfip_ipv6_in_prefix() {
+    local ip="$1" cidr="$2" network prefix ip_hex network_hex fixed rem mask ip_nibble network_nibble
+    [[ "$cidr" == */* ]] || return 1
+    network="${cidr%/*}"; prefix="${cidr##*/}"
+    [[ "$prefix" =~ ^[0-9]+$ ]] && ((prefix <= 128)) || return 1
+    ip_hex="$(cfip_expand_ipv6_hex "$ip")" || return 1
+    network_hex="$(cfip_expand_ipv6_hex "$network")" || return 1
+    fixed=$((prefix / 4)); rem=$((prefix % 4))
+    if ((fixed > 0)) && [[ "${ip_hex:0:fixed}" != "${network_hex:0:fixed}" ]]; then
+        return 1
+    fi
+    if ((rem > 0)); then
+        mask=$((0xF << (4 - rem)))
+        ip_nibble=$((16#${ip_hex:fixed:1}))
+        network_nibble=$((16#${network_hex:fixed:1}))
+        (( (ip_nibble & mask) == (network_nibble & mask) )) || return 1
+    fi
+    return 0
+}
+
 cfip_is_public_candidate() {
-    local ip="$1" first second third fourth
+    local ip="$1" first second third fourth special_prefix
     if cfip_is_ipv4 "$ip"; then
         IFS=. read -r first second third fourth <<<"$ip"
         ((first >= 1 && first <= 223)) || return 1
@@ -79,14 +99,33 @@ cfip_is_public_candidate() {
         return 0
     fi
     cfip_is_ipv6 "$ip" || return 1
-    local hex
-    hex="$(cfip_expand_ipv6_hex "$ip")" || return 1
-    [[ "$hex" != 00000000000000000000000000000000 && "$hex" != 00000000000000000000000000000001 ]] || return 1
-    [[ "$hex" != 00000000000000000000ffff* ]] || return 1
-    case "${hex:0:2}" in fc|fd|fe|ff) return 1 ;; esac
-    case "$hex" in
-        64ff9b000000000000000000*|64ff9b000001*|1000000000000000*|1000000000000001*|20010000*|20010001*|20010002*|20010003*|200100040112*|2001001*|2001002*|2001003*|20010db8*|20020000*|2620004f8000*|3ffe*|3fff*|5f00*) return 1 ;;
-    esac
+    for special_prefix in \
+        ::/128 \
+        ::1/128 \
+        ::ffff:0:0/96 \
+        64:ff9b::/96 \
+        64:ff9b:1::/48 \
+        100::/64 \
+        100:0:0:1::/64 \
+        2001:0::/32 \
+        2001:1::/32 \
+        2001:2::/32 \
+        2001:3::/32 \
+        2001:4:112::/48 \
+        2001:10::/28 \
+        2001:20::/28 \
+        2001:30::/28 \
+        2001:db8::/32 \
+        2002::/16 \
+        fc00::/7 \
+        fe80::/10 \
+        ff00::/8 \
+        3ffe::/16 \
+        3fff::/16 \
+        5f00::/16 \
+        2620:4f:8000::/48; do
+        cfip_ipv6_in_prefix "$ip" "$special_prefix" && return 1
+    done
     return 0
 }
 
@@ -311,19 +350,28 @@ cfip_kill_operation_tree() {
 
 cfip_cancel_active_operation() {
     local pid="${1:-${CFIP_ACTIVE_PID:-}}" pgid="${2:-${CFIP_ACTIVE_PGID:-}}" grace="${CFIP_TIMEOUT_GRACE_SECONDS:-1}"
-    [[ "$pid" =~ ^[0-9]+$ ]] || return 0
-    cfip_kill_operation_tree "$pid" "$pgid" TERM
-    [[ "$grace" =~ ^[0-9]+$ ]] && ((grace > 0)) && sleep "$grace"
-    kill -0 "$pid" 2>/dev/null && cfip_kill_operation_tree "$pid" "$pgid" KILL
-    wait "$pid" 2>/dev/null || true
+    local watcher="${CFIP_ACTIVE_WATCHER_PID:-}" watcher_pgid="${CFIP_ACTIVE_WATCHER_PGID:-}"
+    if [[ "$pid" =~ ^[0-9]+$ ]]; then
+        cfip_kill_operation_tree "$pid" "$pgid" TERM
+        [[ "$grace" =~ ^[0-9]+$ ]] && ((grace > 0)) && sleep "$grace"
+        kill -0 "$pid" 2>/dev/null && cfip_kill_operation_tree "$pid" "$pgid" KILL
+        wait "$pid" 2>/dev/null || true
+    fi
+    if [[ "$watcher" =~ ^[0-9]+$ ]] && kill -0 "$watcher" 2>/dev/null; then
+        cfip_kill_operation_tree "$watcher" "$watcher_pgid" TERM
+        kill -0 "$watcher" 2>/dev/null && cfip_kill_operation_tree "$watcher" "$watcher_pgid" KILL
+    fi
+    [[ "$watcher" =~ ^[0-9]+$ ]] && wait "$watcher" 2>/dev/null || true
     CFIP_ACTIVE_PID=""
     CFIP_ACTIVE_PGID=""
+    CFIP_ACTIVE_WATCHER_PID=""
+    CFIP_ACTIVE_WATCHER_PGID=""
 }
 
 # Portable watchdog for OpenWrt/Bash; does not require coreutils timeout.
 # Returns 124 when the watchdog expires and terminates the complete operation.
 cfip_run_with_timeout() {
-    local limit="$1" marker pid watcher pgid rc timed_out=false
+    local limit="$1" marker pid watcher pgid watcher_pgid rc timed_out=false
     shift
     [[ "$limit" =~ ^[1-9][0-9]*$ ]] || return 2
     marker="$(mktemp "${TMPDIR:-/tmp}/cfip-timeout.XXXXXX")" || return 2
@@ -337,18 +385,31 @@ cfip_run_with_timeout() {
     fi
     CFIP_ACTIVE_PID="$pid"
     CFIP_ACTIVE_PGID="$pgid"
-    (
-        sleep "$limit"
-        if kill -0 "$pid" 2>/dev/null; then
-            : >"$marker"
-            cfip_cancel_active_operation "$pid" "$pgid"
-        fi
-    ) & watcher=$!
-    rc=0; wait "$pid" 2>/dev/null || rc=$?
-    kill "$watcher" 2>/dev/null || true
+    # The timer is the direct child, so it has no shell-owned sleep child that
+    # can outlive the watcher. The parent polls both children and performs the
+    # timeout action itself, which also keeps signal cleanup in one shell.
+    sleep "$limit" & watcher=$!
+    watcher_pgid=""
+    CFIP_ACTIVE_WATCHER_PID="$watcher"
+    CFIP_ACTIVE_WATCHER_PGID="$watcher_pgid"
+    while kill -0 "$pid" 2>/dev/null && kill -0 "$watcher" 2>/dev/null; do
+        sleep 0.1
+    done
+    if kill -0 "$pid" 2>/dev/null && ! kill -0 "$watcher" 2>/dev/null; then
+        : >"$marker"
+        timed_out=true
+        cfip_cancel_active_operation "$pid" "$pgid"
+    else
+        rc=0; wait "$pid" 2>/dev/null || rc=$?
+    fi
+    if kill -0 "$watcher" 2>/dev/null; then
+        cfip_kill_operation_tree "$watcher" "$watcher_pgid" TERM
+        kill -0 "$watcher" 2>/dev/null && cfip_kill_operation_tree "$watcher" "$watcher_pgid" KILL
+    fi
     wait "$watcher" 2>/dev/null || true
     [[ "$CFIP_ACTIVE_PID" == "$pid" ]] && { CFIP_ACTIVE_PID=""; CFIP_ACTIVE_PGID=""; }
-    if [[ -f "$marker" ]]; then rm -f "$marker"; return 124; fi
+    [[ "$CFIP_ACTIVE_WATCHER_PID" == "$watcher" ]] && { CFIP_ACTIVE_WATCHER_PID=""; CFIP_ACTIVE_WATCHER_PGID=""; }
+    if [[ "$timed_out" == true || -f "$marker" ]]; then rm -f "$marker"; return 124; fi
     rm -f "$marker"
     return "$rc"
 }

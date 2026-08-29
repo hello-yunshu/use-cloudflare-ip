@@ -15,10 +15,16 @@ JSON
 printf '[]\n' >"$TMP/history.json"
 cfip_schedule_family ipv4 100 "$TMP/records.json" "$TMP/history.json" "$TMP/scheduled.json"
 jq -e 'length==100 and any(.[]; .ip=="104.17.1.1") and all(.[]; (.ip|contains("/"))|not)' "$TMP/scheduled.json" >/dev/null
-! jq -r '.[].ip' "$TMP/scheduled.json" | grep -Fx '104.16.0.0/24'
+if jq -r '.[].ip' "$TMP/scheduled.json" | grep -Fx '104.16.0.0/24' >/dev/null; then
+  echo 'CIDR leaked into scheduled candidate pool' >&2
+  exit 1
+fi
 cfip_collect_enabled_sources() { cp "$TMP/records.json" "$1"; printf '[]\n' >"$2"; }
 cfip_history_pool_json() { cp "$TMP/history.json" "$1"; }
 cfip_prepare_candidate_pool "$TMP/pool.json" "$TMP/input.txt" "$TMP/source-status.json"
 test "$(grep -Fx '104.17.1.1/32' "$TMP/input.txt" | wc -l | tr -d ' ')" -eq 1
-! grep -Eq '/(8|16|24)$' "$TMP/input.txt"
+if grep -Eq '/(8|16|24)$' "$TMP/input.txt"; then
+  echo 'non-host CIDR leaked into CFST input' >&2
+  exit 1
+fi
 echo 'v2 exact concrete CFST input contract passed'

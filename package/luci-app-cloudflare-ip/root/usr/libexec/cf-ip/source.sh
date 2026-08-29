@@ -148,6 +148,19 @@ cfip_source_meta_write() {
       '{schemaVersion:1,id:$id,success:$success,stale:$stale,fromCache:$fromCache,parsedCount:$parsed,rejectedCount:$rejected,lastError:(if $error=="" then null else $error end),contentHash:(if $hash=="" then null else $hash end),observedAt:now}' | cfip_atomic_write "$meta"
 }
 
+cfip_source_curl_max_filesize_supported() {
+    case "${CFIP_SOURCE_CURL_MAX_FILESIZE_SUPPORTED:-}" in
+        true) return 0 ;;
+        false) return 1 ;;
+    esac
+    if command curl --help all 2>&1 | grep -q -- '--max-filesize'; then
+        CFIP_SOURCE_CURL_MAX_FILESIZE_SUPPORTED=true
+        return 0
+    fi
+    CFIP_SOURCE_CURL_MAX_FILESIZE_SUPPORTED=false
+    return 1
+}
+
 cfip_source_fetch_remote() {
     local id="$1" url="$2" parser="$3" family="$4" source_class="$5" output="$6"
     local rdir pdir tmp raw parsed bytes lines hash="" oldhash="" pc=0 rc=0 error=""
@@ -156,7 +169,11 @@ cfip_source_fetch_remote() {
     tmp="$(mktemp "$rdir/fetch.XXXXXX")" || return 1
     raw="$pdir/last-good.txt"
     parsed="$rdir/parsed.json"
-    if curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout "$CFIP_SOURCE_CONNECT_TIMEOUT" --max-time "$CFIP_SOURCE_TOTAL_TIMEOUT" --max-redirs 3 "$url" -o "$tmp" 2>/dev/null; then
+    if if cfip_source_curl_max_filesize_supported; then
+        curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout "$CFIP_SOURCE_CONNECT_TIMEOUT" --max-time "$CFIP_SOURCE_TOTAL_TIMEOUT" --max-redirs 3 --max-filesize "$CFIP_SOURCE_MAX_BYTES" "$url" -o "$tmp" 2>/dev/null
+    else
+        curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout "$CFIP_SOURCE_CONNECT_TIMEOUT" --max-time "$CFIP_SOURCE_TOTAL_TIMEOUT" --max-redirs 3 "$url" -o "$tmp" 2>/dev/null
+    fi; then
         bytes="$(wc -c <"$tmp" 2>/dev/null || printf 999999999)"; lines="$(wc -l <"$tmp" 2>/dev/null || printf 999999999)"
         if ((bytes <= CFIP_SOURCE_MAX_BYTES && lines <= CFIP_SOURCE_MAX_LINES)); then
             cfip_parse_source_file "$tmp" "$parser" "$id" "$source_class" "$family" false "$parsed" || error=parse_failed

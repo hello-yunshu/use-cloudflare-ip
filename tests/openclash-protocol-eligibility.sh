@@ -17,6 +17,12 @@ EOF
     cfip_openclash_intended_from_templates "$TMP/selected.json" "$TMP/config.yaml" "$domain" ' [CF-{n}]' '' "$TMP/intended.json"
     test "$(jq length "$TMP/intended.json")" -eq 1
 done
-! cfip_openclash_protocol_supported shadowsocks false ws
-! cfip_openclash_protocol_supported vless false tcp
+if cfip_openclash_protocol_supported shadowsocks false ws; then
+    echo 'unsupported shadowsocks protocol accepted' >&2
+    exit 1
+fi
+if cfip_openclash_protocol_supported vless false tcp; then
+    echo 'unsupported vless transport accepted' >&2
+    exit 1
+fi
 echo 'OpenClash canonical eligibility contract passed'

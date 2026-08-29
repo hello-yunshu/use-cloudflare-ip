@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+if ! command -v setsid >/dev/null 2>&1 && [[ ! -r /proc/self/task/$$/children ]]; then
+  echo 'signal child-tree rollback contract skipped: no process-group or child-tree primitive'
+  exit 0
+fi
 mkdir -p "$TMP/bin" "$TMP/runtime" "$TMP/status"
 cat >"$TMP/bin/uci" <<'EOF'
 #!/usr/bin/env bash
@@ -28,15 +32,17 @@ bash -c '
   uci set passwall.s1.address=mutated.example
   uci commit passwall
   trap "cfip_cancel_active_operation; cfip_txn_rollback passwall; exit 143" INT TERM
-  cfip_run_with_timeout 10 bash -c '\''printf stage-1 >"$1"; (sleep 3; printf stage-2 >>"$1") & wait'\'' bash "$RACE_FILE"
+  cfip_run_with_timeout 10 bash -c '\''printf stage-1 >"$1"; : >"$2"; (sleep 3; printf stage-2 >>"$1") & wait'\'' bash "$RACE_FILE" "$RACE_FILE.ready"
 ' &
 pid=$!
-sleep 1
+for i in {1..50}; do [[ -f "$RACE_FILE.ready" ]] && break; /bin/sleep 0.1; done
+test -f "$RACE_FILE.ready"
 kill -TERM "$pid"
 wait "$pid"
 rc=$?
 set -e
 test "$rc" -eq 143
 test "$(cat "$TMP/passwall.uci")" = "passwall.s1.address='original.example'"
+/bin/sleep 4
 test "$(cat "$RACE_FILE")" = stage-1
 echo 'signal child-tree rollback contract passed'

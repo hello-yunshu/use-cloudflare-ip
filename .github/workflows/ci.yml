@@ -38,6 +38,7 @@ jobs:
           bash tests/v2-observation.sh
           bash tests/v2-rill-shadow.sh
           bash tests/v2-source-engine.sh
+          bash tests/source-size-cap.sh
           bash tests/v2-single-cfst.sh
           bash tests/v2-lan-publisher.sh
           bash tests/v2-status.sh
@@ -49,6 +50,7 @@ jobs:
           bash tests/status-running-timeout.sh
           bash tests/monotonic-deadline.sh
           bash tests/external-operation-timeout-tree.sh
+          bash tests/watchdog-timer-cleanup.sh
           bash tests/cron-semantic-validation.sh
           bash tests/rill-feedback-negative.sh
           jq empty plans/rill/drift-decision.json
@@ -66,6 +68,7 @@ jobs:
           bash tests/scheduler-deterministic.sh
           bash tests/history-freshness.sh
           bash tests/special-address-contract.sh
+          bash tests/ipv6-prefix-contract.sh
           bash tests/no-delay-contract.sh
           bash tests/service-state-preservation.sh
           bash tests/semantic-config-validation.sh

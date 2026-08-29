@@ -118,7 +118,10 @@ test "$(jq 'length' "$TMP/dual-pool.json")" -eq 128
 test "$(jq '[.[]|select(.family=="ipv4")]|length' "$TMP/dual-pool.json")" -eq 96
 test "$(jq '[.[]|select(.family=="ipv6")]|length' "$TMP/dual-pool.json")" -eq 32
 test "$(wc -l < "$TMP/dual-input.txt")" -eq 128
-! grep -Ev '(^([0-9]{1,3}\.){3}[0-9]{1,3}/32$)|(^[0-9A-Fa-f:]+/128$)' "$TMP/dual-input.txt" | grep -q .
+if grep -Ev '(^([0-9]{1,3}\.){3}[0-9]{1,3}/32$)|(^[0-9A-Fa-f:]+/128$)' "$TMP/dual-input.txt" | grep -q .; then
+    echo 'invalid non-host entry leaked into dual-stack CFST input' >&2
+    exit 1
+fi
 
 # The portable measurement watchdog must fail closed with the conventional timeout status.
 set +e

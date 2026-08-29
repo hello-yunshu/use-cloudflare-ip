@@ -38,7 +38,10 @@ grep -q "passwall.s1.address='104.16.1.1'" "$TMP/passwall.state"
 grep -q "passwall.s2.address='104.16.1.2'" "$TMP/passwall.state"
 jq -e '.sections|length==2' "$TMP/passwall-managed.json" >/dev/null
 cfip_passwall_apply_selected "$TMP/selected.json"
-! grep -q '\[CF-.*\].*\[CF-' "$TMP/passwall.state"
+if grep -q '\[CF-.*\].*\[CF-' "$TMP/passwall.state"; then
+  echo 'PassWall suffix duplicated on rerun' >&2
+  exit 1
+fi
 awk '{if ($0 ~ /^passwall\.s1\.address=/) print "passwall.s1.address=\x271.1.1.1\x27"; else print}' "$TMP/passwall.state" >"$TMP/passwall.state.next"
 mv "$TMP/passwall.state.next" "$TMP/passwall.state"
 if cfip_passwall_apply_selected "$TMP/selected.json"; then echo 'user edit conflict unexpectedly accepted' >&2; exit 1; fi
