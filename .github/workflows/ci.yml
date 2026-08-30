@@ -249,8 +249,7 @@ jobs:
             --release "$expected_release" \
             --upstream-repository "$expected_upstream_repository" \
             --upstream-tag "$expected_upstream_tag" \
-            --upstream-commit "$expected_upstream_commit" \
-            --upstream-archive-sha256 "$metadata_hash"
+            --upstream-commit "$expected_upstream_commit"
           qualification_manifest_sha256=$(sha256sum "$evidence_file" | awk '{print $1}')
           upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
           git clone --depth 1 --branch "v${version}" https://github.com/hello-yunshu/rill-ml.git rill-ml
