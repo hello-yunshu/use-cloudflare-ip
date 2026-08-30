@@ -596,3 +596,66 @@ msgstr "项目"
 
 msgid "Failed to trigger speedtest: %s"
 msgstr "触发测速失败：%s"
+
+msgid "Status unavailable / Native fallback"
+msgstr "状态不可用 / Native 回退"
+
+msgid "Assisted requested → Shadow fallback"
+msgstr "已请求 Assisted → 回退到 Shadow"
+
+msgid "consumer not qualified"
+msgstr "消费者尚未通过资格验证"
+
+msgid "Available"
+msgstr "可用"
+
+msgid "version unknown"
+msgstr "版本未知"
+
+msgid "Disabled / Native ranking"
+msgstr "已禁用 / Native 排名"
+
+msgid "Unavailable / Native fallback"
+msgstr "不可用 / Native 回退"
+
+msgid "Rill Intelligence"
+msgstr "Rill 智能"
+
+msgid "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
+msgstr "通用 Rill Runtime 由 OpenWrt 软件包提供。Cloudflare IP 负责候选验证、排名策略、奖励和代理事务。"
+
+msgid "Rill Runtime Consumer"
+msgstr "Rill Runtime 消费者"
+
+msgid "Enable Rill Intelligence"
+msgstr "启用 Rill 智能"
+
+msgid "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
+msgstr "启用可选的 Rill 消费者。Rill 被禁用或不可用时，Native 排名仍为权威结果。"
+
+msgid "Off"
+msgstr "关闭"
+
+msgid "Shadow"
+msgstr "Shadow"
+
+msgid "Assisted (qualification-gated)"
+msgstr "Assisted（需通过资格验证）"
+
+msgid "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
+msgstr "Assisted 当前受资格验证限制，未通过时会回退到 Shadow；Native 排名仍为权威结果。"
+
+msgid "Runtime Timeout (ms)"
+msgstr "Runtime 超时（毫秒）"
+
+msgid "Runtime Path"
+msgstr "Runtime 路径"
+
+msgid "State File"
+msgstr "状态文件"
+
+msgid "Live State"
+msgstr "实时状态"
+
+msgid "Runtime"
+msgstr "Runtime"

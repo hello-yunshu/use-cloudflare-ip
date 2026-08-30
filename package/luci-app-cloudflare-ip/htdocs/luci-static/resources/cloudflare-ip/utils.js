@@ -176,8 +176,11 @@ function renderFooter(options) {
 
 function appendFooter(node, options) {
 	loadSharedCSS();
-	if (node)
+	if (node) {
+		if (node.classList && node.classList.contains('cbi-map') && !node.classList.contains('cfi-dashboard'))
+			node.classList.add('cfi-form-map');
 		node.appendChild(renderFooter(options));
+	}
 	return node;
 }
 

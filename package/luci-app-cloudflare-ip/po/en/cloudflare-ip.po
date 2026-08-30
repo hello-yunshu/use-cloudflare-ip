@@ -596,3 +596,66 @@ msgstr "Project"
 
 msgid "Failed to trigger speedtest: %s"
 msgstr "Failed to trigger speedtest: %s"
+
+msgid "Status unavailable / Native fallback"
+msgstr "Status unavailable / Native fallback"
+
+msgid "Assisted requested → Shadow fallback"
+msgstr "Assisted requested → Shadow fallback"
+
+msgid "consumer not qualified"
+msgstr "consumer not qualified"
+
+msgid "Available"
+msgstr "Available"
+
+msgid "version unknown"
+msgstr "version unknown"
+
+msgid "Disabled / Native ranking"
+msgstr "Disabled / Native ranking"
+
+msgid "Unavailable / Native fallback"
+msgstr "Unavailable / Native fallback"
+
+msgid "Rill Intelligence"
+msgstr "Rill Intelligence"
+
+msgid "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
+msgstr "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
+
+msgid "Rill Runtime Consumer"
+msgstr "Rill Runtime Consumer"
+
+msgid "Enable Rill Intelligence"
+msgstr "Enable Rill Intelligence"
+
+msgid "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
+msgstr "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
+
+msgid "Off"
+msgstr "Off"
+
+msgid "Shadow"
+msgstr "Shadow"
+
+msgid "Assisted (qualification-gated)"
+msgstr "Assisted (qualification-gated)"
+
+msgid "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
+msgstr "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
+
+msgid "Runtime Timeout (ms)"
+msgstr "Runtime Timeout (ms)"
+
+msgid "Runtime Path"
+msgstr "Runtime Path"
+
+msgid "State File"
+msgstr "State File"
+
+msgid "Live State"
+msgstr "Live State"
+
+msgid "Runtime"
+msgstr "Runtime"

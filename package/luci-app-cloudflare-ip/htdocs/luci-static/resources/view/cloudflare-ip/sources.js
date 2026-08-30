@@ -49,14 +49,29 @@ return view.extend({
     var box=E('div',{'class':'cbi-section'},[
       E('h3',{},_('Runtime Source Status')),
       E('p',{},_('Each run allocates roughly 1/8 to fresh history champions, 5/8 to community seeds, and 1/4 to Cloudflare official range exploration. Missing pools flow to other sources. All candidates are deduplicated and measured locally in one CFST run; community ports are never reused.')),
-      E('div',{'class':'table'},[
-        E('div',{'class':'tr table-titles'},[E('div',{'class':'th'},_('Source')),E('div',{'class':'th'},_('State')),E('div',{'class':'th'},_('Candidates')),E('div',{'class':'th'},_('Last Error'))])
-      ])
-    ]), table=box.lastChild;
+      E('div',{'class':'cfi-table-wrap'}, E('div',{'class':'table'},[
+        E('div',{'class':'tr table-titles'},[
+          E('div',{'class':'th'},_('Source')),
+          E('div',{'class':'th'},_('State')),
+          E('div',{'class':'th'},_('Candidates')),
+          E('div',{'class':'th'},_('Last Error'))
+        ])
+      ]))
+    ]), table=box.lastChild.firstChild;
     var seen={};
-    reg.forEach(function(x){ var q=st[x.id]||{}, state=q.success?(q.stale?_('Cached / stale'):_('Fresh')):_('Not fetched'); seen[x.id]=true; table.appendChild(E('div',{'class':'tr'},[E('div',{'class':'td'},x.name),E('div',{'class':'td'},state),E('div',{'class':'td'},String(q.parsedCount||0)),E('div',{'class':'td'},q.lastError||'—')])); });
-    Object.keys(st).filter(function(id){return !seen[id];}).sort().forEach(function(id){var q=st[id],state=q.success?(q.stale?_('Cached / stale'):_('Fresh')):_('Error');table.appendChild(E('div',{'class':'tr'},[E('div',{'class':'td'},id),E('div',{'class':'td'},state),E('div',{'class':'td'},String(q.parsedCount||0)),E('div',{'class':'td'},q.lastError||'—')]));});
+    reg.forEach(function(x){ var q=st[x.id]||{}, state=q.success?(q.stale?_('Cached / stale'):_('Fresh')):_('Not fetched'); seen[x.id]=true; table.appendChild(E('div',{'class':'tr'},[
+      E('div',{'class':'td','data-label':_('Source')},x.name),
+      E('div',{'class':'td','data-label':_('State')},state),
+      E('div',{'class':'td','data-label':_('Candidates')},String(q.parsedCount||0)),
+      E('div',{'class':'td','data-label':_('Last Error')},q.lastError||'—')
+    ])); });
+    Object.keys(st).filter(function(id){return !seen[id];}).sort().forEach(function(id){var q=st[id],state=q.success?(q.stale?_('Cached / stale'):_('Fresh')):_('Error');table.appendChild(E('div',{'class':'tr'},[
+      E('div',{'class':'td','data-label':_('Source')},id),
+      E('div',{'class':'td','data-label':_('State')},state),
+      E('div',{'class':'td','data-label':_('Candidates')},String(q.parsedCount||0)),
+      E('div',{'class':'td','data-label':_('Last Error')},q.lastError||'—')
+    ]));});
     box.appendChild(E('button',{'class':'btn cbi-button-action','click':function(){return callRefresh().then(function(r){ui.addNotification(null,E('p',{},r.success?_('Sources refreshed; candidate pool prepared.'):_('Source refresh failed.')),r.success?'info':'error'); setTimeout(function(){location.reload();},500);});}},_('Refresh Sources Now')));
-    return m.render().then(function(node){ node.appendChild(box); return node; });
+    return utils.renderWithFooter(m.render().then(function(node){ node.appendChild(box); return node; }), utils.FOOTER_OPTIONS);
   }
 });

@@ -19,8 +19,8 @@ return view.extend({
 		var env = data[1] || {};
 
 		if (!env.passwall_installed) {
-			return E('div', { 'class': 'cbi-map' }, [
-				E('div', { 'class': 'cbi-section' },
+			return E('div', { 'class': 'cbi-map cfi-form-map' }, [
+				E('div', { 'class': 'cbi-section cfi-empty-state' },
 					E('h3', {}, _('PassWall Not Found')),
 					E('p', {}, _('PassWall is not installed. Please install PassWall before using this feature.'))
 				)

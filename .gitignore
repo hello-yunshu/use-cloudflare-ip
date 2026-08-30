@@ -2,3 +2,4 @@ cf-openwrt-auto.conf
 /cfst/
 rill-adapter/target/
 .trae/
+/preview/
