@@ -115,7 +115,7 @@ jobs:
 
             This release is promoted only from the exact SHA and successful automated qualification run recorded in `qualification.json`.
 
-            Assets include the Cloudflare IP OpenWrt IPK/APK packages and relative SHA256 checksums. The generic `rill-runtime` package is released and owned by Rill, then installed through OpenWrt package management.
+            Assets include the Cloudflare IP OpenWrt IPK/APK packages and relative SHA256 checksums. Generic Rill source/runtime contracts are owned by `hello-yunshu/rill-ml`; OpenWrt package distribution is owned by `hello-yunshu/rill-openwrt-packages`, and Cloudflare consumes it through OpenWrt package management.
 
             Real OpenWrt device runtime, hardware coverage, PassWall/OpenClash version matrix, and 24-hour soak remain separate evidence boundaries unless explicitly recorded in the qualification manifest.
           files: |

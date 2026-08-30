@@ -104,6 +104,12 @@ jobs:
           - branch: v25.12.0
             pkgtype: apk
             arch: x86_64
+          - branch: v24.10.8
+            pkgtype: ipk
+            arch: x86_64
+          - branch: v25.12.5
+            pkgtype: apk
+            arch: x86_64
     container:
       image: ghcr.io/openwrt/sdk:${{ matrix.arch }}-${{ matrix.branch }}
       options: --user root
@@ -114,7 +120,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 29a17d4c608f610503377f699652c9398d3a8bf4
+          ref: 3742cdfbbf029b91051fbd157cc1522cd91c39aa
           path: rill-openwrt-packages
       - name: Cache OpenWrt Rust toolchain and Cargo registry
         uses: actions/cache@v6
@@ -211,7 +217,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 29a17d4c608f610503377f699652c9398d3a8bf4
+          ref: 3742cdfbbf029b91051fbd157cc1522cd91c39aa
           path: rill-openwrt-packages
       - name: Build the exact Stable-tag Runtime
         id: runtime
@@ -237,31 +243,14 @@ jobs:
           expected_upstream_repository=$(jq -r '.upstream.repository' rill-openwrt-packages/metadata/rill-runtime.json | sed -E 's#^https://github.com/##; s#\.git$##')
           expected_upstream_tag=$(jq -r '.upstream.tag' rill-openwrt-packages/metadata/rill-runtime.json)
           expected_upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
-          jq -e \
-            --arg commit "$package_commit" \
-            --arg version "$version" \
-            --arg release "$expected_release" \
-            --arg upstreamRepository "$expected_upstream_repository" \
-            --arg upstreamTag "$expected_upstream_tag" \
-            --arg upstreamCommit "$expected_upstream_commit" \
-            '.schemaVersion==1
-             and .packageCommit==$commit
-             and .qualificationState=="automated-qualification"
-             and .releaseEligible==true
-             and .package.name=="rill-runtime"
-             and .package.version==$version
-             and (.package.release|tostring)==$release
-             and .package.recipe=="package/rill-runtime/Makefile"
-             and .upstream.repository==$upstreamRepository
-             and .upstream.tag==$upstreamTag
-             and .upstream.commit==$upstreamCommit
-             and (.upstream.archiveSha256|test("^[0-9a-fA-F]{64}$"))
-             and (.artifacts|type)=="array"
-             and (.artifacts|length)==2
-             and all(.artifacts[]; (.path|type)=="string" and (.sha256|test("^[0-9a-fA-F]{64}$")))
-             and any(.artifacts[]; (.path|endswith(".ipk")))
-             and any(.artifacts[]; (.path|endswith(".apk")))' \
-            "$evidence_file" >/dev/null
+          python3 rill-openwrt-packages/scripts/verify_qualification.py "$evidence_file" \
+            --package-commit "$package_commit" \
+            --version "$version" \
+            --release "$expected_release" \
+            --upstream-repository "$expected_upstream_repository" \
+            --upstream-tag "$expected_upstream_tag" \
+            --upstream-commit "$expected_upstream_commit" \
+            --upstream-archive-sha256 "$metadata_hash"
           qualification_manifest_sha256=$(sha256sum "$evidence_file" | awk '{print $1}')
           upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
           git clone --depth 1 --branch "v${version}" https://github.com/hello-yunshu/rill-ml.git rill-ml
