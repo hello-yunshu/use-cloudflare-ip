@@ -117,11 +117,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: luci-app-cloudflare-ip
-      - uses: actions/checkout@v7
-        with:
-          repository: hello-yunshu/rill-openwrt-packages
-          ref: 3742cdfbbf029b91051fbd157cc1522cd91c39aa
-          path: rill-openwrt-packages
+      - name: Checkout canonical Runtime package at immutable contract commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_commit=$(jq -r '.openwrtPackage.commit' luci-app-cloudflare-ip/contracts/rill-runtime.json)
+          [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
+          git clone --filter=blob:none https://github.com/hello-yunshu/rill-openwrt-packages.git rill-openwrt-packages
+          git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
+          git -C rill-openwrt-packages checkout --detach "$package_commit"
+          test "$(git -C rill-openwrt-packages rev-parse HEAD)" = "$package_commit"
       - name: Cache OpenWrt Rust toolchain and Cargo registry
         uses: actions/cache@v6
         with:
@@ -214,11 +219,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/checkout@v7
-        with:
-          repository: hello-yunshu/rill-openwrt-packages
-          ref: 3742cdfbbf029b91051fbd157cc1522cd91c39aa
-          path: rill-openwrt-packages
+      - name: Checkout canonical Runtime package at immutable contract commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_commit=$(jq -r '.openwrtPackage.commit' contracts/rill-runtime.json)
+          [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
+          git clone --filter=blob:none https://github.com/hello-yunshu/rill-openwrt-packages.git rill-openwrt-packages
+          git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
+          git -C rill-openwrt-packages checkout --detach "$package_commit"
+          test "$(git -C rill-openwrt-packages rev-parse HEAD)" = "$package_commit"
+      - name: Verify consumer contract before building Runtime
+        run: python3 scripts/check_rill_dependency.py --package-dir rill-openwrt-packages
       - name: Build the exact Stable-tag Runtime
         id: runtime
         env:

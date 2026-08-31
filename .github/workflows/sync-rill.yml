@@ -1,0 +1,43 @@
+name: Sync qualified Rill Runtime
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [rill-runtime-qualified]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: hello-yunshu/rill-openwrt-packages
+          ref: main
+          path: rill-openwrt-packages
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Resolve latest qualified Stable 1.x
+        run: python3 scripts/check_rill_dependency.py --sync --package-dir rill-openwrt-packages
+      - name: Open update pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- contracts/rill-runtime.json; then
+            echo 'No new qualified Stable 1.x Runtime is available.'
+            exit 0
+          fi
+          version=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json"))["resolved"]["version"])')
+          branch="chore/rill-${version}"
+          git switch -c "$branch"
+          git add contracts/rill-runtime.json
+          git commit -m "deps(rill): update runtime to v${version}"
+          git push origin "HEAD:${branch}"
+          gh pr create --base cloudflare-ip-2.0-dev --head "$branch" --title "deps(rill): update runtime to v${version}" --body "Updates the single immutable Rill Runtime contract after the matching rill-openwrt-packages qualification passed. The required consumer integration workflow must pass before merge."
