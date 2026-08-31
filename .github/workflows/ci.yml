@@ -267,7 +267,7 @@ jobs:
             --upstream-tag "$expected_upstream_tag" \
             --upstream-commit "$expected_upstream_commit"
           qualification_manifest_sha256=$(sha256sum "$evidence_file" | awk '{print $1}')
-          upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
+          upstream_commit=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json")).get("preview", {}).get("commit") or json.load(open("rill-openwrt-packages/metadata/rill-runtime.json"))["upstream"]["commit"])')
           mkdir rill-ml
           git -C rill-ml init -q
           git -C rill-ml remote add origin https://github.com/hello-yunshu/rill-ml.git
@@ -280,9 +280,9 @@ jobs:
             echo "package_commit=$package_commit"
             echo "qualification_run=$qualification_run"
             echo "qualification_manifest_sha256=$qualification_manifest_sha256"
-            echo "upstream_tag=$expected_upstream_tag"
+            echo "upstream_tag=preview-exact-commit"
             echo "commit=$upstream_commit"
-            echo "source_archive_sha256=$metadata_hash"
+            echo "source_archive_sha256=not-applicable-preview"
             echo "binary_sha256=$(sha256sum rill-ml/target/release/rill-runtime | awk '{print $1}')"
           } >> "$GITHUB_OUTPUT"
       - name: Execute the real Cloudflare feedback integration

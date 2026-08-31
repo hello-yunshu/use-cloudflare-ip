@@ -10,6 +10,11 @@
     "upstreamCommit": "b990cd7043d313b0ff29c9693f091a94a5bdaf47",
     "sourceArchiveSha256": "c06a792811d1f08aa7b640c10ee36047c44f825cf7272aa0f75c42ab60806a84"
   },
+  "preview": {
+    "repository": "hello-yunshu/rill-ml",
+    "commit": "0338a3634d499b913854f35efc1754f5057065ab",
+    "channel": "preview-exact-commit"
+  },
   "openwrtPackage": {
     "repository": "hello-yunshu/rill-openwrt-packages",
     "commit": "d6fdcb775a410465d5fcac23dfe283e2614a1472",
