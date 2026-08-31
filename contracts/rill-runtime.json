@@ -12,7 +12,7 @@
   },
   "preview": {
     "repository": "hello-yunshu/rill-ml",
-    "commit": "f464e8bca10a8a7cceac39a4987884fab2f7418a",
+    "commit": "0b925e21daf97f68b8596190dfcca67c06dd88c4",
     "channel": "preview-exact-commit"
   },
   "openwrtPackage": {
