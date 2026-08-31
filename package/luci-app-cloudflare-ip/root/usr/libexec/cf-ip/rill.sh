@@ -12,7 +12,7 @@ cfip_rill_schema_hash() {
 
 cfip_rill_state_generation() {
     [[ -f "$CFIP_RILL_STATE" ]] || { printf '0'; return 0; }
-    jq -r '.handlerSnapshot.stateGeneration // 0' "$CFIP_RILL_STATE" 2>/dev/null || printf '0'
+    jq -r '.partitions["cloudflare-ip"].handlerSnapshot.stateGeneration // .handlerSnapshot.stateGeneration // 0' "$CFIP_RILL_STATE" 2>/dev/null || printf '0'
 }
 
 cfip_rill_runtime_call() {
@@ -41,7 +41,7 @@ cfip_rill_status_json() {
     fi
     schema="$(cfip_rill_schema_hash 2>/dev/null || true)"
     [[ -n "$schema" ]] || { jq -cn --arg mode "$CFIP_RILL_MODE" '{available:false,state:"schema-unavailable",mode:$mode}'; return 0; }
-    request="$(jq -cn --arg id "status-$CFIP_RUN_ID" --arg schema "$schema" '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},featureSchemaHash:$schema,modelGeneration:1,stateGeneration:0,payloadLimit:1048576,request:{method:"handshake"}}')"
+    request="$(jq -cn --arg id "status-$CFIP_RUN_ID" --arg schema "$schema" '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},partitionKey:"cloudflare-ip",featureSchemaHash:$schema,modelGeneration:1,stateGeneration:0,payloadLimit:1048576,request:{method:"handshake"}}')"
     response="$(cfip_rill_runtime_call "$request" 2>/dev/null || true)"
     if jq -e --arg id "status-$CFIP_RUN_ID" --arg schema "$schema" '.requestId==$id and .response.kind=="handshake" and .apiVersion==3 and (.response.capabilities|type=="array") and .response.featureSchemaHash==$schema and (.response.capabilities|index("org.rill.preview.decide")) and (.response.capabilities|index("org.rill.preview.feedback")) and .response.handlerApiVersion==2' <<<"$response" >/dev/null 2>&1; then
         jq -cn --arg mode "$CFIP_RILL_MODE" --argjson s "$response" '{available:true,state:"healthy",mode:$mode,runtimeVersion:$s.runtimeIdentity.version,runtimeApiVersion:$s.apiVersion,capabilities:$s.response.capabilities,featureSchemaHash:$s.response.featureSchemaHash,handlerApiVersion:$s.response.handlerApiVersion}'
@@ -79,7 +79,7 @@ cfip_rill_rank_shadow() {
     request="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-request.XXXXXX")" || return 4
     tmp="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-response.XXXXXX")" || { rm -f "$request"; return 4; }
     jq -cn --arg id "decision-$CFIP_RUN_ID" --arg schema "$schema" --argjson generation "$(cfip_rill_state_generation)" --argjson actions "$actions" \
-      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},capability:"org.rill.preview.decide",featureSchemaHash:$schema,modelGeneration:1,stateGeneration:$generation,payloadLimit:1048576,request:{method:"decide",context:{actions:$actions}}}' >"$request"
+      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},partitionKey:"cloudflare-ip",capability:"org.rill.preview.decide",featureSchemaHash:$schema,modelGeneration:1,stateGeneration:$generation,payloadLimit:1048576,request:{method:"decide",context:{actions:$actions}}}' >"$request"
     if command -v timeout >/dev/null 2>&1; then
         timeout "${CFIP_RILL_TIMEOUT_S}s" sh -c 'cat "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation 1' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" >"$tmp" 2>>"$CFIP_LOG_FILE" || rc=$?
     else
@@ -118,7 +118,7 @@ cfip_rill_feedback() {
     state_generation="$(cfip_rill_state_generation)"
     expected_request_id="feedback-$CFIP_RUN_ID"
     jq -cn --arg id "$expected_request_id" --arg decisionId "$decision_id" --arg selected "$selected_id" --arg schema "$schema" --argjson stateGeneration "$state_generation" --argjson reward "$(jq -r '.reward // 0' "$outcome_json")" --argjson modelGeneration "$model_generation" \
-      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},capability:"org.rill.preview.feedback",featureSchemaHash:$schema,modelGeneration:$modelGeneration,stateGeneration:$stateGeneration,payloadLimit:1048576,request:{method:"feedback",decisionId:$decisionId,selectedActionId:$selected,reward:$reward,outcomeTimeMs:(now*1000|floor),generation:$modelGeneration}}' >"$request"
+      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},partitionKey:"cloudflare-ip",capability:"org.rill.preview.feedback",featureSchemaHash:$schema,modelGeneration:$modelGeneration,stateGeneration:$stateGeneration,payloadLimit:1048576,request:{method:"feedback",decisionId:$decisionId,selectedActionId:$selected,reward:$reward,outcomeTimeMs:(now*1000|floor),generation:$modelGeneration}}' >"$request"
     if command -v timeout >/dev/null 2>&1; then
         timeout "${CFIP_RILL_TIMEOUT_S}s" sh -c 'cat "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation "$5"' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" "$model_generation" >"$response_file" 2>>"$CFIP_LOG_FILE" || rc=$?
     else

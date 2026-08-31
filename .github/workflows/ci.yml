@@ -101,15 +101,19 @@ jobs:
           - branch: v24.10.5
             pkgtype: ipk
             arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
           - branch: v25.12.0
             pkgtype: apk
             arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
           - branch: v24.10.8
             pkgtype: ipk
             arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
           - branch: v25.12.5
             pkgtype: apk
             arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
     container:
       image: ghcr.io/openwrt/sdk:${{ matrix.arch }}-${{ matrix.branch }}
       options: --user root
@@ -121,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package_commit=$(jq -r '.openwrtPackage.commit' luci-app-cloudflare-ip/contracts/rill-runtime.json)
+          package_commit=$(python3 -c 'import json; print(json.load(open("luci-app-cloudflare-ip/contracts/rill-runtime.json"))["openwrtPackage"]["commit"])')
           [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
           git clone --filter=blob:none https://github.com/hello-yunshu/rill-openwrt-packages.git rill-openwrt-packages
           git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
@@ -223,7 +227,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package_commit=$(jq -r '.openwrtPackage.commit' contracts/rill-runtime.json)
+          package_commit=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json"))["openwrtPackage"]["commit"])')
           [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
           git clone --filter=blob:none https://github.com/hello-yunshu/rill-openwrt-packages.git rill-openwrt-packages
           git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
@@ -264,7 +268,11 @@ jobs:
             --upstream-commit "$expected_upstream_commit"
           qualification_manifest_sha256=$(sha256sum "$evidence_file" | awk '{print $1}')
           upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
-          git clone --depth 1 --branch "v${version}" https://github.com/hello-yunshu/rill-ml.git rill-ml
+          mkdir rill-ml
+          git -C rill-ml init -q
+          git -C rill-ml remote add origin https://github.com/hello-yunshu/rill-ml.git
+          git -C rill-ml fetch --depth=1 origin "$upstream_commit"
+          git -C rill-ml checkout --detach "$upstream_commit"
           test "$(git -C rill-ml rev-parse HEAD)" = "$upstream_commit"
           cargo build --locked --release --manifest-path rill-ml/Cargo.toml -p rill-runtime
           {

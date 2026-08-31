@@ -12,7 +12,7 @@
   },
   "openwrtPackage": {
     "repository": "hello-yunshu/rill-openwrt-packages",
-    "commit": "87514ee67a4a6b404f354c99eb66e656555d7f5f",
+    "commit": "d6fdcb775a410465d5fcac23dfe283e2614a1472",
     "package": "rill-runtime",
     "packageVersion": "1.5.6",
     "packageRelease": 1,
