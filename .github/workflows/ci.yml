@@ -249,11 +249,11 @@ jobs:
           test "$package_hash" = "$metadata_hash"
           qualification_run=$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '[.workflow_runs[] | select(.conclusion=="success") | .id][0] // empty')
           test -n "$qualification_run"
-          qualification_artifact=$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '[.artifacts[] | select(.name=="qualification-evidence" and .expired==false) | .id][0] // empty')
-          test -n "$qualification_artifact"
+          qualification_artifact_name=$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '[.artifacts[] | select((.name|startswith("qualification-evidence-")) and .expired==false) | .name][0] // empty')
+          test -n "$qualification_artifact_name"
           evidence_dir="$RUNNER_TEMP/rill-qualification"
           mkdir -p "$evidence_dir"
-          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name qualification-evidence --dir "$evidence_dir"
+          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name "$qualification_artifact_name" --dir "$evidence_dir"
           evidence_file=$(find "$evidence_dir" -type f -name 'qualification.json' -print -quit)
           test -n "$evidence_file"
           expected_release=$(sed -n 's/^PKG_RELEASE:=//p' rill-openwrt-packages/package/rill-runtime/Makefile)
