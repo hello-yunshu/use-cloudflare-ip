@@ -279,6 +279,7 @@ jobs:
           {
             echo "version=$version"
             echo "package_commit=$package_commit"
+            echo "stable_commit=$expected_upstream_commit"
             echo "qualification_run=$qualification_run"
             echo "qualification_manifest_sha256=$qualification_manifest_sha256"
             echo "upstream_tag=preview-exact-commit"
@@ -297,14 +298,15 @@ jobs:
           PACKAGE_COMMIT: ${{ steps.runtime.outputs.package_commit }}
           QUALIFICATION_RUN: ${{ steps.runtime.outputs.qualification_run }}
           QUALIFICATION_MANIFEST_SHA256: ${{ steps.runtime.outputs.qualification_manifest_sha256 }}
-          COMMIT: ${{ steps.runtime.outputs.commit }}
+          STABLE_COMMIT: ${{ steps.runtime.outputs.stable_commit }}
+          PREVIEW_COMMIT: ${{ steps.runtime.outputs.commit }}
           UPSTREAM_TAG: ${{ steps.runtime.outputs.upstream_tag }}
           SOURCE_ARCHIVE_SHA256: ${{ steps.runtime.outputs.source_archive_sha256 }}
           BINARY_SHA256: ${{ steps.runtime.outputs.binary_sha256 }}
         run: |
           set -euo pipefail
-          jq -n --arg version "$VERSION" --arg packageCommit "$PACKAGE_COMMIT" --arg qualificationRun "$QUALIFICATION_RUN" --arg qualificationManifestSha256 "$QUALIFICATION_MANIFEST_SHA256" --arg upstreamTag "$UPSTREAM_TAG" --arg commit "$COMMIT" --arg sourceArchiveSha256 "$SOURCE_ARCHIVE_SHA256" --arg binarySha256 "$BINARY_SHA256" \
-            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",package:{repository:"hello-yunshu/rill-openwrt-packages",commit:$packageCommit,qualificationRunId:($qualificationRun|tonumber),qualificationManifestSha256:$qualificationManifestSha256},runtime:{version:$version,tag:$upstreamTag,commit:$commit,sourceArchiveSha256:$sourceArchiveSha256,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:true}}' \
+          jq -n --arg version "$VERSION" --arg packageCommit "$PACKAGE_COMMIT" --arg qualificationRun "$QUALIFICATION_RUN" --arg qualificationManifestSha256 "$QUALIFICATION_MANIFEST_SHA256" --arg upstreamTag "$UPSTREAM_TAG" --arg stableCommit "$STABLE_COMMIT" --arg previewCommit "$PREVIEW_COMMIT" --arg sourceArchiveSha256 "$SOURCE_ARCHIVE_SHA256" --arg binarySha256 "$BINARY_SHA256" \
+            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",package:{repository:"hello-yunshu/rill-openwrt-packages",commit:$packageCommit,qualificationRunId:($qualificationRun|tonumber),qualificationManifestSha256:$qualificationManifestSha256},stablePackageQualification:"PASS",previewRuntimeIntegration:"PASS",stableCommit:$stableCommit,previewCommit:$previewCommit,runtime:{version:$version,tag:$upstreamTag,commit:$previewCommit,sourceArchiveSha256:$sourceArchiveSha256,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:false}}' \
             > rill-runtime-integration.json
       - uses: actions/upload-artifact@v7
         with:
