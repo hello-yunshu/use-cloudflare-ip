@@ -12,12 +12,12 @@
   },
   "preview": {
     "repository": "hello-yunshu/rill-ml",
-    "commit": "0b925e21daf97f68b8596190dfcca67c06dd88c4",
+    "commit": "698c10f4e7d077cf8f21f0752fc23590aabca9c1",
     "channel": "preview-exact-commit"
   },
   "openwrtPackage": {
     "repository": "hello-yunshu/rill-openwrt-packages",
-    "commit": "d6fdcb775a410465d5fcac23dfe283e2614a1472",
+    "commit": "de8294e52d9fad45aae201722de3cd2ebf9f2d17",
     "package": "rill-runtime",
     "packageVersion": "1.5.6",
     "packageRelease": 1,
@@ -26,7 +26,7 @@
   "qualification": {
     "required": true,
     "workflow": "qualify.yml",
-    "runId": 33403722129,
+    "runId": 33413866061,
     "verdict": "PASS"
   }
 }
