@@ -294,6 +294,11 @@ jobs:
             echo "source_archive_sha256=not-applicable-preview"
             echo "binary_sha256=$(sha256sum "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime" | awk '{print $1}')"
           } >> "$GITHUB_OUTPUT"
+      - name: Install musl loader for the actual OpenWrt Preview binary
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends musl
+          test -x /lib/ld-musl-x86_64.so.1
       - name: Execute the real Cloudflare feedback integration
         run: |
           bash tests/rill-feedback-integration.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
