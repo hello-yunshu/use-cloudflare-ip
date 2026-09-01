@@ -101,15 +101,19 @@ jobs:
           - branch: v24.10.5
             pkgtype: ipk
             arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
           - branch: v25.12.0
             pkgtype: apk
             arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
           - branch: v24.10.8
             pkgtype: ipk
             arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
           - branch: v25.12.5
             pkgtype: apk
             arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
     container:
       image: ghcr.io/openwrt/sdk:${{ matrix.arch }}-${{ matrix.branch }}
       options: --user root
@@ -121,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package_commit=$(jq -r '.openwrtPackage.commit' luci-app-cloudflare-ip/contracts/rill-runtime.json)
+          package_commit=$(python3 -c 'import json; print(json.load(open("luci-app-cloudflare-ip/contracts/rill-runtime.json"))["openwrtPackage"]["commit"])')
           [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
           git clone --filter=blob:none https://github.com/hello-yunshu/rill-openwrt-packages.git rill-openwrt-packages
           git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
@@ -223,7 +227,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package_commit=$(jq -r '.openwrtPackage.commit' contracts/rill-runtime.json)
+          package_commit=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json"))["openwrtPackage"]["commit"])')
           [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
           git clone --filter=blob:none https://github.com/hello-yunshu/rill-openwrt-packages.git rill-openwrt-packages
           git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
@@ -243,12 +247,13 @@ jobs:
           package_commit=$(git -C rill-openwrt-packages rev-parse HEAD)
           metadata_hash=$(jq -r '.upstream.archiveSha256' rill-openwrt-packages/metadata/rill-runtime.json)
           test "$package_hash" = "$metadata_hash"
-          qualification_run=$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n1)
+          qualification_run=$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '[.workflow_runs[] | select(.conclusion=="success") | .id][0] // empty')
           test -n "$qualification_run"
-          gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '.artifacts[] | select(.name=="qualification-evidence" and .expired==false) | .id' | grep -q .
+          qualification_artifact_name=$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '[.artifacts[] | select((.name|startswith("qualification-evidence-")) and .expired==false) | .name][0] // empty')
+          test -n "$qualification_artifact_name"
           evidence_dir="$RUNNER_TEMP/rill-qualification"
           mkdir -p "$evidence_dir"
-          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name qualification-evidence --dir "$evidence_dir"
+          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name "$qualification_artifact_name" --dir "$evidence_dir"
           evidence_file=$(find "$evidence_dir" -type f -name 'qualification.json' -print -quit)
           test -n "$evidence_file"
           expected_release=$(sed -n 's/^PKG_RELEASE:=//p' rill-openwrt-packages/package/rill-runtime/Makefile)
@@ -263,18 +268,23 @@ jobs:
             --upstream-tag "$expected_upstream_tag" \
             --upstream-commit "$expected_upstream_commit"
           qualification_manifest_sha256=$(sha256sum "$evidence_file" | awk '{print $1}')
-          upstream_commit=$(jq -r '.upstream.commit' rill-openwrt-packages/metadata/rill-runtime.json)
-          git clone --depth 1 --branch "v${version}" https://github.com/hello-yunshu/rill-ml.git rill-ml
+          upstream_commit=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json")).get("preview", {}).get("commit") or json.load(open("rill-openwrt-packages/metadata/rill-runtime.json"))["upstream"]["commit"])')
+          mkdir rill-ml
+          git -C rill-ml init -q
+          git -C rill-ml remote add origin https://github.com/hello-yunshu/rill-ml.git
+          git -C rill-ml fetch --depth=1 origin "$upstream_commit"
+          git -C rill-ml checkout --detach "$upstream_commit"
           test "$(git -C rill-ml rev-parse HEAD)" = "$upstream_commit"
           cargo build --locked --release --manifest-path rill-ml/Cargo.toml -p rill-runtime
           {
             echo "version=$version"
             echo "package_commit=$package_commit"
+            echo "stable_commit=$expected_upstream_commit"
             echo "qualification_run=$qualification_run"
             echo "qualification_manifest_sha256=$qualification_manifest_sha256"
-            echo "upstream_tag=$expected_upstream_tag"
+            echo "upstream_tag=preview-exact-commit"
             echo "commit=$upstream_commit"
-            echo "source_archive_sha256=$metadata_hash"
+            echo "source_archive_sha256=not-applicable-preview"
             echo "binary_sha256=$(sha256sum rill-ml/target/release/rill-runtime | awk '{print $1}')"
           } >> "$GITHUB_OUTPUT"
       - name: Execute the real Cloudflare feedback integration
@@ -288,14 +298,15 @@ jobs:
           PACKAGE_COMMIT: ${{ steps.runtime.outputs.package_commit }}
           QUALIFICATION_RUN: ${{ steps.runtime.outputs.qualification_run }}
           QUALIFICATION_MANIFEST_SHA256: ${{ steps.runtime.outputs.qualification_manifest_sha256 }}
-          COMMIT: ${{ steps.runtime.outputs.commit }}
+          STABLE_COMMIT: ${{ steps.runtime.outputs.stable_commit }}
+          PREVIEW_COMMIT: ${{ steps.runtime.outputs.commit }}
           UPSTREAM_TAG: ${{ steps.runtime.outputs.upstream_tag }}
           SOURCE_ARCHIVE_SHA256: ${{ steps.runtime.outputs.source_archive_sha256 }}
           BINARY_SHA256: ${{ steps.runtime.outputs.binary_sha256 }}
         run: |
           set -euo pipefail
-          jq -n --arg version "$VERSION" --arg packageCommit "$PACKAGE_COMMIT" --arg qualificationRun "$QUALIFICATION_RUN" --arg qualificationManifestSha256 "$QUALIFICATION_MANIFEST_SHA256" --arg upstreamTag "$UPSTREAM_TAG" --arg commit "$COMMIT" --arg sourceArchiveSha256 "$SOURCE_ARCHIVE_SHA256" --arg binarySha256 "$BINARY_SHA256" \
-            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",package:{repository:"hello-yunshu/rill-openwrt-packages",commit:$packageCommit,qualificationRunId:($qualificationRun|tonumber),qualificationManifestSha256:$qualificationManifestSha256},runtime:{version:$version,tag:$upstreamTag,commit:$commit,sourceArchiveSha256:$sourceArchiveSha256,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:true}}' \
+          jq -n --arg version "$VERSION" --arg packageCommit "$PACKAGE_COMMIT" --arg qualificationRun "$QUALIFICATION_RUN" --arg qualificationManifestSha256 "$QUALIFICATION_MANIFEST_SHA256" --arg upstreamTag "$UPSTREAM_TAG" --arg stableCommit "$STABLE_COMMIT" --arg previewCommit "$PREVIEW_COMMIT" --arg sourceArchiveSha256 "$SOURCE_ARCHIVE_SHA256" --arg binarySha256 "$BINARY_SHA256" \
+            '{schemaVersion:1,consumer:"hello-yunshu/luci-app-cloudflare-ip",package:{repository:"hello-yunshu/rill-openwrt-packages",commit:$packageCommit,qualificationRunId:($qualificationRun|tonumber),qualificationManifestSha256:$qualificationManifestSha256},stablePackageQualification:"PASS",previewRuntimeIntegration:"PASS",stableCommit:$stableCommit,previewCommit:$previewCommit,runtime:{version:$version,tag:$upstreamTag,commit:$previewCommit,sourceArchiveSha256:$sourceArchiveSha256,binarySha256:$binarySha256},integration:{test:"tests/rill-feedback-integration.sh",status:"pass",sameRelease:false}}' \
             > rill-runtime-integration.json
       - uses: actions/upload-artifact@v7
         with:
