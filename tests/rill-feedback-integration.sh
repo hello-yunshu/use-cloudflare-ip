@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
-BIN="${1:?compiled rill-runtime binary required}"; ROOT="$(cd "$(dirname "$0")/.." && pwd)"; TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+BIN="${1:?compiled rill-runtime binary required}"; ROOT="$(cd "$(dirname "$0")/.." && pwd)"; TMP="$(mktemp -d)"
+cfip_integration_cleanup() {
+  rc=$?
+  if ((rc != 0)) && [[ -s "$TMP/log" ]]; then
+    echo 'rill feedback integration runtime diagnostics:' >&2
+    cat "$TMP/log" >&2
+  fi
+  rm -rf "$TMP"
+  exit "$rc"
+}
+trap cfip_integration_cleanup EXIT
 cat >"$TMP/runtime-wrapper" <<EOF_WRAPPER
 #!/bin/sh
 tee "$TMP/runtime-request.ndjson" | "$BIN" "\$@"
