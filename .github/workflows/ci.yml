@@ -458,7 +458,16 @@ jobs:
           rill_evidence_dir="$asset_dir/rill-runtime-integration"
           rill_evidence_file=$(find "$rill_evidence_dir" -type f -name 'rill-runtime-integration.json' -print -quit)
           test -n "$rill_evidence_file"
-          RESULTS="$RESULTS" ARTIFACTS="$ARTIFACTS" ASSET_FILES="$asset_files" RILL_EVIDENCE="$(cat "$rill_evidence_file")" bash tests/evidence-manifest.sh qualification.json
+          ASSET_FILES="$asset_files"
+          RILL_EVIDENCE="$(cat "$rill_evidence_file")"
+          for json_input in RESULTS ARTIFACTS ASSET_FILES RILL_EVIDENCE; do
+            if ! jq -e . <<<"${!json_input}" >/dev/null 2>&1; then
+              echo "invalid manifest JSON input: $json_input" >&2
+              printf '%s\n' "${!json_input}" >&2
+              exit 1
+            fi
+          done
+          RESULTS="$RESULTS" ARTIFACTS="$ARTIFACTS" ASSET_FILES="$ASSET_FILES" RILL_EVIDENCE="$RILL_EVIDENCE" bash tests/evidence-manifest.sh qualification.json
       - uses: actions/upload-artifact@v7
         with:
           name: qualification-evidence
