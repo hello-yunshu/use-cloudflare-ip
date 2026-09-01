@@ -242,6 +242,7 @@ jobs:
           git -C rill-openwrt-packages checkout --detach "$package_commit"
           test "$(git -C rill-openwrt-packages rev-parse HEAD)" = "$package_commit"
       - name: Require exact Preview package qualification evidence
+        id: qualification
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -260,6 +261,7 @@ jobs:
           test -n "$evidence"
           jq -e --arg commit "$package_commit" --arg upstream "$(jq -r '.preview.commit' contracts/rill-runtime.json)" \
             '.packageCommit==$commit and .releaseEligible==true and .previewPackage.name=="rill-runtime-preview" and .previewPackage.upstreamCommit==$upstream and .previewPackage.qualificationState=="PASS"' "$evidence"
+          echo "qualification_manifest_sha256=$(sha256sum "$evidence" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
           python3 scripts/check_rill_dependency.py --package-dir rill-openwrt-packages
       - uses: actions/download-artifact@v8
         with:
@@ -286,7 +288,7 @@ jobs:
             echo "package_commit=$package_commit"
             echo "stable_commit=$(jq -r '.resolved.upstreamCommit' contracts/rill-runtime.json)"
             echo "qualification_run=$(jq -r '.qualification.runId' contracts/rill-runtime.json)"
-            echo "qualification_manifest_sha256=$(printf '%s' "$package_commit" | sha256sum | awk '{print $1}')"
+            echo "qualification_manifest_sha256=${{ steps.qualification.outputs.qualification_manifest_sha256 }}"
             echo "upstream_tag=preview-exact-commit"
             echo "commit=$upstream_commit"
             echo "source_archive_sha256=not-applicable-preview"
