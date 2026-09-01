@@ -7,13 +7,17 @@ cfip_integration_cleanup() {
     echo 'rill feedback integration runtime diagnostics:' >&2
     cat "$TMP/log" >&2
   fi
+  if ((rc != 0)); then
+    [[ -s "$TMP/runtime-request.ndjson" ]] && { echo 'rill feedback integration request trace:' >&2; cat "$TMP/runtime-request.ndjson" >&2; }
+    [[ -s "$TMP/runtime-response.ndjson" ]] && { echo 'rill feedback integration response trace:' >&2; cat "$TMP/runtime-response.ndjson" >&2; }
+  fi
   rm -rf "$TMP"
   exit "$rc"
 }
 trap cfip_integration_cleanup EXIT
 cat >"$TMP/runtime-wrapper" <<EOF_WRAPPER
 #!/bin/sh
-tee "$TMP/runtime-request.ndjson" | "$BIN" "\$@"
+tee -a "$TMP/runtime-request.ndjson" | "$BIN" "\$@" | tee -a "$TMP/runtime-response.ndjson"
 EOF_WRAPPER
 chmod +x "$TMP/runtime-wrapper"
 export CFIP_RUN_ID=shell-feedback-run CFIP_LOG_FILE="$TMP/log" CFIP_RILL_ENABLED=true CFIP_RILL_MODE=shadow CFIP_RILL_RUNTIME="$TMP/runtime-wrapper" CFIP_RILL_STATE="$TMP/state.json" CFIP_RILL_TIMEOUT_S=5 CFIP_RILL_SCHEMA_FILE="$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v2.json"
