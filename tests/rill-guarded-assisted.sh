@@ -39,4 +39,9 @@ test "$(jq -r .selectedActionId "$CFIP_DECISION_FILE")" = 104.16.1.2
 test "$(jq -r .authorityActionId "$CFIP_DECISION_FILE")" = 104.16.1.2
 test "$(jq -r .rillSelectedActionId "$CFIP_DECISION_FILE")" = 203.0.113.9
 test "$(jq -r .rillTop3Overlap "$CFIP_DECISION_FILE")" = 3
+CFIP_IP_COUNT=2
+select_assisted_candidates
+test "$(jq -r 'length' "$CFIP_SELECTED_FILE")" = 2
+test "$(jq -r '.[0].ip' "$CFIP_SELECTED_FILE")" = 104.16.1.2
+test "$(jq -r '.[1].ip' "$CFIP_SELECTED_FILE")" = 104.16.1.1
 echo 'Rill guarded assisted envelope tests passed'

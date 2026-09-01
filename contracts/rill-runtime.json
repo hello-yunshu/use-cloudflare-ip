@@ -19,7 +19,7 @@
   },
   "openwrtPackage": {
     "repository": "hello-yunshu/rill-openwrt-packages",
-    "commit": "91db9bdee0a58b22e54920b30cb5e75f5882c8c0",
+    "commit": "e814fc178324fc636066fbb3c63234ee9ee99973",
     "package": "rill-runtime-preview",
     "packageVersion": "1.5.6",
     "packageRelease": 2,
@@ -28,7 +28,7 @@
   "qualification": {
     "required": true,
     "workflow": "qualify.yml",
-    "runId": 33479147529,
-    "verdict": "PASS"
+    "runId": 33494323273,
+    "verdict": "PENDING"
   }
 }

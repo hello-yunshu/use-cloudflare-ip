@@ -196,11 +196,27 @@ build_decision() {
 select_assisted_candidates() {
     [[ "$CFIP_RILL_MODE" == assisted ]] || return 0
     cfip_rill_qualified || return 0
-    local safe selected ids
+    local safe selected ids history
+    history="$(cfip_rill_history_json)"
     safe="$(jq --argjson k "$CFIP_RILL_SAFE_TOP_K" --argjson history "$(cfip_rill_history_json)" '.[0:$k] | map(select(.eligible==true and ((.probeSummary.lossRate // .lossRate // 0) <= 0.25) and ((.probeSummary.ttfbMs // 0) <= 3000) and ((.probeSummary.totalMs // 0) <= 5000) and (($history[.ip].consecutiveFailures // 0) < 3)))' "$CFIP_NATIVE_FILE")"
     ids="$(jq -c '[.[].ip]' <<<"$safe")"; [[ "$(jq 'length' <<<"$safe")" -gt 0 ]] || return 0
-    selected="$(jq --argjson safe "$safe" --argjson ids "$ids" --argjson count "$CFIP_IP_COUNT" '[.candidates[] | select(.ip as $ip | ($ids|index($ip))) ] | sort_by(.rillRank // 99999) | .[0:$count]' "$CFIP_RILL_FILE")"
+    selected="$(jq --argjson ids "$ids" --argjson history "$history" --argjson count "$CFIP_IP_COUNT" --argjson cap "$CFIP_RILL_EXPLORATION_CAP" '
+      def prefix:
+        if (.family // "") == "ipv6" then ((.ip|tostring)|split(":")[0:4]|join(":"))
+        else ((.ip|tostring)|split(".")[0:3]|join(".")) end;
+      [.candidates[] | select(.ip as $ip | ($ids|index($ip)))] | sort_by(.rillRank // 99999) |
+      reduce .[] as $candidate ({items:[],unseen:0,families:[],prefixes:[]};
+        if (.items|length) >= $count then .
+        else ($candidate.ip|tostring) as $id | (($history[$id].successCount//0)+($history[$id].failureCount//0) == 0) as $is_unseen |
+          ($candidate.family // "unknown") as $family | ($candidate|prefix) as $prefix |
+          if ($is_unseen and .unseen >= $cap) then .
+          else .items += [$candidate] | .unseen += (if $is_unseen then 1 else 0 end) | .families += [$family] | .prefixes += [$prefix] end
+        end) | .items
+    ' "$CFIP_RILL_FILE")"
     [[ "$(jq 'length' <<<"$selected")" -gt 0 ]] || return 0
+    if [[ "$(jq 'length' <<<"$selected")" -lt "$CFIP_IP_COUNT" ]]; then
+        selected="$(jq --argjson chosen "$selected" --argjson safe "$safe" --argjson count "$CFIP_IP_COUNT" '($chosen|map(.ip)) as $chosenIds | ($chosen + ($safe|map(select(.ip as $ip | ($chosenIds|index($ip)|not)))))[:$count]' <<<"$selected")"
+    fi
     printf '%s\n' "$selected" | cfip_atomic_write "$CFIP_SELECTED_FILE"
 }
 
