@@ -241,6 +241,26 @@ jobs:
           git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
           git -C rill-openwrt-packages checkout --detach "$package_commit"
           test "$(git -C rill-openwrt-packages rev-parse HEAD)" = "$package_commit"
+      - name: Require exact Preview package qualification evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_commit=$(git -C rill-openwrt-packages rev-parse HEAD)
+          qualification_run=$(jq -r '.qualification.runId' contracts/rill-runtime.json)
+          run_json=$(gh run view "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --json headSha,status,conclusion)
+          test "$(jq -r .headSha <<<"$run_json")" = "$package_commit"
+          test "$(jq -r .status <<<"$run_json")" = completed
+          test "$(jq -r .conclusion <<<"$run_json")" = success
+          evidence_dir="$RUNNER_TEMP/package-qualification"
+          mkdir -p "$evidence_dir"
+          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name "qualification-evidence-$qualification_run" --dir "$evidence_dir"
+          evidence=$(find "$evidence_dir" -type f -name qualification.json -print -quit)
+          test -n "$evidence"
+          jq -e --arg commit "$package_commit" --arg upstream "$(jq -r '.preview.commit' contracts/rill-runtime.json)" \
+            '.packageCommit==$commit and .releaseEligible==true and .previewPackage.name=="rill-runtime-preview" and .previewPackage.upstreamCommit==$upstream and .previewPackage.qualificationState=="PASS"' "$evidence"
+          python3 scripts/check_rill_dependency.py --package-dir rill-openwrt-packages
       - uses: actions/download-artifact@v8
         with:
           name: luci-app-cloudflare-ip-ipk-v24.10.8
