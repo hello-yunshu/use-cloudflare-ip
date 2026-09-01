@@ -238,7 +238,7 @@ cfip_rill_record_qualification() {
     [[ "$state" == reset-required ]] || {
         if ((count >= minimum && window_attributed == window_count && window_delayed * 100 >= window_count * 80 && dis_count >= 10 && window_errors * 100 <= (window_count*5) && severe * 100 <= (dis_count*10))) && [[ "$regret_bad" != true ]]; then
             state=shadow-qualified
-        elif [[ "$was_qualified" == true ]]; then state=shadow
+        elif [[ "$was_qualified" == true || "$state" == shadow ]]; then state=shadow
         elif ((count > 0)); then state=learning
         else state=cold; fi
     }
