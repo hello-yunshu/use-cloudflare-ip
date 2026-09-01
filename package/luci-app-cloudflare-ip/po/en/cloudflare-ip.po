@@ -708,9 +708,6 @@ msgstr "Shadow Self-check"
 msgid "Run now"
 msgstr "Run now"
 
-msgid "Checking..."
-msgstr "Checking..."
-
 msgid "Rill self-check passed."
 msgstr "Rill self-check passed."
 
@@ -740,3 +737,81 @@ msgstr "Reset rejected"
 
 msgid "Reset failed: "
 msgstr "Reset failed: "
+
+msgid "Measurement Policy"
+msgstr "Measurement Policy"
+
+msgid "Source Strategy"
+msgstr "Source Strategy"
+
+msgid "Balanced"
+msgstr "Balanced"
+
+msgid "Official-heavy"
+msgstr "Official-heavy"
+
+msgid "History-heavy"
+msgstr "History-heavy"
+
+msgid "Diversity-heavy"
+msgstr "Diversity-heavy"
+
+msgid "Community-heavy"
+msgstr "Community-heavy"
+
+msgid "Probe Batch Size"
+msgstr "Probe Batch Size"
+
+msgid "Maximum Probes"
+msgstr "Maximum Probes"
+
+msgid "Deterministic Early Stop"
+msgstr "Deterministic Early Stop"
+
+msgid "Runtime Health"
+msgstr "Runtime Health"
+
+msgid "Unknown"
+msgstr "Unknown"
+
+msgid "Resource pressure"
+msgstr "Resource pressure"
+
+msgid "Runtime Inspect"
+msgstr "Runtime Inspect"
+
+msgid "pending"
+msgstr "pending"
+
+msgid "last error"
+msgstr "last error"
+
+msgid "Probe Efficiency"
+msgstr "Probe Efficiency"
+
+msgid "probed"
+msgstr "probed"
+
+msgid "avoided"
+msgstr "avoided"
+
+msgid "early stop"
+msgstr "early stop"
+
+msgid "yes"
+msgstr "yes"
+
+msgid "no"
+msgstr "no"
+
+msgid "Native vs Rill"
+msgstr "Native vs Rill"
+
+msgid "native"
+msgstr "native"
+
+msgid "Rill"
+msgstr "Rill"
+
+msgid "regret"
+msgstr "regret"

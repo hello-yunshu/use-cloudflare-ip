@@ -49,6 +49,24 @@ return view.extend({
 			_('The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions.'));
 		var s, o;
 
+		s = m.section(form.TypedSection, 'main', _('Measurement Policy'));
+		s.anonymous = true;
+		o = s.option(form.ListValue, 'source_policy', _('Source Strategy'));
+		o.value('balanced', _('Balanced'));
+		o.value('official-heavy', _('Official-heavy'));
+		o.value('history-heavy', _('History-heavy'));
+		o.value('diversity-heavy', _('Diversity-heavy'));
+		o.value('community-heavy', _('Community-heavy'));
+		o.default = 'balanced';
+		o = s.option(form.Value, 'probe_batch_size', _('Probe Batch Size'));
+		o.datatype = 'range(1,16)';
+		o.default = '4';
+		o = s.option(form.Value, 'max_probe_count', _('Maximum Probes'));
+		o.datatype = 'range(1,32)';
+		o.default = '8';
+		o = s.option(form.Flag, 'early_stop_enabled', _('Deterministic Early Stop'));
+		o.default = '1';
+
 		s = m.section(form.TypedSection, 'rill', _('Rill Runtime Consumer'));
 		s.anonymous = true;
 
@@ -61,7 +79,7 @@ return view.extend({
 		o.value('off', _('Off'));
 		o.value('shadow', _('Shadow'));
 		o.value('assisted', _('Assisted (qualification-gated)'));
-	o.description = _('Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native.');
+		o.description = _('Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native.');
 		o.default = 'shadow';
 
 		o = s.option(form.Value, 'timeout_ms', _('Runtime Timeout (ms)'));
@@ -93,10 +111,14 @@ return view.extend({
 		return (i.stateGeneration || 0) + ' / ' + (i.modelGeneration || 0);
 	};
 	o = s.option(form.DummyValue, '_learning', _('Learning'));
-	o.cfgvalue = function() {
-		var i = status.intelligence || {};
-		return _('Valid feedback') + ': ' + (i.validFeedback || 0) + ', ' + _('delayed pending') + ': ' + (i.pendingDelayedFeedback || 0) + ', ' + _('completed') + ': ' + (i.delayedCompleted || 0);
-	};
+		o.cfgvalue = function() {
+			var i = status.intelligence || {};
+			return _('Valid feedback') + ': ' + (i.validFeedback || 0) + ', ' + _('delayed pending') + ': ' + (i.pendingDelayedFeedback || 0) + ', ' + _('completed') + ': ' + (i.delayedCompleted || 0) + ', Δ ' + (i.rewardDelta == null ? '?' : i.rewardDelta.toFixed(3));
+		};
+		o = s.option(form.DummyValue, '_health', _('Runtime Health'));
+		o.cfgvalue = function() { var i = status.intelligence || {}; return (i.health || _('Unknown')) + (i.resourcePressure ? ' / ' + _('Resource pressure') : ''); };
+		o = s.option(form.DummyValue, '_inspect', _('Runtime Inspect'));
+		o.cfgvalue = function() { var i = status.intelligence || {}, x = i.inspect || {}; return _('pending') + ': ' + (x.pendingDecisions || i.pendingDelayedFeedback || 0) + ', ' + _('completed') + ': ' + (x.completedDecisions || i.delayedCompleted || 0) + ', ' + _('last error') + ': ' + (x.lastError || _('None')); };
 	o = s.option(form.DummyValue, '_authority', _('Current Authority'));
 	o.cfgvalue = function() {
 		return status.effectiveMode === 'assisted' ? _('Guarded Assisted') : (status.effectiveMode === 'shadow' ? _('Shadow') : _('Native'));
@@ -105,6 +127,10 @@ return view.extend({
 	o.cfgvalue = function() { return (status.intelligence || {}).qualificationState || _('Unknown'); };
 	o = s.option(form.DummyValue, '_fallback', _('Fallback Reason'));
 	o.cfgvalue = function() { return status.fallbackReason || (status.intelligence || {}).lastResetReason || _('None'); };
+	o = s.option(form.DummyValue, '_efficiency', _('Probe Efficiency'));
+	o.cfgvalue = function() { var e = status.efficiency || status.probeMetrics || {}; return _('probed') + ': ' + (e.candidatesProbed || 0) + ' / ' + (e.candidatesConsidered || 0) + ', ' + _('avoided') + ': ' + (e.avoidedProbes || 0) + ', ' + _('early stop') + ': ' + (e.earlyStopHit ? _('yes') : _('no')); };
+	o = s.option(form.DummyValue, '_comparison', _('Native vs Rill'));
+	o.cfgvalue = function() { var i = status.intelligence || {}; return _('native') + ': ' + (i.nativeReward == null ? '?' : i.nativeReward.toFixed(3)) + ', ' + _('Rill') + ': ' + (i.rillReward == null ? '?' : i.rillReward.toFixed(3)) + ', ' + _('regret') + ': ' + (i.shadowRegret == null ? 0 : i.shadowRegret.toFixed(3)); };
 
 	o = s.option(form.Button, '_self_check', _('Shadow Self-check'));
 	o.inputtitle = _('Run now');

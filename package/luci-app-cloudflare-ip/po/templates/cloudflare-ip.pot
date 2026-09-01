@@ -740,3 +740,81 @@ msgstr ""
 
 msgid "Reset failed: "
 msgstr ""
+
+msgid "Measurement Policy"
+msgstr ""
+
+msgid "Source Strategy"
+msgstr ""
+
+msgid "Balanced"
+msgstr ""
+
+msgid "Official-heavy"
+msgstr ""
+
+msgid "History-heavy"
+msgstr ""
+
+msgid "Diversity-heavy"
+msgstr ""
+
+msgid "Community-heavy"
+msgstr ""
+
+msgid "Probe Batch Size"
+msgstr ""
+
+msgid "Maximum Probes"
+msgstr ""
+
+msgid "Deterministic Early Stop"
+msgstr ""
+
+msgid "Runtime Health"
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "Resource pressure"
+msgstr ""
+
+msgid "Runtime Inspect"
+msgstr ""
+
+msgid "pending"
+msgstr ""
+
+msgid "last error"
+msgstr ""
+
+msgid "Probe Efficiency"
+msgstr ""
+
+msgid "probed"
+msgstr ""
+
+msgid "avoided"
+msgstr ""
+
+msgid "early stop"
+msgstr ""
+
+msgid "yes"
+msgstr ""
+
+msgid "no"
+msgstr ""
+
+msgid "Native vs Rill"
+msgstr ""
+
+msgid "native"
+msgstr ""
+
+msgid "Rill"
+msgstr ""
+
+msgid "regret"
+msgstr ""

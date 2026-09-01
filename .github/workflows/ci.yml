@@ -54,8 +54,14 @@ jobs:
           bash tests/cron-semantic-validation.sh
           bash tests/rill-feedback-negative.sh
           bash tests/rill-state-and-delayed.sh
+          bash tests/rill-health-contract.sh
           bash tests/rill-guarded-assisted.sh
           bash tests/rill-outcome-attribution.sh
+          bash tests/rill-reward-v2.sh
+          bash tests/rill-qualification-rolling.sh
+          bash tests/probe-batching.sh
+          bash tests/source-policy.sh
+          bash tests/evidence-manifest-default.sh
           jq empty plans/rill/drift-decision.json
           bash tests/recovery-deadline.sh
           bash tests/transaction-commit-failure.sh

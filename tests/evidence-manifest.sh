@@ -4,7 +4,8 @@ OUTPUT="${1:?manifest output path required}"
 RESULTS="${RESULTS:?qualification job results JSON required}"
 ARTIFACTS="${ARTIFACTS:-[]}"
 ASSET_FILES="${ASSET_FILES:-[]}"
-RILL_EVIDENCE="${RILL_EVIDENCE:-{}}"
+RILL_EVIDENCE="${RILL_EVIDENCE:-}"
+[[ -n "$RILL_EVIDENCE" ]] || RILL_EVIDENCE='{}'
 commit="${GITHUB_SHA:?GITHUB_SHA required}"; run_id="${GITHUB_RUN_ID:?GITHUB_RUN_ID required}"
 release_eligible=false
 if jq -e 'to_entries|all(.value.result=="success")' <<<"$RESULTS" >/dev/null; then release_eligible=true; fi

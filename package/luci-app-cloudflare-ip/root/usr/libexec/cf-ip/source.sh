@@ -15,7 +15,58 @@ CFIP_SOURCE_MAX_COUNT="${CFIP_SOURCE_MAX_COUNT:-16}"
 CFIP_SOURCE_MAX_VALID_PER_SOURCE="${CFIP_SOURCE_MAX_VALID_PER_SOURCE:-2048}"
 CFIP_SOURCE_MIN_VALID_REMOTE="${CFIP_SOURCE_MIN_VALID_REMOTE:-2}"
 CFIP_HISTORY_MAX_AGE_SECONDS="${CFIP_HISTORY_MAX_AGE_SECONDS:-604800}"
+CFIP_SOURCE_POLICY="${CFIP_SOURCE_POLICY:-balanced}"
+CFIP_SOURCE_POLICY_FILE="${CFIP_SOURCE_POLICY_FILE:-${CFIP_STATUS_DIR:-/etc/cf_ip}/source-policy.json}"
 CFIP_SOURCE_USED_COUNT=0
+
+cfip_source_policy_registry_json() {
+    cat <<'JSON'
+[
+  {"id":"balanced","official":0.50,"community":0.30,"carrier":0.10,"measured":0.10},
+  {"id":"official-heavy","official":0.75,"community":0.10,"carrier":0.05,"measured":0.10},
+  {"id":"history-heavy","official":0.35,"community":0.35,"carrier":0.10,"measured":0.20},
+  {"id":"diversity-heavy","official":0.35,"community":0.25,"carrier":0.25,"measured":0.15},
+  {"id":"community-heavy","official":0.35,"community":0.45,"carrier":0.15,"measured":0.05}
+]
+JSON
+}
+
+cfip_source_policy_valid() { cfip_source_policy_registry_json | jq -e --arg id "${1:-}" 'any(.[];.id==$id)' >/dev/null 2>&1; }
+
+cfip_source_policy_json() {
+    local state='{}' registry
+    if [[ -s "$CFIP_SOURCE_POLICY_FILE" ]] && jq -e 'type=="object"' "$CFIP_SOURCE_POLICY_FILE" >/dev/null 2>&1; then
+        state="$(cat "$CFIP_SOURCE_POLICY_FILE")"
+    fi
+    registry="$(cfip_source_policy_registry_json)"
+    jq -cn --arg selected "$CFIP_SOURCE_POLICY" --argjson state "$state" --argjson registry "$registry" '($registry|map(select(.id==$selected))[0] // $registry[0]) as $policy | {selected:$policy.id,registry:$registry,history:$state}'
+}
+
+cfip_source_policy_order() {
+    local ids="$1" policy="${CFIP_SOURCE_POLICY:-balanced}"
+    cfip_source_policy_valid "$policy" || policy=balanced
+    jq -rn --arg ids "$ids" --arg policy "$policy" --argjson registry "$(cfip_source_policy_registry_json)" '
+      ($registry|map(select(.id==$policy))[0] // $registry[0]) as $p |
+      ($ids|split(" ")|map(select(length>0))) as $ids |
+      ($ids|to_entries|map({id:.value,index:.key,rank:(if (.value|test("official")) then $p.official elif (.value|test("carrier")) then $p.carrier elif (.value|test("svips")) then $p.measured else $p.community end)})|sort_by(-.rank,.index)|map(.id)|join(" "))
+    '
+}
+
+cfip_source_policy_record() {
+    local outcome="${1:-}" reward=0 policy="${CFIP_SOURCE_POLICY:-balanced}" current
+    [[ -n "$outcome" && -s "$outcome" ]] || return 0
+    reward="$(jq -r '.reward // (if .candidateOutcome=="success" then 0 else -1 end)' "$outcome" 2>/dev/null || printf 0)"
+    [[ "$reward" =~ ^-?[0-9]+([.][0-9]+)?$ ]] || reward=0
+    current='{}'
+    if [[ -s "$CFIP_SOURCE_POLICY_FILE" ]] && jq -e 'type=="object"' "$CFIP_SOURCE_POLICY_FILE" >/dev/null 2>&1; then
+        current="$(cat "$CFIP_SOURCE_POLICY_FILE")"
+    fi
+    jq -cn --arg policy "$policy" --argjson reward "$reward" --argjson current "$current" '
+      ($current.policies // {}) as $policies | ($policies[$policy] // {samples:0,ewmaReward:null}) as $old |
+      $policies + {$policy:{samples:(($old.samples//0)+1),ewmaReward:(if ($old.ewmaReward|type)=="number" then (0.8*$old.ewmaReward+0.2*$reward) else $reward end),lastReward:$reward,lastUpdated:(now|floor)}}
+      | {schemaVersion:1,selected:$policy,policies:.,updatedAt:(now|floor)}
+    ' | cfip_atomic_write "$CFIP_SOURCE_POLICY_FILE"
+}
 
 cfip_builtin_registry_json() {
     cat <<'JSON'
@@ -244,6 +295,7 @@ cfip_source_collect_custom() {
 
 cfip_collect_enabled_sources() {
     local output="$1" status_output="$2" ids="${CFIP_BUILTIN_SOURCES:-cloudflare-official-v4 cloudflare-official-v6}" id entry family url parser source_class tmp aggregate
+    ids="$(cfip_source_policy_order "$ids")"
     mkdir -p "$CFIP_SOURCE_RUNTIME_DIR" "$CFIP_SOURCE_CACHE_DIR"
     aggregate="$(mktemp "${TMPDIR:-/tmp}/cfip-all-sources.XXXXXX")" || return 1
     printf '[]' >"$aggregate"; CFIP_SOURCE_USED_COUNT=0

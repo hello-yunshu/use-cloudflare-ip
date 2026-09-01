@@ -100,6 +100,10 @@ CFST 未安装时，点击「下载 CFST」按钮即可自动下载；已安装�
 
 筛选 `address` 匹配目标域名的节点，替换为优选 IP。
 
+### Rill Shadow / Assisted
+
+Rill 默认关闭；`shadow` 只做候选影子观测，不改变 Native 选出的代理配置。Reward v2 将总耗时、TTFB、最差域名丢包、吞吐和延迟稳定性归一化到 `[-1,1]`。延迟反馈会跨重启保存，并在到期时用原候选和域名重新探测；损坏队列会隔离到 quarantine 文件。滚动资格窗口最多保留 50 条，必须满足归因、延迟反馈、Native/Rill 对比和近期错误率门槛，且每次运行时都会检查 Runtime Health/Inspect、模型代数和特征 schema；不满足时自动回到 Shadow/Native 安全路径。
+
 ### OpenClash 设置
 
 | 配置项 | 说明 | 默认值 |
@@ -213,6 +217,10 @@ htdocs/luci-static/resources/
 | `cron_interval` | string | 6h | 自动运行计划，支持 `6h`、`30m` 或 5 字段 cron 表达式 |
 | `measurement_timeout` | integer | 60 | 测量与正常应用 deadline（20-300 秒） |
 | `recovery_timeout` | integer | 30 | 回滚、恢复服务与恢复确认 deadline（10-120 秒） |
+| `probe_batch_size` | integer | 4 | 候选主动探测批次大小（1-16） |
+| `max_probe_count` | integer | 8 | 单次最多探测候选数，不超过 `probe_top_count` |
+| `early_stop_enabled` | boolean | 1 | 达到安全候选且排序余量足够时确定性提前停止 |
+| `source_policy` | enum | balanced | 来源策略：`balanced`、`official-heavy`、`history-heavy`、`diversity-heavy`、`community-heavy` |
 | `cfst_persist` | boolean | 1 | sysupgrade 时保留 `${work_dir}/cfst/cfst` |
 
 ### passwall section

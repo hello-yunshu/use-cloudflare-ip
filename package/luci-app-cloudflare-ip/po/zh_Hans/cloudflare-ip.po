@@ -708,9 +708,6 @@ msgstr "Shadow 自检"
 msgid "Run now"
 msgstr "立即运行"
 
-msgid "Checking..."
-msgstr "检查中..."
-
 msgid "Rill self-check passed."
 msgstr "Rill 自检通过。"
 
@@ -740,3 +737,81 @@ msgstr "重置请求被拒绝"
 
 msgid "Reset failed: "
 msgstr "重置失败："
+
+msgid "Measurement Policy"
+msgstr "测量策略"
+
+msgid "Source Strategy"
+msgstr "来源策略"
+
+msgid "Balanced"
+msgstr "均衡"
+
+msgid "Official-heavy"
+msgstr "官方优先"
+
+msgid "History-heavy"
+msgstr "历史优先"
+
+msgid "Diversity-heavy"
+msgstr "多样性优先"
+
+msgid "Community-heavy"
+msgstr "社区优先"
+
+msgid "Probe Batch Size"
+msgstr "探测批次大小"
+
+msgid "Maximum Probes"
+msgstr "最大探测数"
+
+msgid "Deterministic Early Stop"
+msgstr "确定性提前停止"
+
+msgid "Runtime Health"
+msgstr "运行时健康"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Resource pressure"
+msgstr "资源压力"
+
+msgid "Runtime Inspect"
+msgstr "运行时检查"
+
+msgid "pending"
+msgstr "待处理"
+
+msgid "last error"
+msgstr "最近错误"
+
+msgid "Probe Efficiency"
+msgstr "探测效率"
+
+msgid "probed"
+msgstr "已探测"
+
+msgid "avoided"
+msgstr "已避免"
+
+msgid "early stop"
+msgstr "提前停止"
+
+msgid "yes"
+msgstr "是"
+
+msgid "no"
+msgstr "否"
+
+msgid "Native vs Rill"
+msgstr "Native 与 Rill"
+
+msgid "native"
+msgstr "Native"
+
+msgid "Rill"
+msgstr "Rill"
+
+msgid "regret"
+msgstr "遗憾值"

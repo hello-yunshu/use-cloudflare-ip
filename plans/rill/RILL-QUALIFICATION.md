@@ -55,8 +55,23 @@ persisted qualification state is `shadow-qualified` or `guarded-assisted`; it
 can select only inside the Native top-K envelope and falls back to Native on
 any invalid Runtime result.
 
+Measurement is also bounded: the fixed source-policy registry orders at most
+the configured source set, candidate probes run in capped batches, and the
+early-stop decision is deterministic from the safe envelope and remaining
+CFST ranks. Reward v2 is bounded to `[-1,1]` and records total latency, TTFB,
+worst-domain loss, throughput, and delayed stability. Delayed entries carry
+the candidate/domain context, generation and queue time; due entries are
+re-observed before feedback, while malformed queues are quarantined.
+
+The rolling qualification window is capped at 50 observations. It requires
+complete attribution, at least 80% delayed completion, Native/Rill disagreement
+evidence, recent error and severe-regression limits, and no negative rolling
+regret. A previously qualified consumer is downgraded to `shadow` as soon as
+the rolling gate is lost. Runtime status must come from the real Health and
+Inspect protocol; resource pressure is never a hardcoded healthy value.
+
 Qualification is intentionally conservative: it requires complete attribution,
-no recorded Runtime errors, and delayed feedback coverage before entering
+low recent Runtime error rate, and delayed feedback coverage before entering
 `shadow-qualified`. A reset or incompatible state moves the consumer to
 `reset-required`/Native fallback until new evidence is collected.
 

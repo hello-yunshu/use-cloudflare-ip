@@ -92,18 +92,58 @@ cfip_probe_candidate_record() {
 }
 
 cfip_probe_candidates() {
-    local input="$1" output="$2" domains_csv="$3" timeout_s="$4" concurrency="${CFIP_PROBE_CONCURRENCY:-4}" tmpdir idx=0 candidate pids=() pid f
+    local input="$1" output="$2" domains_csv="$3" timeout_s="$4" concurrency="${CFIP_PROBE_CONCURRENCY:-4}" tmpdir idx=0 candidate pid f
+    local -a pids=()
     [[ "$concurrency" =~ ^[1-9][0-9]*$ ]] || concurrency=4
     tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/cfip-probes.XXXXXX")" || return 1
     while IFS= read -r candidate; do
         idx=$((idx+1)); cfip_probe_candidate_record "$candidate" "$domains_csv" "$timeout_s" "$tmpdir/$idx.json" & pids+=("$!")
         if ((${#pids[@]} >= concurrency)); then for pid in "${pids[@]}"; do wait "$pid" || true; done; pids=(); fi
     done < <(jq -c '.[]' "$input")
-    for pid in "${pids[@]}"; do wait "$pid" || true; done
+    if ((${#pids[@]})); then
+        for pid in "${pids[@]}"; do wait "$pid" || true; done
+    fi
     if ((idx==0)); then printf '[]' | cfip_atomic_write "$output"; rm -rf "$tmpdir"; return 0; fi
     for ((f=1;f<=idx;f++)); do [[ -s "$tmpdir/$f.json" ]] || printf '{}' >"$tmpdir/$f.json"; done
     jq -s '[.[]|select(type=="object" and has("ip"))]' "$tmpdir"/*.json | cfip_atomic_write "$output"
     rm -rf "$tmpdir"
+}
+
+cfip_probe_candidates_batched() {
+    local input="$1" output="$2" domains_csv="$3" timeout_s="$4" required="${5:-1}" batch_size="${6:-4}" max_count="${7:-}" tmpdir total offset=0 take part probed_json aggregate='[]' batches=0 early=false start end remaining best_rank safe_count candidates_considered probed_count avoided
+    [[ -s "$input" ]] || { printf '[]\n' | cfip_atomic_write "$output"; return 0; }
+    total="$(jq 'length' "$input")"; [[ "$max_count" =~ ^[1-9][0-9]*$ ]] || max_count="$total"
+    ((max_count < total)) && total="$max_count"
+    [[ "$batch_size" =~ ^[1-9][0-9]*$ ]] || batch_size=4
+    [[ "$required" =~ ^[1-9][0-9]*$ ]] || required=1
+    tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/cfip-probe-batches.XXXXXX")" || return 1
+    start="$(date +%s)"
+    while ((offset < total)); do
+        if declare -F cfip_deadline_remaining >/dev/null 2>&1; then remaining="$(cfip_deadline_remaining)"; ((remaining > 0)) || break; fi
+        take="$batch_size"; ((offset+take > total)) && take=$((total-offset))
+        jq --argjson start "$offset" --argjson take "$take" '.[$start:($start+$take)]' "$input" >"$tmpdir/input-$batches.json"
+        probed_json="$tmpdir/probed-$batches.json"
+        cfip_probe_candidates "$tmpdir/input-$batches.json" "$probed_json" "$domains_csv" "$timeout_s" || true
+        aggregate="$(jq -cn --argjson all "$aggregate" --argjson next "$(cat "$probed_json" 2>/dev/null || printf '[]')" '$all+$next')"
+        offset=$((offset+take)); batches=$((batches+1))
+        safe_count="$(jq --argjson required "$required" '[.[]|select(.eligible==true and ((.probeSummary.lossRate // .lossRate // 0)<=0.25) and ((.probeSummary.ttfbMs // 0)<=3000) and ((.probeSummary.totalMs // 0)<=5000))]|length' <<<"$aggregate")"
+        best_rank="$(jq -r '[.[]|select(.eligible==true)|(.cfstRank//999999)]|min // 999999' <<<"$aggregate")"
+        if [[ "${CFIP_EARLY_STOP_ENABLED:-true}" == true ]] && ((safe_count >= required)); then
+            if ((offset >= total)); then early=true
+            else
+                remaining="$(jq --argjson start "$offset" --argjson max "$total" '.[$start:$max]' "$input")"
+                if [[ "$(jq --argjson rank "$best_rank" '[.[]|select((.cfstRank//999999)<=($rank+3))]|length' <<<"$remaining")" == 0 ]]; then early=true; fi
+            fi
+        fi
+        [[ "$early" == true ]] && break
+    done
+    candidates_considered="$(jq 'length' "$input")"; probed_count="$(jq 'length' <<<"$aggregate")"; avoided=$((candidates_considered-probed_count)); end="$(date +%s)"
+    printf '%s\n' "$aggregate" | cfip_atomic_write "$output"
+    if [[ -n "${CFIP_PROBE_METRICS_FILE:-}" ]]; then
+        jq -cn --argjson considered "$candidates_considered" --argjson probed "$probed_count" --argjson batches "$batches" --argjson avoided "$avoided" --argjson seconds "$((end-start))" --argjson early "$early" '{schemaVersion:1,candidatesConsidered:$considered,candidatesProbed:$probed,probeBatches:$batches,avoidedProbes:$avoided,totalProbeTimeSeconds:$seconds,earlyStopHit:$early}' | cfip_atomic_write "$CFIP_PROBE_METRICS_FILE"
+    fi
+    rm -rf "$tmpdir"
+    ((probed_count > 0))
 }
 
 cfip_native_rank() {
@@ -114,15 +154,17 @@ cfip_native_rank() {
 }
 
 cfip_post_apply_probe() {
-    local selected_json="$1" domains_csv="$2" timeout_s="$3" output="$4" ip family domain probes='[]' ok=true p observed_at count=0
+    local selected_json="$1" domains_csv="$2" timeout_s="$3" output="$4" ip family domain probes='[]' ok=true p observed_at count=0 candidate loss throughput tmp reward_json
     [[ "$(jq 'length' "$selected_json" 2>/dev/null || printf 0)" -gt 0 ]] || return 2
     IFS=',' read -r -a domains <<<"$domains_csv"
     while IFS=$'\t' read -r ip family; do
         [[ -n "$ip" ]] || continue
         count=$((count+1))
+        candidate="$(jq -c --arg ip "$ip" '.[]|select((.ip|tostring)==$ip)' "$selected_json" 2>/dev/null | head -n1)"; [[ -n "$candidate" ]] || candidate='{}'
+        loss="$(jq -r '.lossRate // 1' <<<"$candidate")"; throughput="$(jq -r '.downloadMBps // 0' <<<"$candidate")"
         for domain in "${domains[@]}"; do
             p="$(cfip_probe_one "$ip" "$domain" "$family" "$timeout_s")"
-            probes="$(jq -cn --argjson a "$probes" --argjson p "$p" '$a+[$p]')"
+            probes="$(jq -cn --argjson a "$probes" --argjson p "$p" --argjson loss "$loss" --argjson throughput "$throughput" '$a+[$p+{lossRate:$loss,downloadMBps:$throughput}]')"
             [[ "$(jq -r '.success' <<<"$p")" == true ]] || ok=false
         done
     done < <(jq -r '.[]|[.ip,.family]|@tsv' "$selected_json")
@@ -130,6 +172,7 @@ cfip_post_apply_probe() {
     observed_at="$(date +%s)"
     local primary_ip
     primary_ip="$(jq -r '.[0].ip // empty' "$selected_json")"
+    tmp="$(mktemp "${TMPDIR:-/tmp}/cfip-post-apply-outcome.XXXXXX")" || return 1
     jq -cn --arg runId "$CFIP_RUN_ID" --arg ip "$primary_ip" --arg decisionActionId "${CFIP_DECISION_ACTION_ID:-$primary_ip}" --argjson success "$ok" --argjson probes "$probes" --argjson observedAt "$observed_at" '
       ($probes|map(select(.success==true))) as $s |
       ($probes|map(select(.ip==$ip))) as $primary |
@@ -138,6 +181,10 @@ cfip_post_apply_probe() {
        ip:$ip,appliedIps:($probes|map(.ip)|unique),
        observedIp:$ip,decisionActionId:$decisionActionId,
        primaryValidated:(($primary|length)>0 and ($primary_ok|length)==($primary|length)),
-       reward:(if (($primary|length)>0 and ($primary_ok|length)==($primary|length)) then ((1/(1+((($primary_ok|map(.totalMs)|add/($primary_ok|length))/1000))) + (1/(1+((($primary_ok|map(.ttfbMs)|add/($primary_ok|length))/1000)))))/2) else -1 end) }' | cfip_atomic_write "$output"
-    [[ "$ok" == true ]]
+       reward:(if (($primary|length)>0 and ($primary_ok|length)==($primary|length)) then ((1/(1+((($primary_ok|map(.totalMs)|add/($primary_ok|length))/1000))) + (1/(1+((($primary_ok|map(.ttfbMs)|add/($primary_ok|length))/1000)))))/2) else -1 end) }' >"$tmp"
+    if declare -F cfip_rill_reward_json >/dev/null 2>&1; then
+        reward_json="$(cfip_rill_reward_json "$tmp")" || reward_json='{}'
+        jq --argjson reward "$reward_json" '. + {reward:$reward.reward,rewardVersion:$reward.rewardVersion,rewardComponents:$reward.components,worstDomain:$reward.worstDomain,rillShadowReward:$reward.reward,nativeCounterfactualReward:$reward.reward,rewardDelta:0,disagreement:false}' "$tmp" >"$tmp.next" && mv "$tmp.next" "$tmp"
+    fi
+    cat "$tmp" | cfip_atomic_write "$output"; local rc=$?; rm -f "$tmp"; [[ "$ok" == true ]] && return "$rc"; return 1
 }
