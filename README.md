@@ -244,11 +244,11 @@ htdocs/luci-static/resources/
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
 ## 2.0 clean-rebuild 引擎（开发版）
 
-包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；候选 IP 来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Generic Rill source/runtime contracts 由 `hello-yunshu/rill-ml` 负责；OpenWrt package/distribution 由 `hello-yunshu/rill-openwrt-packages` 负责。Cloudflare 只保留消费者映射；启用 Rill 时需额外安装同版本 `luci-app-cloudflare-ip-rill`，Runtime 由 package manager 提供。
+包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；候选 IP 来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Generic Rill source/runtime contracts 由 `hello-yunshu/rill-ml` 负责；OpenWrt package/distribution 由 `hello-yunshu/rill-openwrt-packages` 负责，并以独立的 `rill-runtime-preview` 包锁定资格化 Preview commit。Cloudflare 只保留消费者映射；启用 Rill 时需额外安装同版本 `luci-app-cloudflare-ip-rill`，Runtime 由 package manager 提供。
 
 候选测速数量默认 128，允许 100-512 个唯一候选。历史优质 IP、社区种子和 Cloudflare 官方网段探索约占 1/8、5/8、1/4；官方 CIDR 会先由调度器采样为具体 IP，每个任务只启动一次 CFST。社区源中的 `IP:port` 只贡献 IP，域名候选会被拒绝且不会 DNS 解析。
 
-应用 PassWall 或 OpenClash 前，每个选中 IP 都必须使用正确 SNI/Host 通过目标域名探测。Host transaction 在关闭代理前保存配置和服务状态，测量 deadline 只约束测速、探测、应用和正常重启；失败后进入独立 recovery deadline，执行纯变换、block 级意图映射回读、回滚、恢复服务和健康检查。超时、资格探测失败或重启失败都会回滚并恢复原服务状态；Rill 出错时回退到 Native Rank。
+应用 PassWall 或 OpenClash 前，每个选中 IP 都必须使用正确 SNI/Host 通过目标域名探测。Host transaction 在关闭代理前保存配置和服务状态，测量 deadline 只约束测速、探测、应用和正常重启；失败后进入独立 recovery deadline，执行纯变换、block 级意图映射回读、回滚、恢复服务和健康检查。超时、资格探测失败或重启失败都会回滚并恢复原服务状态；Rill 出错时回退到 Native Rank。Shadow 对 Rill 选择但未应用的候选执行独立探测；只有 candidate-specific、未被 host failure censor 的 outcome 才会进入延迟反馈队列。
 
 2.0 的自更新已弃用，因为引擎是多文件、由软件包管理。默认 `auto_update=0`，请通过经过验证的 IPK/APK 升级。UCI、CFST、来源 last-good 缓存、managed ownership 和有限历史会保留；运行、探测和 publisher 文件可重建。LAN Publisher 默认关闭，只允许 LAN 绑定，拒绝 `0.0.0.0`，提供 `/ip.txt`、`/best-ipv4.txt`、`/best-ipv6.txt` 和 `/result.json`。
 

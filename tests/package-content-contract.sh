@@ -50,7 +50,10 @@ required=(
   usr/libexec/cf-ip/transaction.sh
 )
 if [[ "$MODE" == rill ]]; then
-  required=(usr/libexec/cf-ip/rill.sh usr/share/cf-ip/rill-feature-schema-v1.json)
+  required=(usr/libexec/cf-ip/rill.sh usr/share/cf-ip/rill-feature-schema-v2.json)
+fi
+if [[ "$MODE" == preview ]]; then
+  required=(usr/bin/rill-runtime)
 fi
 for path in "${required[@]}"; do
   grep -Fxq "$path" "$listing" || { echo "missing package path: $path" >&2; exit 1; }

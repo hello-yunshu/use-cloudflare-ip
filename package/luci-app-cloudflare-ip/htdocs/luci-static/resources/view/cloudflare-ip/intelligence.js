@@ -3,9 +3,12 @@
 'require form';
 'require uci';
 'require rpc';
+'require ui';
 'require cloudflare-ip/utils as utils';
 
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
+var callSelfCheck = rpc.declare({ object: 'cf_ip', method: 'rill-self-check', expect: { '': {} } });
+var callReset = rpc.declare({ object: 'cf_ip', method: 'rill-reset', params: [ 'expectedGeneration' ], expect: { '': {} } });
 
 function runtimeSummary(status) {
 	status = status || {};
@@ -58,7 +61,7 @@ return view.extend({
 		o.value('off', _('Off'));
 		o.value('shadow', _('Shadow'));
 		o.value('assisted', _('Assisted (qualification-gated)'));
-		o.description = _('Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative.');
+	o.description = _('Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native.');
 		o.default = 'shadow';
 
 		o = s.option(form.Value, 'timeout_ms', _('Runtime Timeout (ms)'));
@@ -73,9 +76,69 @@ return view.extend({
 
 		s = m.section(form.TypedSection, 'rill', _('Live State'));
 		s.anonymous = true;
-		o = s.option(form.DummyValue, '_state', _('Runtime'));
-		o.cfgvalue = function() { return runtimeSummary(status); };
+	o = s.option(form.DummyValue, '_state', _('Runtime'));
+	o.cfgvalue = function() { return runtimeSummary(status); };
+	o = s.option(form.DummyValue, '_channel', _('Runtime Channel'));
+	o.cfgvalue = function() { return (status.intelligence || {}).channel || _('Unknown'); };
+	o = s.option(form.DummyValue, '_api', _('Runtime API'));
+	o.cfgvalue = function() { return (status.intelligence || {}).runtimeApiVersion || _('Unknown'); };
+	o = s.option(form.DummyValue, '_schema', _('Feature Schema'));
+	o.cfgvalue = function() {
+		var i = status.intelligence || {};
+		return (i.featureSchemaVersion || '?') + (i.featureSchemaHash ? ' / ' + i.featureSchemaHash : '');
+	};
+	o = s.option(form.DummyValue, '_generation', _('State / Model Generation'));
+	o.cfgvalue = function() {
+		var i = status.intelligence || {};
+		return (i.stateGeneration || 0) + ' / ' + (i.modelGeneration || 0);
+	};
+	o = s.option(form.DummyValue, '_learning', _('Learning'));
+	o.cfgvalue = function() {
+		var i = status.intelligence || {};
+		return _('Valid feedback') + ': ' + (i.validFeedback || 0) + ', ' + _('delayed pending') + ': ' + (i.pendingDelayedFeedback || 0) + ', ' + _('completed') + ': ' + (i.delayedCompleted || 0);
+	};
+	o = s.option(form.DummyValue, '_authority', _('Current Authority'));
+	o.cfgvalue = function() {
+		return status.effectiveMode === 'assisted' ? _('Guarded Assisted') : (status.effectiveMode === 'shadow' ? _('Shadow') : _('Native'));
+	};
+	o = s.option(form.DummyValue, '_qualification', _('Qualification'));
+	o.cfgvalue = function() { return (status.intelligence || {}).qualificationState || _('Unknown'); };
+	o = s.option(form.DummyValue, '_fallback', _('Fallback Reason'));
+	o.cfgvalue = function() { return status.fallbackReason || (status.intelligence || {}).lastResetReason || _('None'); };
 
-		return utils.renderWithFooter(m.render(), utils.FOOTER_OPTIONS);
+	o = s.option(form.Button, '_self_check', _('Shadow Self-check'));
+	o.inputtitle = _('Run now');
+	o.inputstyle = 'apply';
+	o.onclick = function() {
+		var button = this;
+		utils.setBusy(button, _('Checking...'));
+		return callSelfCheck().then(function(result) {
+			if (result && result.success)
+				ui.addNotification(null, E('p', _('Rill self-check passed.')));
+			else
+				ui.addNotification(null, E('p', _('Rill self-check fell back to Native.')), 'warning');
+		}).catch(function(error) {
+			ui.addNotification(null, E('p', _('Self-check failed: ') + (error.message || error)), 'error');
+		}).finally(function() { utils.resetBusy(button); });
+	};
+	o = s.option(form.Button, '_reset', _('Reset Learning State'));
+	o.inputtitle = _('Reset');
+	o.inputstyle = 'reset';
+	o.onclick = function() {
+		if (!confirm(_('Reset Rill learning state? Native configuration will not be changed.')))
+			return;
+		var button = this;
+		var generation = (status.intelligence || {}).stateGeneration || 0;
+		utils.setBusy(button, _('Resetting...'));
+		return callReset(generation).then(function(result) {
+			if (!result || result.success !== true)
+				throw new Error((result && result.error) || _('Reset rejected'));
+			ui.addNotification(null, E('p', _('Rill learning state was reset.')), 'info');
+		}).catch(function(error) {
+			ui.addNotification(null, E('p', _('Reset failed: ') + (error.message || error)), 'error');
+		}).finally(function() { utils.resetBusy(button); });
+	};
+
+	return utils.renderWithFooter(m.render(), utils.FOOTER_OPTIONS);
 	}
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-CFIP_RUN_ID=shadow-test; CFIP_LOG_FILE="$TMP/log"; CFIP_RILL_ENABLED=true; CFIP_RILL_MODE=shadow; CFIP_RILL_RUNTIME="$TMP/fake-runtime"; CFIP_RILL_STATE="$TMP/state.json"; CFIP_RILL_TIMEOUT_S=2; CFIP_RILL_SCHEMA_FILE="$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v1.json"
+CFIP_RUN_ID=shadow-test; CFIP_LOG_FILE="$TMP/log"; CFIP_RILL_ENABLED=true; CFIP_RILL_MODE=shadow; CFIP_RILL_RUNTIME="$TMP/fake-runtime"; CFIP_RILL_STATE="$TMP/state.json"; CFIP_RILL_TIMEOUT_S=2; CFIP_RILL_SCHEMA_FILE="$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v2.json"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"; source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/rill.sh"
 cat >"$TMP/native.json" <<'JSON'
 [{"ip":"104.16.1.1","nativeRank":1},{"ip":"104.16.1.2","nativeRank":2}]
@@ -11,7 +11,7 @@ cat >"$TMP/fake-runtime" <<'EOF_A'
 read -r request
 method=$(printf '%s' "$request" | jq -r '.request.method')
 case "$method" in
- handshake) echo '{"apiVersion":3,"runtimeIdentity":{"name":"rill-runtime","version":"1.5.6"},"stateGeneration":0,"response":{"kind":"handshake","capabilities":["org.rill.preview.decide","org.rill.preview.feedback"],"featureSchemaHash":"'"$(sha256sum "$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v1.json" | awk '{print $1}')"'","handlerApiVersion":2}}' ;;
+ handshake) echo '{"apiVersion":3,"runtimeIdentity":{"name":"rill-runtime","version":"1.5.6"},"stateGeneration":0,"response":{"kind":"handshake","capabilities":["org.rill.preview.decide","org.rill.preview.feedback"],"featureSchemaHash":"'"$(sha256sum "$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v2.json" | awk '{print $1}')"'","handlerApiVersion":2}}' ;;
  decide) echo '{"requestId":"decision-shadow-test","apiVersion":3,"stateGeneration":1,"response":{"kind":"result","output":{"accepted":true,"selectedActionId":"104.16.1.2","scores":[{"id":"104.16.1.1","score":1},{"id":"104.16.1.2","score":2}]}}}' ;;
  feedback) echo '{"requestId":"feedback-shadow-test","apiVersion":3,"stateGeneration":2,"response":{"kind":"result","output":{"accepted":true}}}' ;;
 esac

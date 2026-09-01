@@ -121,13 +121,13 @@ define Package/luci-app-cloudflare-ip-rill
   SECTION:=luci
   CATEGORY:=LuCI
   TITLE:=Cloudflare IP optional Rill contextual learner integration
-  DEPENDS:=+luci-app-cloudflare-ip +rill-runtime
+  DEPENDS:=+luci-app-cloudflare-ip +rill-runtime-preview
   PKGARCH:=all
 endef
 
 define Package/luci-app-cloudflare-ip-rill/description
-Optional consumer-owned mapping from Cloudflare IP observations to the generic
-Rill Preview contextual learner. The base Cloudflare IP package remains fully
+Optional consumer-owned mapping from Cloudflare IP observations to the exact
+qualified Rill Preview contextual learner. The base Cloudflare IP package remains fully
 functional and authoritative when this package is absent.
 endef
 
@@ -135,7 +135,7 @@ define Package/luci-app-cloudflare-ip-rill/install
 	$(INSTALL_DIR) $(1)/usr/libexec/cf-ip
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/libexec/cf-ip/rill.sh $(1)/usr/libexec/cf-ip/
 	$(INSTALL_DIR) $(1)/usr/share/cf-ip
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/root/usr/share/cf-ip/rill-feature-schema-v1.json $(1)/usr/share/cf-ip/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/root/usr/share/cf-ip/rill-feature-schema-v2.json $(1)/usr/share/cf-ip/
 endef
 
 $(eval $(call BuildPackage,luci-app-cloudflare-ip-rill))

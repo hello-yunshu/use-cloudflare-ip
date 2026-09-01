@@ -130,13 +130,14 @@ cfip_post_apply_probe() {
     observed_at="$(date +%s)"
     local primary_ip
     primary_ip="$(jq -r '.[0].ip // empty' "$selected_json")"
-    jq -cn --arg runId "$CFIP_RUN_ID" --arg ip "$primary_ip" --argjson success "$ok" --argjson probes "$probes" --argjson observedAt "$observed_at" '
+    jq -cn --arg runId "$CFIP_RUN_ID" --arg ip "$primary_ip" --arg decisionActionId "${CFIP_DECISION_ACTION_ID:-$primary_ip}" --argjson success "$ok" --argjson probes "$probes" --argjson observedAt "$observed_at" '
       ($probes|map(select(.success==true))) as $s |
       ($probes|map(select(.ip==$ip))) as $primary |
       ($primary|map(select(.success==true))) as $primary_ok |
-      {schemaVersion:1,runId:$runId,validated:$success,observedAt:$observedAt,probes:$probes,
+      {schemaVersion:2,runId:$runId,validated:$success,candidateOutcome:(if (($primary|length)>0 and ($primary_ok|length)==($primary|length)) then "success" else "failure" end),hostOutcome:"success",censored:false,reason:(if $success then null else "candidate_probe_failed" end),observedAt:$observedAt,probes:$probes,
        ip:$ip,appliedIps:($probes|map(.ip)|unique),
+       observedIp:$ip,decisionActionId:$decisionActionId,
        primaryValidated:(($primary|length)>0 and ($primary_ok|length)==($primary|length)),
-       reward:(if (($primary|length)>0 and ($primary_ok|length)==($primary|length)) then 1/(1+(($primary_ok|map(.totalMs)|add/($primary_ok|length))/1000)) else null end) }' | cfip_atomic_write "$output"
+       reward:(if (($primary|length)>0 and ($primary_ok|length)==($primary|length)) then ((1/(1+((($primary_ok|map(.totalMs)|add/($primary_ok|length))/1000))) + (1/(1+((($primary_ok|map(.ttfbMs)|add/($primary_ok|length))/1000)))))/2) else -1 end) }' | cfip_atomic_write "$output"
     [[ "$ok" == true ]]
 }

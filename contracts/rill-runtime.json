@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "policy": {
     "major": 1,
     "track": "latest-qualified-stable"
@@ -13,14 +13,16 @@
   "preview": {
     "repository": "hello-yunshu/rill-ml",
     "commit": "da8389fec7f879b826d8d17cbc6bb98c03ef8462",
-    "channel": "preview-exact-commit"
+    "channel": "preview-exact-commit",
+    "featureSchemaVersion": 2,
+    "modelGeneration": 2
   },
   "openwrtPackage": {
     "repository": "hello-yunshu/rill-openwrt-packages",
-    "commit": "a540a0a0ec9d71c22ffe5880f922cc8aea235fbf",
-    "package": "rill-runtime",
+    "commit": "91db9bdee0a58b22e54920b30cb5e75f5882c8c0",
+    "package": "rill-runtime-preview",
     "packageVersion": "1.5.6",
-    "packageRelease": 1,
+    "packageRelease": 2,
     "binary": "/usr/bin/rill-runtime"
   },
   "qualification": {

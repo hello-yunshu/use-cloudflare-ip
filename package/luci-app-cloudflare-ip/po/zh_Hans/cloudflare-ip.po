@@ -659,3 +659,84 @@ msgstr "实时状态"
 
 msgid "Runtime"
 msgstr "Runtime"
+
+msgid "Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native."
+msgstr "Assisted 受资格验证限制，仅能在 Native 安全集合内选择；Runtime 出现任何问题都会回退到 Native。"
+
+msgid "Runtime Channel"
+msgstr "Runtime 通道"
+
+msgid "Runtime API"
+msgstr "Runtime API"
+
+msgid "Feature Schema"
+msgstr "特征 Schema"
+
+msgid "State / Model Generation"
+msgstr "状态 / 模型代际"
+
+msgid "Learning"
+msgstr "学习状态"
+
+msgid "Valid feedback"
+msgstr "有效反馈"
+
+msgid "delayed pending"
+msgstr "待处理延迟反馈"
+
+msgid "completed"
+msgstr "已完成"
+
+msgid "Current Authority"
+msgstr "当前决策权"
+
+msgid "Guarded Assisted"
+msgstr "受保护 Assisted"
+
+msgid "Qualification"
+msgstr "资格状态"
+
+msgid "Fallback Reason"
+msgstr "回退原因"
+
+msgid "None"
+msgstr "无"
+
+msgid "Shadow Self-check"
+msgstr "Shadow 自检"
+
+msgid "Run now"
+msgstr "立即运行"
+
+msgid "Checking..."
+msgstr "检查中..."
+
+msgid "Rill self-check passed."
+msgstr "Rill 自检通过。"
+
+msgid "Rill self-check fell back to Native."
+msgstr "Rill 自检未通过，已回退到 Native。"
+
+msgid "Self-check failed: "
+msgstr "自检失败："
+
+msgid "Reset Learning State"
+msgstr "重置学习状态"
+
+msgid "Reset"
+msgstr "重置"
+
+msgid "Resetting..."
+msgstr "重置中..."
+
+msgid "Reset Rill learning state? Native configuration will not be changed."
+msgstr "确定重置 Rill 学习状态吗？Native 配置不会改变。"
+
+msgid "Rill learning state was reset."
+msgstr "Rill 学习状态已重置。"
+
+msgid "Reset rejected"
+msgstr "重置请求被拒绝"
+
+msgid "Reset failed: "
+msgstr "重置失败："

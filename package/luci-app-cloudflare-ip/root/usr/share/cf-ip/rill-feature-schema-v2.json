@@ -1,0 +1,29 @@
+{
+  "schema": "cloudflare-ip.rill.v2",
+  "semanticVersion": 2,
+  "features": [
+    {"name":"avgLatencyMs","source":"avgLatencyMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"downloadMBps","source":"downloadMBps","type":"number","unit":"megabytes_per_second","missing":0,"clamp":[0,10000],"scale":0.01},
+    {"name":"lossRate","source":"lossRate","type":"number","unit":"ratio_0_1","missing":1,"clamp":[0,1],"scale":1},
+    {"name":"connectMs","source":"probeSummary.connectMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"tlsMs","source":"probeSummary.tlsMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"ttfbMs","source":"probeSummary.ttfbMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"totalMs","source":"probeSummary.totalMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"cfstRank","source":"cfstRank","type":"number","unit":"ordinal","missing":128,"clamp":[1,128],"scale":0.0078125},
+    {"name":"familyIPv6","source":"family","type":"boolean","unit":"indicator","missing":0,"clamp":[0,1],"scale":1},
+    {"name":"sourceCount","source":"sourceCount","type":"number","unit":"count","missing":0,"clamp":[0,16],"scale":0.0625},
+    {"name":"sourceStale","source":"sourceStale","type":"boolean","unit":"indicator","missing":1,"clamp":[0,1],"scale":1},
+    {"name":"officialSource","source":"sources.official","type":"boolean","unit":"indicator","missing":0,"clamp":[0,1],"scale":1},
+    {"name":"communitySource","source":"sources.community","type":"boolean","unit":"indicator","missing":0,"clamp":[0,1],"scale":1},
+    {"name":"manualSource","source":"sources.manual","type":"boolean","unit":"indicator","missing":0,"clamp":[0,1],"scale":1},
+    {"name":"historySuccessRate","source":"history.successRate","type":"number","unit":"ratio_0_1","missing":0.5,"clamp":[0,1],"scale":1},
+    {"name":"historyFailureRate","source":"history.failureRate","type":"number","unit":"ratio_0_1","missing":0.5,"clamp":[0,1],"scale":1},
+    {"name":"historyMedianTotalMs","source":"history.medianTotalMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.0001},
+    {"name":"historyP95TotalMs","source":"history.p95TotalMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.0001},
+    {"name":"consecutiveFailures","source":"history.consecutiveFailures","type":"number","unit":"count","missing":0,"clamp":[0,10],"scale":0.1},
+    {"name":"lastSeenAgeNormalized","source":"history.lastSeenAgeNormalized","type":"number","unit":"ratio_0_1","missing":1,"clamp":[0,1],"scale":1},
+    {"name":"previousWinner","source":"history.previousWinner","type":"boolean","unit":"indicator","missing":0,"clamp":[0,1],"scale":1},
+    {"name":"prefixHistoryScore","source":"history.prefixHistoryScore","type":"number","unit":"ratio_0_1","missing":0.5,"clamp":[0,1],"scale":1}
+  ],
+  "action": {"id":"candidate.ip", "features":"ordered finite normalized float vector", "maxFeatures":32}
+}

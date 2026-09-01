@@ -659,3 +659,84 @@ msgstr ""
 
 msgid "Runtime"
 msgstr ""
+
+msgid "Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native."
+msgstr ""
+
+msgid "Runtime Channel"
+msgstr ""
+
+msgid "Runtime API"
+msgstr ""
+
+msgid "Feature Schema"
+msgstr ""
+
+msgid "State / Model Generation"
+msgstr ""
+
+msgid "Learning"
+msgstr ""
+
+msgid "Valid feedback"
+msgstr ""
+
+msgid "delayed pending"
+msgstr ""
+
+msgid "completed"
+msgstr ""
+
+msgid "Current Authority"
+msgstr ""
+
+msgid "Guarded Assisted"
+msgstr ""
+
+msgid "Qualification"
+msgstr ""
+
+msgid "Fallback Reason"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "Shadow Self-check"
+msgstr ""
+
+msgid "Run now"
+msgstr ""
+
+msgid "Checking..."
+msgstr ""
+
+msgid "Rill self-check passed."
+msgstr ""
+
+msgid "Rill self-check fell back to Native."
+msgstr ""
+
+msgid "Self-check failed: "
+msgstr ""
+
+msgid "Reset Learning State"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Resetting..."
+msgstr ""
+
+msgid "Reset Rill learning state? Native configuration will not be changed."
+msgstr ""
+
+msgid "Rill learning state was reset."
+msgstr ""
+
+msgid "Reset rejected"
+msgstr ""
+
+msgid "Reset failed: "
+msgstr ""

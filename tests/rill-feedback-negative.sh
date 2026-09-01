@@ -8,7 +8,7 @@ trap 'rm -rf "$TMP"' EXIT
 export CFIP_LOG_FILE="$TMP/log"
 export CFIP_RILL_ENABLED=true CFIP_RILL_MODE=shadow CFIP_RILL_STATE="$TMP/state.json"
 export CFIP_RILL_TIMEOUT_S=2
-export CFIP_RILL_SCHEMA_FILE="$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v1.json"
+export CFIP_RILL_SCHEMA_FILE="$ROOT/package/luci-app-cloudflare-ip/root/usr/share/cf-ip/rill-feature-schema-v2.json"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/rill.sh"
 
@@ -16,7 +16,7 @@ cat >"$TMP/decision.json" <<'JSON'
 {"decisionId":"decision-negative","selectedActionId":"104.16.1.1","generation":1}
 JSON
 cat >"$TMP/outcome.json" <<'JSON'
-{"validated":true,"reward":0.5}
+{"validated":true,"candidateOutcome":"success","hostOutcome":"success","censored":false,"observedIp":"104.16.1.1","decisionActionId":"104.16.1.1","reward":0.5}
 JSON
 cat >"$TMP/fake-runtime" <<'SH'
 #!/usr/bin/env bash

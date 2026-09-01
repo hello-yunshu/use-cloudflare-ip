@@ -94,6 +94,9 @@ case "$1" in
 	"source-registry": {},
 	"source-refresh": {},
 	"publisher-status": {},
+	"rill-self-check": {},
+	"rill-diagnostics": {},
+	"rill-reset": { "expectedGeneration": "expectedGeneration" },
 	"self-update": {},
 	"start": {},
 	"stop": {},
@@ -157,6 +160,17 @@ EOF
 			source-status|source-registry|source-refresh|publisher-status)
 				_flag="--$method"
 				_out="$($CF_IP_AUTO_BIN "$_flag" 2>/dev/null)" || true
+				[ -n "$_out" ] && printf '%s\n' "$_out" || printf '%s\n' '{"success":false,"error":"no output from cf-ip-auto"}'
+				;;
+			rill-self-check|rill-diagnostics)
+				_flag="--$method"
+				_out="$($CF_IP_AUTO_BIN "$_flag" 2>/dev/null)" || true
+				[ -n "$_out" ] && printf '%s\n' "$_out" || printf '%s\n' '{"success":false,"error":"no output from cf-ip-auto"}'
+				;;
+			rill-reset)
+				read _input
+				_generation="$(jsonfilter -s "$_input" -e '$.expectedGeneration' 2>/dev/null)" || true
+				_out="$($CF_IP_AUTO_BIN --rill-reset "$_generation" 2>/dev/null)" || true
 				[ -n "$_out" ] && printf '%s\n' "$_out" || printf '%s\n' '{"success":false,"error":"no output from cf-ip-auto"}'
 				;;
 			self-update)
