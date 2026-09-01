@@ -297,9 +297,11 @@ jobs:
       - name: Install musl loader for the actual OpenWrt Preview binary
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends musl
+          sudo apt-get install -y --no-install-recommends musl libgcc-s1
           test -x /lib/ld-musl-x86_64.so.1
       - name: Execute the real Cloudflare feedback integration
+        env:
+          LD_LIBRARY_PATH: /lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
         run: |
           bash tests/rill-feedback-integration.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
           bash tests/rill-feedback-negative.sh
