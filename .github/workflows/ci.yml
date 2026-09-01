@@ -297,11 +297,16 @@ jobs:
       - name: Install musl loader for the actual OpenWrt Preview binary
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends musl libgcc-s1
+          sudo apt-get install -y --no-install-recommends musl
           test -x /lib/ld-musl-x86_64.so.1
+          mkdir -p "$RUNNER_TEMP/musl-libs"
+          docker run --rm --platform linux/amd64 \
+            -v "$RUNNER_TEMP/musl-libs:/out" alpine:3.20 \
+            sh -c 'apk add --no-cache libgcc >/dev/null && cp /usr/lib/libgcc_s.so.1 /out/libgcc_s.so.1'
+          test -s "$RUNNER_TEMP/musl-libs/libgcc_s.so.1"
       - name: Execute the real Cloudflare feedback integration
         env:
-          LD_LIBRARY_PATH: /lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+          LD_LIBRARY_PATH: ${{ runner.temp }}/musl-libs:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
         run: |
           bash tests/rill-feedback-integration.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
           bash tests/rill-feedback-negative.sh
