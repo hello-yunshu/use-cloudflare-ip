@@ -3,7 +3,7 @@
 		"description": "Grant access to Cloudflare IP optimization",
 		"read": {
 			"ubus": {
-"cf_ip": [ "status", "check-env", "refresh-env", "speedtest-status", "version", "read-log", "ip-history", "oc-list-backups", "source-status", "source-registry", "publisher-status", "rill-self-check", "rill-diagnostics" ]
+"cf_ip": [ "status", "validate-config", "check-env", "refresh-env", "speedtest-status", "version", "read-log", "ip-history", "oc-list-backups", "source-status", "source-registry", "publisher-status", "rill-self-check", "rill-diagnostics" ]
 			},
 			"uci": [ "cf_ip" ],
 				"file": [ "/etc/cf_ip/*", "/tmp/cf_ip/*" ]

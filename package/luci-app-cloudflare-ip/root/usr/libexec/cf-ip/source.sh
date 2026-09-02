@@ -16,7 +16,10 @@ CFIP_SOURCE_MAX_VALID_PER_SOURCE="${CFIP_SOURCE_MAX_VALID_PER_SOURCE:-2048}"
 CFIP_SOURCE_MIN_VALID_REMOTE="${CFIP_SOURCE_MIN_VALID_REMOTE:-2}"
 CFIP_HISTORY_MAX_AGE_SECONDS="${CFIP_HISTORY_MAX_AGE_SECONDS:-604800}"
 CFIP_SOURCE_POLICY="${CFIP_SOURCE_POLICY:-balanced}"
+CFIP_SOURCE_POLICY_EFFECTIVE="${CFIP_SOURCE_POLICY_EFFECTIVE:-$CFIP_SOURCE_POLICY}"
+CFIP_SOURCE_POLICY_RECOMMENDED="${CFIP_SOURCE_POLICY_RECOMMENDED:-$CFIP_SOURCE_POLICY}"
 CFIP_SOURCE_POLICY_FILE="${CFIP_SOURCE_POLICY_FILE:-${CFIP_STATUS_DIR:-/etc/cf_ip}/source-policy.json}"
+CFIP_SOURCE_POLICY_QUALIFICATION_FILE="${CFIP_SOURCE_POLICY_QUALIFICATION_FILE:-${CFIP_SOURCE_POLICY_FILE%/*}/source-policy-qualification.json}"
 CFIP_SOURCE_USED_COUNT=0
 
 cfip_source_policy_registry_json() {
@@ -39,11 +42,11 @@ cfip_source_policy_json() {
         state="$(cat "$CFIP_SOURCE_POLICY_FILE")"
     fi
     registry="$(cfip_source_policy_registry_json)"
-    jq -cn --arg selected "$CFIP_SOURCE_POLICY" --argjson state "$state" --argjson registry "$registry" '($registry|map(select(.id==$selected))[0] // $registry[0]) as $policy | {selected:$policy.id,registry:$registry,history:$state}'
+    jq -cn --arg requested "$CFIP_SOURCE_POLICY" --arg effective "$CFIP_SOURCE_POLICY_EFFECTIVE" --arg recommended "$CFIP_SOURCE_POLICY_RECOMMENDED" --argjson state "$state" --argjson registry "$registry" '($registry|map(select(.id==$effective))[0] // $registry[0]) as $policy | {requested:$requested,effective:$policy.id,recommended:$recommended,registry:$registry,history:$state}'
 }
 
 cfip_source_policy_order() {
-    local ids="$1" policy="${CFIP_SOURCE_POLICY:-balanced}"
+    local ids="$1" policy="${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}"
     cfip_source_policy_valid "$policy" || policy=balanced
     jq -rn --arg ids "$ids" --arg policy "$policy" --argjson registry "$(cfip_source_policy_registry_json)" '
       ($registry|map(select(.id==$policy))[0] // $registry[0]) as $p |
@@ -52,20 +55,66 @@ cfip_source_policy_order() {
     '
 }
 
+cfip_source_policy_features() {
+    local status_file="${1:-}" state='{}' available success stale failed
+    [[ -s "$status_file" ]] && state="$(jq -c 'if type=="array" then . else [] end' "$status_file" 2>/dev/null || printf '[]')"
+    available="$(jq '[.[]|select(.success==true)]|length' <<<"$state")"
+    success="$(jq '[.[]|select(.success==true and .stale!=true)]|length' <<<"$state")"
+    stale="$(jq '[.[]|select(.stale==true)]|length' <<<"$state")"
+    failed="$(jq '[.[]|select(.success!=true)]|length' <<<"$state")"
+    jq -cn --argjson available "$available" --argjson success "$success" --argjson stale "$stale" --argjson failed "$failed" --argjson requested "${CFIP_IP_COUNT:-1}" \
+      '{availableRatio:(($available/16)|if .>1 then 1 else . end),successRatio:(($success/16)|if .>1 then 1 else . end),staleRatio:(($stale/16)|if .>1 then 1 else . end),failureRatio:(($failed/16)|if .>1 then 1 else . end),ipCount:(($requested/20)|if .>1 then 1 else . end)}'
+}
+
+cfip_source_policy_decide() {
+    local actions decision features output="${CFIP_SOURCE_POLICY_DECISION_FILE:-${CFIP_RUNTIME_DIR:-/tmp/cf_ip}/source-policy-decision.json}" recommended
+    CFIP_SOURCE_POLICY_EFFECTIVE="${CFIP_SOURCE_POLICY:-balanced}"
+    CFIP_SOURCE_POLICY_RECOMMENDED="$CFIP_SOURCE_POLICY_EFFECTIVE"
+    [[ "${CFIP_RILL_ENABLED:-false}" == true && "${CFIP_RILL_MODE:-off}" != off ]] || return 0
+    actions="$(mktemp "${TMPDIR:-/tmp}/cfip-source-policy-actions.XXXXXX")" || return 0
+    features="$(cfip_source_policy_features "${CFIP_SOURCE_STATUS_FILE:-}")"
+    jq -cn --argjson f "$features" '
+      ["balanced","official-heavy","history-heavy","diversity-heavy","community-heavy"]
+      | to_entries | map({id:.value,features:[$f.availableRatio,$f.successRatio,$f.failureRatio,$f.staleRatio,$f.ipCount,(.key/4)]})' >"$actions"
+    if cfip_rill_policy_decide source-policy "$actions" "$output"; then
+        recommended="$(jq -r '.selectedActionId' "$output")"
+        cfip_source_policy_valid "$recommended" || recommended="$CFIP_SOURCE_POLICY"
+        CFIP_SOURCE_POLICY_RECOMMENDED="$recommended"
+    fi
+    rm -f "$actions"
+}
+
 cfip_source_policy_record() {
-    local outcome="${1:-}" reward=0 policy="${CFIP_SOURCE_POLICY:-balanced}" current
+    local outcome="${1:-}" reward=0 policy="${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}" recommended="${CFIP_SOURCE_POLICY_RECOMMENDED:-$policy}" current qualification='{}' attributed=false decision_file="${CFIP_SOURCE_POLICY_DECISION_FILE:-}" source_count=0 stale_count=0 failed_count=0 success=false
     [[ -n "$outcome" && -s "$outcome" ]] || return 0
-    reward="$(jq -r '.reward // (if .candidateOutcome=="success" then 0 else -1 end)' "$outcome" 2>/dev/null || printf 0)"
+    source_count=0
+    [[ -s "${CFIP_INPUT_POOL_FILE:-}" ]] && source_count="$(jq 'length' "$CFIP_INPUT_POOL_FILE" 2>/dev/null || printf 0)"
+    [[ -s "${CFIP_SOURCE_STATUS_FILE:-}" ]] && stale_count="$(jq '[.[]|select(.stale==true)]|length' "$CFIP_SOURCE_STATUS_FILE" 2>/dev/null || printf 0)" && failed_count="$(jq '[.[]|select(.success!=true)]|length' "$CFIP_SOURCE_STATUS_FILE" 2>/dev/null || printf 0)"
+    success="$(jq -r '(.candidateOutcome=="success")' "$outcome" 2>/dev/null || printf false)"
+    # Bounded source-policy reward: outcome quality, yield, source reliability,
+    # freshness and cost. It is intentionally distinct from candidate Reward v2.
+    reward="$(jq -cn --argjson success "$success" --argjson yield "$source_count" --argjson stale "$stale_count" --argjson failed "$failed_count" \
+      '((if $success then 0.30 else 0 end) + ([$yield/128,1]|min)*0.25 + (1-([$failed/8,1]|min))*0.20 + (1-([$stale/8,1]|min))*0.15 + (if $yield>0 then 0.10 else 0 end) - (if $success then 0 else 0.30 end)) | if . < -1 then -1 elif . > 1 then 1 else . end')"
+    if [[ "$source_count" == 0 && ! -s "${CFIP_SOURCE_STATUS_FILE:-}" ]]; then
+        reward="$(jq -r '.reward // 0' "$outcome" 2>/dev/null || printf 0)"
+    fi
     [[ "$reward" =~ ^-?[0-9]+([.][0-9]+)?$ ]] || reward=0
     current='{}'
     if [[ -s "$CFIP_SOURCE_POLICY_FILE" ]] && jq -e 'type=="object"' "$CFIP_SOURCE_POLICY_FILE" >/dev/null 2>&1; then
         current="$(cat "$CFIP_SOURCE_POLICY_FILE")"
     fi
-    jq -cn --arg policy "$policy" --argjson reward "$reward" --argjson current "$current" '
+    [[ "$recommended" == "$policy" ]] && attributed=true
+    if [[ "$attributed" == true && -s "$decision_file" ]] && ! cfip_rill_policy_feedback "$decision_file" "$reward"; then
+        cfip_log "source policy feedback deferred"
+    fi
+    [[ -s "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE" ]] && jq -e 'type=="object"' "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE" >/dev/null 2>&1 && qualification="$(cat "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE")"
+    jq -cn --arg policy "$policy" --arg recommended "$recommended" --argjson attributed "$attributed" --argjson reward "$reward" --argjson current "$current" --argjson q "$qualification" --argjson success "$success" '
       ($current.policies // {}) as $policies | ($policies[$policy] // {samples:0,ewmaReward:null}) as $old |
       $policies + {$policy:{samples:(($old.samples//0)+1),ewmaReward:(if ($old.ewmaReward|type)=="number" then (0.8*$old.ewmaReward+0.2*$reward) else $reward end),lastReward:$reward,lastUpdated:(now|floor)}}
-      | {schemaVersion:1,selected:$policy,policies:.,updatedAt:(now|floor)}
+      | {schemaVersion:1,requested:($current.requested//null),selected:$policy,recommended:$recommended,policies:.,updatedAt:(now|floor)}
     ' | cfip_atomic_write "$CFIP_SOURCE_POLICY_FILE"
+    jq -cn --argjson q "$qualification" --arg policy "$policy" --arg recommended "$recommended" --argjson attributed "$attributed" --argjson success "$success" --argjson reward "$reward" \
+      '{schemaVersion:1,state:(if ($q.samples//0)>=30 then "shadow-qualified" elif ($q.samples//0)>0 then "learning" else "cold" end),samples:(($q.samples//0)+1),attributed:(($q.attributed//0)+(if $attributed then 1 else 0 end)),disagreements:(($q.disagreements//0)+(if $policy==$recommended then 0 else 1 end)),lastRequested:$recommended,lastExecuted:$policy,lastReward:$reward,lastSuccess:$success,updatedAt:(now|floor)}' | cfip_atomic_write "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE"
 }
 
 cfip_builtin_registry_json() {
@@ -422,13 +471,13 @@ cfip_schedule_family() {
     jq --arg f "$family" '[.[]|select(.family==$f)]' "$history_file" >"$hist"
     jq --arg f "$family" '[.[]|select(.kind=="ip" and .family==$f and .sourceClass!="official")]
       | group_by(.value)
-      | map({ip:.[0].value,family:.[0].family,origin:"community",sources:(map(.sourceId)|unique),sourceCount:(map(.sourceId)|unique|length),stale:(all(.stale==true))})
+      | map({ip:.[0].value,family:.[0].family,origin:"community",sources:(map(.sourceId)|unique),sourceClass:(map(.sourceClass)|unique|join(",")),sourceCount:(map(.sourceId)|unique|length),stale:(all(.stale==true))})
       | sort_by(.stale,-.sourceCount,.ip)' "$all_records" >"$community"
     jq --arg f "$family" '[.[]|select(.kind=="cidr" and .family==$f)] | unique_by(.value)' "$all_records" >"$ranges"
     printf '[]' >"$selected"
 
     # Champions first.
-    jq --argjson n "$hq" '[.[:$n][] | {ip,family,origin:"history",sources:["local-history"],sourceCount:0,stale:false}]' "$hist" >"$selected"
+    jq --argjson n "$hq" '[.[:$n][] | {ip,family,origin:"history",sources:["local-history"],sourceClass:"history",sourceCount:0,stale:false}]' "$hist" >"$selected"
     history_actual="$(jq 'length' "$selected")"; community_target=$((cq + hq - history_actual))
 
     # Community: 2/3 strongest consensus, 1/3 rotating tail. Unused history quota flows here first.
@@ -454,7 +503,7 @@ cfip_schedule_family() {
         # A public CIDR base does not imply every sampled address is public.
         cfip_is_public_candidate "$ip" || continue
         jq -e --arg ip "$ip" 'map(.ip)|index($ip)!=null' "$selected" >/dev/null && continue
-        jq --arg ip "$ip" --arg family "$family" --arg cidr "$cidr" '. + [{ip:$ip,family:$family,origin:"range-explore",sources:["cidr:"+$cidr],sourceCount:0,stale:false}]' "$selected" >"$selected.next" && mv "$selected.next" "$selected"
+        jq --arg ip "$ip" --arg family "$family" --arg cidr "$cidr" --arg class "$(jq -r --arg cidr "$cidr" 'first(.[]|select(.kind=="cidr" and .value==$cidr)|.sourceClass) // "unknown"' "$all_records")" '. + [{ip:$ip,family:$family,origin:"range-explore",sources:["cidr:"+$cidr],sourceClass:$class,sourceCount:0,stale:false}]' "$selected" >"$selected.next" && mv "$selected.next" "$selected"
     done
 
     # If ranges could not fill the target, consume all remaining community/history candidates.
@@ -466,7 +515,7 @@ cfip_schedule_family() {
     fi
     count="$(jq 'length' "$selected")"; deficit=$((budget-count))
     if ((deficit>0)); then
-        jq --arg f "$family" --slurpfile s "$selected" '[.[] | select(.family==$f) | {ip,family,origin:"history",sources:["local-history"],sourceCount:0,stale:false} | select(.ip as $ip | ($s[0]|map(.ip)|index($ip)|not))]' "$history_file" >"$hist.left"
+        jq --arg f "$family" --slurpfile s "$selected" '[.[] | select(.family==$f) | {ip,family,origin:"history",sources:["local-history"],sourceClass:"history",sourceCount:0,stale:false} | select(.ip as $ip | ($s[0]|map(.ip)|index($ip)|not))]' "$history_file" >"$hist.left"
         jq --argjson n "$deficit" --slurpfile s "$selected" '$s[0] + .[:$n]' "$hist.left" >"$selected.next" && mv "$selected.next" "$selected"
         rm -f "$hist.left"
     fi

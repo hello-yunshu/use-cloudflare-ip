@@ -9,6 +9,7 @@ var FOOTER_VERSION = '@PKG_VERSION@';
 
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
 var callCheckEnv = rpc.declare({ object: 'cf_ip', method: 'check-env', expect: { '': {} } });
+var callValidateConfig = rpc.declare({ object: 'cf_ip', method: 'validate-config', expect: { '': {} } });
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
 
 var FOOTER_OPTIONS = {
@@ -204,6 +205,8 @@ function createHandleSave(m) {
 function createHandleSaveApply(m) {
 	m.handleSaveApply = function(ev, mode) {
 		return this.handleSave(ev).then(function() {
+			return callValidateConfig().then(requireSuccess);
+		}).then(function() {
 			return safeApply();
 		}).then(function() {
 			return uci.load('cf_ip');
@@ -240,6 +243,7 @@ return baseclass.extend({
 	renderWithFooter: renderWithFooter,
 	callStatus: callStatus,
 	callCheckEnv: callCheckEnv,
+	callValidateConfig: callValidateConfig,
 	callServiceRestart: callServiceRestart,
 	FOOTER_OPTIONS: FOOTER_OPTIONS,
 	createHandleSave: createHandleSave,

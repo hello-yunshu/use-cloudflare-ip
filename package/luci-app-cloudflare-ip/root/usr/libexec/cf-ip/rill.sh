@@ -16,6 +16,8 @@ CFIP_RILL_HISTORY_FILE="${CFIP_RILL_HISTORY_FILE:-$CFIP_RILL_BASE_DIR/candidate-
 CFIP_RILL_PENDING_FILE="${CFIP_RILL_PENDING_FILE:-$CFIP_RILL_BASE_DIR/rill-pending-feedback.json}"
 CFIP_RILL_QUALIFICATION_FILE="${CFIP_RILL_QUALIFICATION_FILE:-$CFIP_RILL_BASE_DIR/rill-qualification.json}"
 CFIP_RILL_STATE_META_FILE="${CFIP_RILL_STATE_META_FILE:-$CFIP_RILL_BASE_DIR/rill-state-meta.json}"
+CFIP_RILL_PREFIX_HISTORY_FILE="${CFIP_RILL_PREFIX_HISTORY_FILE:-$CFIP_RILL_BASE_DIR/prefix-history.json}"
+CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS="${CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS:-86400}"
 
 cfip_rill_schema_hash() {
     [[ -s "$CFIP_RILL_SCHEMA_FILE" ]] || return 1
@@ -184,7 +186,7 @@ cfip_rill_qualification_json() {
         cat "$CFIP_RILL_QUALIFICATION_FILE"
     else
         jq -cn --argjson minimum "${CFIP_RILL_MIN_FEEDBACK_SAMPLES:-30}" \
-          '{state:"cold",validFeedback:0,attributedFeedback:0,delayedCompleted:0,disagreements:0,disagreementWin:0,disagreementLoss:0,disagreementTie:0,disagreementWinRate:null,errors:0,candidateFailures:0,recentRewards:[],window:[],lastReward:null,rollingReward:null,nativeReward:null,rillReward:null,rewardDelta:null,shadowRegret:0,minFeedbackSamples:$minimum,minDisagreementSamples:10,updatedAt:null}'
+          '{state:"cold",validFeedback:0,attributedFeedback:0,delayedCompleted:0,delayedExpired:0,delayedRejected:0,disagreements:0,disagreementWin:0,disagreementLoss:0,disagreementTie:0,disagreementWinRate:null,errors:0,candidateFailures:0,recentRewards:[],window:[],lastReward:null,rollingReward:null,nativeReward:null,rillReward:null,rewardDelta:null,shadowRegret:0,minFeedbackSamples:$minimum,minDisagreementSamples:10,updatedAt:null}'
     fi
 }
 
@@ -201,12 +203,50 @@ cfip_rill_assisted_ready() {
     jq -e --arg schema "$schema" '(.available==true and .state=="healthy" and .health=="healthy" and .healthHealthy==true and .resourcePressure==false and .featureSchemaVersion==2 and .modelGeneration==2 and .featureSchemaHash==$schema and (.qualificationState=="shadow-qualified" or .qualificationState=="guarded-assisted") and .resetRequired==false)' <<<"$status" >/dev/null 2>&1
 }
 
+# Generic policy decisions use the Runtime's typed action ledger but stay
+# separate from candidate ranking. The consumer owns execution and may keep
+# the policy in shadow until its own qualification gate is satisfied.
+cfip_rill_policy_decide() {
+    local kind="$1" actions="$2" output="$3" schema request tmp rc=0 response_bytes scores selected generation
+    [[ "${CFIP_RILL_ENABLED:-false}" == true && "${CFIP_RILL_MODE:-off}" != off ]] || return 2
+    [[ -x "$CFIP_RILL_RUNTIME" && -s "$actions" ]] || return 3
+    schema="$(cfip_rill_schema_hash)" || return 4
+    tmp="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-policy-response.XXXXXX")" || return 4
+    request="$(jq -cn --arg id "decision-${kind}-${CFIP_RUN_ID:-policy}" --arg schema "$schema" --arg partition "$CFIP_RILL_PARTITION_KEY" --arg kind "$kind" --argjson generation "$(cfip_rill_state_generation)" --argjson actions "$(cat "$actions")" \
+      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},partitionKey:$partition,capability:"org.rill.preview.decide",featureSchemaHash:$schema,modelGeneration:2,stateGeneration:$generation,payloadLimit:1048576,request:{method:"decide",decisionKind:$kind,context:{actions:$actions}}}')"
+    cfip_run_with_timeout "${CFIP_RILL_TIMEOUT_S:-2}" sh -c 'printf "%s\n" "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation "$5"' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" "$CFIP_RILL_MODEL_GENERATION" >"$tmp" 2>>"$CFIP_LOG_FILE" || rc=$?
+    response_bytes="$(wc -c <"$tmp" 2>/dev/null || printf 0)"
+    if ((rc != 0 || response_bytes > 262144)) || ! jq -e --arg id "decision-${kind}-${CFIP_RUN_ID:-policy}" \
+      '.requestId==$id and .response.kind=="result" and .response.output.accepted==true and (.response.output.selectedActionId|type)=="string" and (.response.output.scores|type)=="array" and (.response.output.scores|length)>0' "$tmp" >/dev/null 2>&1; then
+        rm -f "$tmp"; return 5
+    fi
+    selected="$(jq -r '.response.output.selectedActionId' "$tmp")"; generation="$(jq -r '.stateGeneration // 0' "$tmp")"; scores="$(jq -c '.response.output.scores | sort_by(-.score,.id)' "$tmp")"
+    jq -n --arg kind "$kind" --arg decisionId "$(jq -r '.requestId' "$tmp")" --arg selected "$selected" --argjson generation "$generation" --argjson actions "$(cat "$actions")" --argjson scores "$scores" \
+      '{success:true,decisionKind:$kind,decisionId:$decisionId,selectedActionId:$selected,generation:$generation,actions:$actions,scores:$scores}' | cfip_atomic_write "$output"
+    rm -f "$tmp"
+}
+
+cfip_rill_policy_feedback() {
+    local decision="$1" reward="$2" decision_id selected schema state_generation request response_file rc=0 expected_request_id
+    [[ "${CFIP_RILL_ENABLED:-false}" == true && -x "$CFIP_RILL_RUNTIME" && -s "$decision" ]] || return 0
+    decision_id="$(jq -r '.decisionId // empty' "$decision")"; selected="$(jq -r '.selectedActionId // empty' "$decision")"
+    [[ -n "$decision_id" && -n "$selected" && "$reward" =~ ^-?[0-9]+([.][0-9]+)?$ ]] || return 12
+    schema="$(cfip_rill_schema_hash)" || return 1; state_generation="$(cfip_rill_state_generation)"; expected_request_id="feedback-${decision_id}"
+    request="$(jq -cn --arg id "$expected_request_id" --arg decisionId "$decision_id" --arg selected "$selected" --arg schema "$schema" --arg partition "$CFIP_RILL_PARTITION_KEY" --argjson stateGeneration "$state_generation" --argjson reward "$reward" \
+      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},partitionKey:$partition,capability:"org.rill.preview.feedback",featureSchemaHash:$schema,modelGeneration:2,stateGeneration:$stateGeneration,payloadLimit:1048576,request:{method:"feedback",decisionId:$decisionId,selectedActionId:$selected,reward:$reward,outcomeTimeMs:(now*1000|floor),generation:2}}')"
+    response_file="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-policy-feedback.XXXXXX")" || return 1
+    cfip_run_with_timeout "${CFIP_RILL_TIMEOUT_S:-2}" sh -c 'printf "%s\n" "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation "$5"' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" "$CFIP_RILL_MODEL_GENERATION" >"$response_file" 2>>"$CFIP_LOG_FILE" || rc=$?
+    if ((rc != 0)) || ! jq -e --arg id "$expected_request_id" '.requestId==$id and ((.response.kind=="result" and .response.output.accepted==true) or .response.kind=="error")' "$response_file" >/dev/null 2>&1; then rm -f "$response_file"; return 8; fi
+    if jq -e '.response.kind=="error"' "$response_file" >/dev/null 2>&1; then rm -f "$response_file"; return 9; fi
+    rm -f "$response_file"
+}
+
 cfip_rill_record_qualification() {
-    local candidate_outcome="$1" attribution="$2" delayed="$3" error="$4" reward="${5:-}" outcome_file="${6:-}" current state count attributed completed errors failures minimum recent_rewards window native_reward rill_reward delta disagreement
+    local candidate_outcome="$1" attribution="$2" delayed="$3" error="$4" reward="${5:-}" outcome_file="${6:-}" current state count attributed completed errors failures delayed_expired delayed_rejected minimum recent_rewards window native_reward rill_reward delta disagreement
     current="$(cfip_rill_qualification_json)"
     state="$(jq -r '.state // "cold"' <<<"$current")"
     count="$(jq -r '.validFeedback // 0' <<<"$current")"; attributed="$(jq -r '.attributedFeedback // 0' <<<"$current")"
-    completed="$(jq -r '.delayedCompleted // 0' <<<"$current")"; errors="$(jq -r '.errors // 0' <<<"$current")"; failures="$(jq -r '.candidateFailures // 0' <<<"$current")"
+    completed="$(jq -r '.delayedCompleted // 0' <<<"$current")"; delayed_expired="$(jq -r '.delayedExpired // 0' <<<"$current")"; delayed_rejected="$(jq -r '.delayedRejected // 0' <<<"$current")"; errors="$(jq -r '.errors // 0' <<<"$current")"; failures="$(jq -r '.candidateFailures // 0' <<<"$current")"
     recent_rewards="$(jq -c '.recentRewards // []' <<<"$current")"
     window="$(jq -c '.window // []' <<<"$current")"
     minimum="${CFIP_RILL_MIN_FEEDBACK_SAMPLES:-30}"
@@ -243,8 +283,8 @@ cfip_rill_record_qualification() {
         else state=cold; fi
     }
     jq -cn --arg state "$state" --argjson count "$count" --argjson attributed "$attributed" \
-      --argjson completed "$completed" --argjson errors "$errors" --argjson failures "$failures" --argjson rewards "$recent_rewards" --argjson minimum "$minimum" --argjson window "$window" --argjson dis "$dis_count" --argjson wins "$wins" --argjson losses "$losses" --argjson ties "$ties" --argjson meanDelta "$mean_delta" --argjson severe "$severe" --argjson windowErrors "$window_errors" \
-      '{state:$state,validFeedback:$count,attributedFeedback:$attributed,delayedCompleted:$completed,errors:$errors,candidateFailures:$failures,recentRewards:$rewards,window:$window,lastReward:($rewards[-1] // null),rollingReward:(if ($rewards|length)>0 then ($rewards|add/length) else null end),nativeReward:($window|map(select(.nativeReward|type=="number")|.nativeReward)|if length>0 then add/length else null end),rillReward:($window|map(select(.rillReward|type=="number")|.rillReward)|if length>0 then add/length else null end),rewardDelta:$meanDelta,shadowRegret:($window|map(select((.rewardDelta|type=="number") and .rewardDelta<0)|-.rewardDelta)|add//0),disagreements:$dis,disagreementWin:$wins,disagreementLoss:$losses,disagreementTie:$ties,disagreementWinRate:(if $dis>0 then $wins/$dis else null end),recentWindowErrors:$windowErrors,windowSize:($window|length),severeRegressionCount:$severe,minFeedbackSamples:$minimum,minDisagreementSamples:10,updatedAt:(now|floor)}' \
+      --argjson completed "$completed" --argjson expired "$delayed_expired" --argjson rejected "$delayed_rejected" --argjson errors "$errors" --argjson failures "$failures" --argjson rewards "$recent_rewards" --argjson minimum "$minimum" --argjson window "$window" --argjson dis "$dis_count" --argjson wins "$wins" --argjson losses "$losses" --argjson ties "$ties" --argjson meanDelta "$mean_delta" --argjson severe "$severe" --argjson windowErrors "$window_errors" \
+      '{state:$state,validFeedback:$count,attributedFeedback:$attributed,delayedCompleted:$completed,delayedExpired:$expired,delayedRejected:$rejected,errors:$errors,candidateFailures:$failures,recentRewards:$rewards,window:$window,lastReward:($rewards[-1] // null),rollingReward:(if ($rewards|length)>0 then ($rewards|add/length) else null end),nativeReward:($window|map(select(.nativeReward|type=="number")|.nativeReward)|if length>0 then add/length else null end),rillReward:($window|map(select(.rillReward|type=="number")|.rillReward)|if length>0 then add/length else null end),rewardDelta:$meanDelta,shadowRegret:($window|map(select((.rewardDelta|type=="number") and .rewardDelta<0)|-.rewardDelta)|add//0),disagreements:$dis,disagreementWin:$wins,disagreementLoss:$losses,disagreementTie:$ties,disagreementWinRate:(if $dis>0 then $wins/$dis else null end),recentWindowErrors:$windowErrors,windowSize:($window|length),severeRegressionCount:$severe,minFeedbackSamples:$minimum,minDisagreementSamples:10,updatedAt:(now|floor)}' \
       | cfip_atomic_write "$CFIP_RILL_QUALIFICATION_FILE"
 }
 
@@ -292,7 +332,7 @@ cfip_rill_health_json() {
 }
 
 cfip_rill_status_json() {
-    local request response health inspect schema qualification meta history pending health_status health_ok resource_pressure
+    local request response health inspect schema qualification meta history pending health_status health_ok resource_pressure resource_reason_codes
     if [[ "${CFIP_RILL_ENABLED:-false}" != true || "${CFIP_RILL_MODE:-off}" == off ]]; then
         jq -cn '{available:false,state:"disabled",mode:"off",channel:"preview",featureSchemaVersion:2,modelGeneration:2}'
         return 0
@@ -310,9 +350,23 @@ cfip_rill_status_json() {
         inspect="$(cfip_rill_inspect_json 2>/dev/null || printf '{}')"
         health_status="$(jq -r '.response.status // "unknown"' <<<"$health")"
         health_ok="$(jq -r '.response.healthy // false' <<<"$health")"
-        resource_pressure="$(jq -r '(.response.status=="resource_pressure") or (.response.reasonCodes|index("resource_pressure") != null)' <<<"$health")"
-        jq -cn --arg mode "$CFIP_RILL_MODE" --arg schema "$schema" --argjson s "$response" --argjson health "$health" --argjson inspect "$inspect" --argjson q "$qualification" --argjson m "$meta" --argjson h "$history" --argjson pending "$pending" --arg healthStatus "$health_status" --argjson healthOk "$health_ok" --argjson resourcePressure "$resource_pressure" \
-          '{available:true,state:(if $healthOk then "healthy" else "degraded" end),channel:($s.response.channel//"preview"),mode:$mode,runtimeVersion:$s.runtimeIdentity.version,runtimeApiVersion:$s.apiVersion,capabilities:$s.response.capabilities,featureSchemaVersion:2,featureSchemaHash:$schema,modelGeneration:$s.modelGeneration,stateGeneration:$s.stateGeneration,handlerApiVersion:$s.response.handlerApiVersion,health:$healthStatus,healthHealthy:$healthOk,healthReasonCodes:($health.response.reasonCodes//[]),qualificationState:(if $m.resetRequired==true then "reset-required" else ($q.state//"cold") end),validFeedback:($q.validFeedback//0),attributedFeedback:($q.attributedFeedback//0),delayedCompleted:($q.delayedCompleted//0),candidateFailures:($q.candidateFailures//0),lastReward:($q.lastReward//null),rollingReward:($q.rollingReward//null),nativeReward:($q.nativeReward//null),rillReward:($q.rillReward//null),rewardDelta:($q.rewardDelta//null),shadowRegret:($q.shadowRegret//0),disagreements:($q.disagreements//0),disagreementWinRate:($q.disagreementWinRate//null),pendingDelayedFeedback:$pending,candidateHistoryCount:($h|length),lastResetReason:($m.resetReason//null),resetRequired:($m.resetRequired//false),resourcePressure:$resourcePressure,inspect:$inspect}'
+        # The Preview health response is intentionally small. Inspect is the
+        # authoritative resource contract: pressure is true at 90% of any
+        # bounded state/pending/completed counter, or when health says so.
+        resource_pressure="$(jq -r '
+          def near($used;$limit): (($limit|type)=="number" and $limit>0 and ($used|type)=="number" and ($used*10 >= $limit*9));
+          ((.response.status=="resource_pressure") or any(.response.reasonCodes[]?; .=="resource_pressure"))' <<<"$health")"
+        if [[ "$resource_pressure" != true ]]; then
+            resource_pressure="$(jq -r '
+              def near($used;$limit): (($limit|type)=="number" and $limit>0 and ($used|type)=="number" and ($used*10 >= $limit*9));
+              (near(.resourceUtilization.stateBytes;.resourceProfile.maxModelStateBytes)
+               or near(.resourceUtilization.pendingDecisions;.resourceProfile.maxPendingDecisions)
+               or near(.resourceUtilization.completedDecisions;.resourceProfile.maxCompletedDecisions))' <<<"$inspect")"
+        fi
+        [[ "$resource_pressure" == true ]] && health_status=resource_pressure
+        resource_reason_codes="$(jq -c --argjson pressure "$resource_pressure" '(.response.reasonCodes // []) + (if $pressure then ["resource_pressure"] else [] end) | unique' <<<"$health")"
+        jq -cn --arg mode "$CFIP_RILL_MODE" --arg schema "$schema" --argjson s "$response" --argjson health "$health" --argjson inspect "$inspect" --argjson q "$qualification" --argjson m "$meta" --argjson h "$history" --argjson pending "$pending" --arg healthStatus "$health_status" --argjson healthOk "$health_ok" --argjson resourcePressure "$resource_pressure" --argjson resourceReasonCodes "$resource_reason_codes" \
+          '{available:true,state:(if $resourcePressure or ($healthOk|not) then "degraded" else "healthy" end),channel:($s.response.channel//"preview"),mode:$mode,runtimeVersion:$s.runtimeIdentity.version,runtimeApiVersion:$s.apiVersion,capabilities:$s.response.capabilities,featureSchemaVersion:2,featureSchemaHash:$schema,modelGeneration:$s.modelGeneration,stateGeneration:$s.stateGeneration,handlerApiVersion:$s.response.handlerApiVersion,health:$healthStatus,healthHealthy:($healthOk and ($resourcePressure|not)),healthReasonCodes:$resourceReasonCodes,qualificationState:(if $m.resetRequired==true then "reset-required" else ($q.state//"cold") end),validFeedback:($q.validFeedback//0),attributedFeedback:($q.attributedFeedback//0),delayedCompleted:($q.delayedCompleted//0),delayedExpired:($q.delayedExpired//0),delayedRejected:($q.delayedRejected//0),candidateFailures:($q.candidateFailures//0),lastReward:($q.lastReward//null),rollingReward:($q.rollingReward//null),nativeReward:($q.nativeReward//null),rillReward:($q.rillReward//null),rewardDelta:($q.rewardDelta//null),shadowRegret:($q.shadowRegret//0),disagreements:($q.disagreements//0),disagreementWinRate:($q.disagreementWinRate//null),pendingDelayedFeedback:$pending,candidateHistoryCount:($h|length),lastResetReason:($m.resetReason//null),resetRequired:($m.resetRequired//false),resourcePressure:$resourcePressure,inspect:$inspect}'
     else
         jq -cn --arg mode "$CFIP_RILL_MODE" --argjson q "$qualification" --argjson m "$meta" --argjson pending "$pending" \
           '{available:false,state:"incompatible",channel:"preview",mode:$mode,runtimeApiVersion:3,featureSchemaVersion:2,modelGeneration:2,qualificationState:(if $m.resetRequired==true then "reset-required" else $q.state end),pendingDelayedFeedback:$pending,lastResetReason:($m.resetReason//null),resetRequired:($m.resetRequired//false)}'
@@ -410,13 +464,20 @@ cfip_rill_feedback() {
 }
 
 cfip_rill_queue_feedback() {
-    local decision="$1" outcome="$2" domains="${3:-}" due="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_SECONDS:-600}))" current
+    local decision="$1" outcome="$2" domains="${3:-}" queued="$(date +%s)" due="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_SECONDS:-600}))" expires="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS:-86400}))" current schema
+    schema="$(cfip_rill_schema_hash 2>/dev/null || printf '')"
     current='[]'
     if [[ -s "$CFIP_RILL_PENDING_FILE" ]] && jq -e 'type=="array"' "$CFIP_RILL_PENDING_FILE" >/dev/null 2>&1; then
         current="$(cat "$CFIP_RILL_PENDING_FILE")"
     fi
-    jq -cn --argjson current "$current" --argjson due "$due" --arg domains "$domains" --argjson decision "$(cat "$decision")" --argjson outcome "$(cat "$outcome")" \
-      '($current + [{dueAt:$due,decision:$decision,outcome:$outcome,domains:(if $domains=="" then null else $domains end),queuedAt:(now|floor),modelGeneration:2,stateGeneration:($decision.generation//0)}] | reverse | unique_by(.decision.decisionId // ((.decision.selectedActionId // "") + ":" + ((.stateGeneration // 0)|tostring))) | reverse)[-64:]' | cfip_atomic_write "$CFIP_RILL_PENDING_FILE"
+    jq -cn --argjson current "$current" --argjson due "$due" --argjson expires "$expires" --argjson queued "$queued" --arg schema "$schema" --arg domains "$domains" --argjson decision "$(cat "$decision")" --argjson outcome "$(cat "$outcome")" \
+      '($current + [{dueAt:$due,expiresAt:$expires,decision:$decision,outcome:$outcome,domains:(if $domains=="" then null else $domains end),queuedAt:$queued,modelGeneration:2,featureSchemaHash:$schema,stateGeneration:($decision.generation//0)}] | reverse | unique_by(.decision.decisionId // ((.decision.selectedActionId // "") + ":" + ((.stateGeneration // 0)|tostring))) | reverse)[-64:]' | cfip_atomic_write "$CFIP_RILL_PENDING_FILE"
+}
+
+cfip_rill_record_delayed_counter() {
+    local field="$1" current
+    current="$(cfip_rill_qualification_json)"
+    jq --arg field "$field" '(.[$field] //= 0) | .[$field] += 1 | .updatedAt=(now|floor)' <<<"$current" | cfip_atomic_write "$CFIP_RILL_QUALIFICATION_FILE"
 }
 
 cfip_rill_refresh_delayed_observation() {
@@ -443,16 +504,26 @@ cfip_rill_refresh_delayed_observation() {
 
 cfip_rill_process_pending_feedback() {
     [[ -s "$CFIP_RILL_PENDING_FILE" ]] || return 0
-    if ! jq -e 'type=="array" and all(.[]; (.decision|type)=="object" and (.outcome|type)=="object" and ((.dueAt|type)=="number"))' "$CFIP_RILL_PENDING_FILE" >/dev/null 2>&1; then
+    if ! jq -e 'type=="array" and length<=64 and all(.[]; (.decision|type)=="object" and (.outcome|type)=="object" and ((.dueAt|type)=="number") and ((.expiresAt//0|type)=="number"))' "$CFIP_RILL_PENDING_FILE" >/dev/null 2>&1; then
         cfip_rill_quarantine_pending_queue || return 1
         return 0
     fi
-    local now current due item tmp_decision tmp_outcome refreshed_outcome feedback_rc remaining='[]' domains
+    local now current due expires item tmp_decision tmp_outcome refreshed_outcome feedback_rc remaining='[]' domains
     now="$(date +%s)"
     current="$(cat "$CFIP_RILL_PENDING_FILE" 2>/dev/null || printf '[]')"
     while IFS= read -r item; do
         due="$(jq -r '.dueAt // 0' <<<"$item")"
         if ((due > now)); then remaining="$(jq -cn --argjson a "$remaining" --argjson i "$item" '$a+[$i]')"; continue; fi
+        expires="$(jq -r '.expiresAt // 0' <<<"$item")"
+        if ((expires > 0 && expires <= now)); then
+            cfip_rill_record_delayed_counter delayedExpired
+            continue
+        fi
+        if [[ "$(jq -r '.modelGeneration // 0' <<<"$item")" != "$CFIP_RILL_MODEL_GENERATION" || "$(jq -r '.featureSchemaHash // empty' <<<"$item")" != "$(cfip_rill_schema_hash 2>/dev/null || printf '')" ]]; then
+            cfip_rill_record_delayed_counter delayedRejected
+            cfip_log "Rill delayed feedback rejected: generation_or_schema_mismatch"
+            continue
+        fi
         tmp_decision="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-pending-decision.XXXXXX")"; tmp_outcome="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-pending-outcome.XXXXXX")"
         jq -c '.decision' <<<"$item" >"$tmp_decision"; jq -c '.outcome' <<<"$item" >"$tmp_outcome"
         domains="$(jq -r '.domains // empty' <<<"$item")"

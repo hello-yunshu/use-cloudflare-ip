@@ -81,6 +81,7 @@ case "$1" in
 		cat <<'EOF'
 {
 	"status": {},
+	"validate-config": {},
 	"check-env": {},
 	"refresh-env": {},
 	"run": {},
@@ -113,6 +114,10 @@ EOF
 		case "$method" in
 			status)
 				"$CF_IP_AUTO_BIN" --status 2>/dev/null || true
+				;;
+			validate-config)
+				_out="$($CF_IP_AUTO_BIN --validate-config 2>/dev/null)" || true
+				[ -n "$_out" ] && printf '%s\n' "$_out" || printf '%s\n' '{"success":false,"error":"configuration validation failed"}'
 				;;
 			check-env)
 				"$CF_IP_AUTO_BIN" --check-env 2>/dev/null || true

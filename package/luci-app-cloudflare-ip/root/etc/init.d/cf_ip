@@ -41,7 +41,11 @@ start_service() {
 	config_load cf_ip
 	config_get_bool enabled main enabled 0
 
-	[ "$enabled" -eq 0 ] && return 0
+	if [ "$enabled" -eq 0 ]; then
+		# Disabled must remove entries left by older package versions.
+		cf_ip_cron_remove
+		return 0
+	fi
 
 	if ! validate_cf_ip 2>/dev/null; then
 		logger -t cf_ip -p daemon.err "Configuration validation failed, refusing to start"
@@ -137,7 +141,10 @@ validate_cf_ip() {
 		'cron_custom:string' \
 		'cfst_persist:bool' 'candidate_budget:uinteger' \
 		'probe_top_count:uinteger' 'probe_concurrency:uinteger' \
-		'probe_timeout:uinteger' 'measurement_timeout:uinteger' 'recovery_timeout:uinteger'
+		'probe_timeout:uinteger' 'measurement_timeout:uinteger' 'recovery_timeout:uinteger' \
+		'reuse_enabled:bool' 'max_full_optimize_interval:uinteger' \
+		'reuse_validation_timeout:uinteger' 'reuse_loss_limit:string' \
+		'reuse_ttfb_limit:uinteger' 'reuse_total_limit:uinteger'
 
 	uci_validate_section cf_ip passwall passwall \
 		'target_domain:string' 'name_suffix:string'

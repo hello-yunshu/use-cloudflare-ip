@@ -115,8 +115,13 @@ return view.extend({
 			var i = status.intelligence || {};
 			return _('Valid feedback') + ': ' + (i.validFeedback || 0) + ', ' + _('delayed pending') + ': ' + (i.pendingDelayedFeedback || 0) + ', ' + _('completed') + ': ' + (i.delayedCompleted || 0) + ', Δ ' + (i.rewardDelta == null ? '?' : i.rewardDelta.toFixed(3));
 		};
-		o = s.option(form.DummyValue, '_health', _('Runtime Health'));
-		o.cfgvalue = function() { var i = status.intelligence || {}; return (i.health || _('Unknown')) + (i.resourcePressure ? ' / ' + _('Resource pressure') : ''); };
+	o = s.option(form.DummyValue, '_health', _('Runtime Health'));
+	o.cfgvalue = function() { var i = status.intelligence || {}; return (i.health || _('Unknown')) + (i.resourcePressure ? ' / ' + _('Resource pressure') : ''); };
+	o = s.option(form.DummyValue, '_resource', _('Resource Guard'));
+	o.cfgvalue = function() {
+		var i = status.intelligence || {}, x = i.inspect || {}, u = x.resourceUtilization || {}, p = x.resourceProfile || {};
+		return _('pressure') + ': ' + (i.resourcePressure ? _('yes') : _('no')) + ', ' + _('state bytes') + ': ' + (u.stateBytes || 0) + ' / ' + (p.maxModelStateBytes || '?') + ', ' + _('pending') + ': ' + (u.pendingDecisions || 0) + ' / ' + (p.maxPendingDecisions || '?');
+	};
 		o = s.option(form.DummyValue, '_inspect', _('Runtime Inspect'));
 		o.cfgvalue = function() { var i = status.intelligence || {}, x = i.inspect || {}; return _('pending') + ': ' + (x.pendingDecisions || i.pendingDelayedFeedback || 0) + ', ' + _('completed') + ': ' + (x.completedDecisions || i.delayedCompleted || 0) + ', ' + _('last error') + ': ' + (x.lastError || _('None')); };
 	o = s.option(form.DummyValue, '_authority', _('Current Authority'));
@@ -127,6 +132,16 @@ return view.extend({
 	o.cfgvalue = function() { return (status.intelligence || {}).qualificationState || _('Unknown'); };
 	o = s.option(form.DummyValue, '_fallback', _('Fallback Reason'));
 	o.cfgvalue = function() { return status.fallbackReason || (status.intelligence || {}).lastResetReason || _('None'); };
+	o = s.option(form.DummyValue, '_source_policy', _('Source Strategy Loop'));
+	o.cfgvalue = function() {
+		var p = status.sourcePolicy || {}, q = status.sourcePolicyQualification || {};
+		return _('requested') + ': ' + (p.requested || p.policy || '?') + ', ' + _('effective') + ': ' + (p.effective || '?') + ', ' + _('recommended') + ': ' + (p.recommended || '?') + ', ' + _('qualified') + ': ' + (q.state || _('shadow'));
+	};
+	o = s.option(form.DummyValue, '_reuse_policy', _('Reuse / Full Optimize'));
+	o.cfgvalue = function() {
+		var r = status.reusePolicy || {};
+		return _('actual') + ': ' + (r.actualAction || _('unknown')) + ', ' + _('recommended') + ': ' + (r.recommendedAction || _('unknown')) + ', ' + _('reason') + ': ' + (r.reason || _('none'));
+	};
 	o = s.option(form.DummyValue, '_efficiency', _('Probe Efficiency'));
 	o.cfgvalue = function() { var e = status.efficiency || status.probeMetrics || {}; return _('probed') + ': ' + (e.candidatesProbed || 0) + ' / ' + (e.candidatesConsidered || 0) + ', ' + _('avoided') + ': ' + (e.avoidedProbes || 0) + ', ' + _('early stop') + ': ' + (e.earlyStopHit ? _('yes') : _('no')); };
 	o = s.option(form.DummyValue, '_comparison', _('Native vs Rill'));
