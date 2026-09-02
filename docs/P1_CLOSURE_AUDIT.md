@@ -15,7 +15,7 @@
 | G. transaction/UI safety | ✅ CODE CLOSED | explicit sync mode 重算目标并控制 stop/apply/restart；LuCI save/apply 前调用同一 semantic validation RPC；disabled start 清理历史 cron。 |
 | H. remote current-SHA CI | ✅ PASS | 当前提交 `0cd064fa3cc6722a0fa3ffd7d2ff09568b55d16d` 的 Actions run `33601273356` 已 terminal success，14 个 jobs 全部通过。 |
 | I. Docker-backed install/runtime smoke | ✅ PASS (Docker) | OpenWrt 25.12.5 x86/64 容器已安装当前 SHA 生成的三个 APK，并通过包校验、PassWall/OpenClash semantic validation、非法配置拒绝、RPC dispatch、状态/诊断 JSON、Runtime help、禁用 cron 清理；不等同物理硬件证据。 |
-| J. physical-device / soak | ⚠️ NOT RUN | 仍需要物理 OpenWrt 设备、指定 proxy/protocol 场景和 72h/7d 持续运行证据；见对应文档。 |
+| J. physical-device / soak | ⚪ SOAK SKIPPED (user-approved) | 72h/7d Soak 按用户批准直接跳过；物理 OpenWrt 设备、指定 proxy/protocol 场景仍未验证，不宣称硬件通过。 |
 
 ## Local implementation evidence
 
@@ -38,4 +38,4 @@
 
 ## Current release conclusion
 
-代码层面的 P1 closure、当前 SHA CI 和 Docker-backed 安装运行 smoke 已完成；在当前 package PR #3 未合并、package main 与合约 pinned commit 不一致、物理设备与 Soak 尚未提供之前，结论为：**⚠️ 尚未满足 RC Gate**。
+代码层面的 P1 closure、当前 SHA CI 和 Docker-backed 安装运行 smoke 已完成；Soak 已按用户批准跳过。由于当前 package PR #3 未合并、package main 与合约 pinned commit 不一致，结论仍为：**⚠️ 尚未满足 RC Gate**。

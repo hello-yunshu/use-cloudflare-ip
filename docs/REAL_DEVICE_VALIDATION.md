@@ -21,7 +21,7 @@
 5. Restart the service between queue and delayed-feedback processing. Capture accepted, expired and schema/generation-rejected entries.
 6. Preserve `/etc/cf_ip/status.json`, `/etc/cf_ip/rill-*.json`, `/etc/cf_ip/reuse-policy.json`, relevant logs, proxy readback and crontab as artifacts.
 
-物理设备状态：未执行。没有物理设备安装、proxy readback 或真实 network probe 证据前，不写“真机通过”。
+物理设备状态：未执行。没有物理设备安装、proxy readback 或真实 network probe 证据前，不写“真机通过”。72h/7d Soak：按用户批准跳过。
 
 ## Docker-backed validation record
 
@@ -36,4 +36,4 @@
 | Runtime checks | install PASS; PassWall/OpenClash validation PASS; invalid config rejection PASS; RPC list/call PASS; status/diagnostics JSON PASS; Runtime help PASS; disabled cron cleanup PASS |
 | Boundary | No physical device, proxy readback, or real network probe was performed; post-install ubus registration was not exercised because the container was not booted with procd as PID 1. |
 
-Docker 状态：**PASS（安装运行 smoke）**；物理真机状态：**NOT RUN**。
+Docker 状态：**PASS（安装运行 smoke）**；物理真机状态：**NOT RUN**；Soak 状态：**SKIPPED（用户批准）**。

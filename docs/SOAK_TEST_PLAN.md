@@ -4,6 +4,8 @@
 
 RC minimum is 72 hours; preferred release evidence is 7 days. Run on at least one PassWall and one OpenClash device, with the exact package and Runtime commits intended for release.
 
+本次执行状态：**⚪ SKIPPED（用户批准）**。本计划保留作为后续发布参考，但本次不启动 72h/7d 持续运行。
+
 ## Workload
 
 - Scheduled runs at the production interval, plus bounded manual sync checks.
@@ -29,6 +31,6 @@ RC minimum is 72 hours; preferred release evidence is 7 days. Run on at least on
 
 At each interval capture timestamp, config fingerprint, selected IPs, effective mode, source policy, reuse decision, resource pressure, queue counters and transaction result. At the end, compare start/end state checksums and export logs plus a machine-readable summary.
 
-Any unsafe apply, missing rollback, silent queue loss, unbounded source refresh, stale cron entry or unexplained Runtime/package drift fails the soak. Until this plan is executed with artifacts, the release conclusion remains **⚠️ 尚未满足 RC Gate**.
+Any unsafe apply, missing rollback, silent queue loss, unbounded source refresh, stale cron entry or unexplained Runtime/package drift fails the soak. Because this plan is explicitly skipped for this execution, it contributes no Soak PASS evidence and does not change the remaining release gates.
 
-补充：已完成一次 OpenWrt 25.12.5 x86/64 Docker-backed 安装运行 smoke；它不计入 72h/7d Soak，也不替代 PassWall/OpenClash 物理设备持续运行证据。
+补充：已完成一次 OpenWrt 25.12.5 x86/64 Docker-backed 安装运行 smoke；它不计入 72h/7d Soak，也不替代 PassWall/OpenClash 物理设备持续运行证据。本次 Soak 已按用户批准跳过。
