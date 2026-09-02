@@ -108,7 +108,7 @@ init_run_paths(){ CFIP_RUN_ID="$(cfip_generate_run_id)"; local d="$CFIP_RUNTIME_
 cleanup_run_files(){ find "$CFIP_RUNTIME_DIR" -maxdepth 1 -type d -name 'run-*' -mmin +120 -exec rm -rf {} + 2>/dev/null || true; }
 
 write_status() {
-    local active_run="$1" phase="$2" result="$3" error="${4:-}" candidates=0 input_count=0 eligible=0 selected=0 best='[]' rill='{}' transaction='{}' sources='[]' publisher='{}' decision='{}' probe_metrics='{}' source_policy='{}' reuse='{}'
+    local active_run="$1" phase="$2" result="$3" error="${4:-}" candidates=0 input_count=0 eligible=0 selected=0 best='[]' rill='{}' transaction='{}' sources='[]' publisher='{}' decision='{}' probe_metrics='{}' source_policy='{}' reuse='{}' previous='{}' last_completed='' status_now completed_at=''
     [[ -f "$CFIP_CANDIDATES_FILE" ]] && candidates="$(jq 'length' "$CFIP_CANDIDATES_FILE" 2>/dev/null || printf 0)"
     [[ -f "$CFIP_INPUT_POOL_FILE" ]] && input_count="$(jq 'length' "$CFIP_INPUT_POOL_FILE" 2>/dev/null || printf 0)"
     [[ -f "$CFIP_NATIVE_FILE" ]] && eligible="$(jq 'length' "$CFIP_NATIVE_FILE" 2>/dev/null || printf 0)"
@@ -122,6 +122,11 @@ write_status() {
     [[ -f "${CFIP_PROBE_METRICS_FILE:-}" ]] && probe_metrics="$(jq -c . "$CFIP_PROBE_METRICS_FILE" 2>/dev/null || printf '{}')"
     source_policy="$(cfip_source_policy_json 2>/dev/null || printf '{}')"
     [[ -f "${CFIP_REUSE_DECISION_FILE:-}" ]] && reuse="$(jq -c . "$CFIP_REUSE_DECISION_FILE" 2>/dev/null || printf '{}')"
+    status_now="$(date +%s)"
+    [[ -s "$CFIP_STATUS_FILE" ]] && previous="$(jq -c 'if type=="object" then . else {} end' "$CFIP_STATUS_FILE" 2>/dev/null || printf '{}')"
+    last_completed="$(jq -r '.last_completed_run_at // .last_run // empty' <<<"$previous" 2>/dev/null || true)"
+    completed_at="$last_completed"
+    if [[ "$active_run" == false && ("$phase" == done || "$phase" == failed) ]]; then completed_at="$(date -u -r "$status_now" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ')"; fi
     mkdir -p "$CFIP_STATUS_DIR"
     local tar_ok=false jq_ok=false cfst_ok=false passwall_installed=false passwall_running=false openclash_installed=false openclash_running=false
     command -v tar >/dev/null 2>&1 && tar_ok=true
@@ -134,8 +139,8 @@ write_status() {
     local recovery_remaining recovery_active
     recovery_remaining="$(cfip_recovery_remaining)"
     [[ "${CFIP_RECOVERY_ACTIVE:-false}" == true ]] && recovery_active=true || recovery_active=false
-    jq -n --argjson schemaVersion "$ENGINE_SCHEMA_VERSION" --argjson activeRun "$active_run" --argjson enabled "$CFIP_ENABLED" --arg runId "$CFIP_RUN_ID" --arg phase "$phase" --arg lastResult "$result" --arg error "$error" --arg mode "$CFIP_MODE" --arg ipType "$CFIP_IP_TYPE" --arg protocol "$CFIP_SPEEDTEST_PROTOCOL" --arg version "$SCRIPT_VERSION" --argjson requested "$CFIP_IP_COUNT" --argjson candidates "$candidates" --argjson inputCount "$input_count" --argjson budget "$CFIP_CANDIDATE_BUDGET" --argjson eligible "$eligible" --argjson selected "$selected" --argjson best "$best" --argjson intelligence "$rill" --argjson transaction "$transaction" --argjson sources "$sources" --argjson publisher "$publisher" --argjson decision "$decision" --argjson probeMetrics "$probe_metrics" --argjson sourcePolicy "$source_policy" --argjson tar "$tar_ok" --argjson jq "$jq_ok" --argjson cfst "$cfst_ok" --argjson pi "$passwall_installed" --argjson pr "$passwall_running" --argjson oi "$openclash_installed" --argjson or "$openclash_running" --argjson recoveryRemaining "$recovery_remaining" --argjson recoveryActive "$recovery_active" --arg recoveryError "${CFIP_RECOVERY_ERROR:-}" '
-      {schemaVersion:$schemaVersion,running:$enabled,enabled:$enabled,active_run:$activeRun,runId:$runId,phase:$phase,last_result:$lastResult,error:$error,mode:$mode,ip_type:$ipType,ip_count:$selected,requested_ip_count:$requested,speedtest_protocol:$protocol,best_ips:$best,script_version:$version,candidate_budget:$budget,measurement_input_count:$inputCount,candidate_count:$candidates,eligible_count:$eligible,degraded_candidate_count:($selected<$requested),probeMetrics:$probeMetrics,efficiency:$probeMetrics,sourcePolicy:$sourcePolicy,tar:$tar,jq:$jq,cfst_installed:$cfst,passwall_installed:$pi,passwall_running:$pr,openclash_installed:$oi,openclash_running:$or,env:{tar:$tar,jq:$jq,cfst_installed:$cfst,passwall_installed:$pi,passwall_running:$pr,openclash_installed:$oi,openclash_running:$or},sources:$sources,publisher:$publisher,intelligence:$intelligence,requestedMode:($decision.requestedMode // null),effectiveMode:($decision.effectiveMode // null),fallbackReason:($decision.fallbackReason // null),authorityActionId:($decision.authorityActionId // null),nativeRillTop1Agreement:($decision.nativeRillTop1Agreement // null),rillTop3Overlap:($decision.rillTop3Overlap // null),transaction:$transaction,recovery:{active:$recoveryActive,remaining:$recoveryRemaining,error:(if $recoveryError=="" then null else $recoveryError end)},last_run:(now|todate)}' | cfip_atomic_write "$CFIP_STATUS_FILE"
+    jq -n --argjson schemaVersion "$ENGINE_SCHEMA_VERSION" --argjson activeRun "$active_run" --argjson enabled "$CFIP_ENABLED" --arg runId "$CFIP_RUN_ID" --arg phase "$phase" --arg lastResult "$result" --arg error "$error" --arg mode "$CFIP_MODE" --arg ipType "$CFIP_IP_TYPE" --arg protocol "$CFIP_SPEEDTEST_PROTOCOL" --arg version "$SCRIPT_VERSION" --argjson requested "$CFIP_IP_COUNT" --argjson candidates "$candidates" --argjson inputCount "$input_count" --argjson budget "$CFIP_CANDIDATE_BUDGET" --argjson eligible "$eligible" --argjson selected "$selected" --argjson best "$best" --argjson intelligence "$rill" --argjson transaction "$transaction" --argjson sources "$sources" --argjson publisher "$publisher" --argjson decision "$decision" --argjson probeMetrics "$probe_metrics" --argjson sourcePolicy "$source_policy" --argjson tar "$tar_ok" --argjson jq "$jq_ok" --argjson cfst "$cfst_ok" --argjson pi "$passwall_installed" --argjson pr "$passwall_running" --argjson oi "$openclash_installed" --argjson or "$openclash_running" --argjson recoveryRemaining "$recovery_remaining" --argjson recoveryActive "$recovery_active" --arg recoveryError "${CFIP_RECOVERY_ERROR:-}" --arg statusUpdatedAt "$(date -u -r "$status_now" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg lastCompleted "$completed_at" '
+      {schemaVersion:$schemaVersion,running:$enabled,enabled:$enabled,active_run:$activeRun,runId:$runId,phase:$phase,last_result:$lastResult,error:$error,mode:$mode,ip_type:$ipType,ip_count:$selected,requested_ip_count:$requested,speedtest_protocol:$protocol,best_ips:$best,script_version:$version,candidate_budget:$budget,measurement_input_count:$inputCount,candidate_count:$candidates,eligible_count:$eligible,degraded_candidate_count:($selected<$requested),probeMetrics:$probeMetrics,efficiency:$probeMetrics,sourcePolicy:$sourcePolicy,tar:$tar,jq:$jq,cfst_installed:$cfst,passwall_installed:$pi,passwall_running:$pr,openclash_installed:$oi,openclash_running:$or,env:{tar:$tar,jq:$jq,cfst_installed:$cfst,passwall_installed:$pi,passwall_running:$pr,openclash_installed:$oi,openclash_running:$or},sources:$sources,publisher:$publisher,intelligence:$intelligence,requestedMode:($decision.requestedMode // null),effectiveMode:($decision.effectiveMode // null),fallbackReason:($decision.fallbackReason // null),authorityActionId:($decision.authorityActionId // null),nativeRillTop1Agreement:($decision.nativeRillTop1Agreement // null),rillTop3Overlap:($decision.rillTop3Overlap // null),transaction:$transaction,recovery:{active:$recoveryActive,remaining:$recoveryRemaining,error:(if $recoveryError=="" then null else $recoveryError end)},status_updated_at:$statusUpdatedAt,last_completed_run_at:(if $lastCompleted=="" then null else $lastCompleted end),last_run:(if $lastCompleted=="" then null else $lastCompleted end)}' | cfip_atomic_write "$CFIP_STATUS_FILE"
     if [[ -s "${CFIP_REUSE_DECISION_FILE:-}" && -s "$CFIP_STATUS_FILE" ]]; then
         jq --slurpfile reuse "$CFIP_REUSE_DECISION_FILE" '. + {reusePolicy: ($reuse[0] // {})}' "$CFIP_STATUS_FILE" | cfip_atomic_write "$CFIP_STATUS_FILE"
     fi
@@ -401,7 +406,7 @@ cmd_rill_self_check(){
 }
 cmd_rill_diagnostics(){
     load_config >/dev/null || return 1
-    local status qualification pending meta source_policy source_qualification reuse recent
+    local status qualification pending meta source_policy source_qualification reuse recent prefix_history colo_history prefix_summary colo_summary
     status="$(cfip_rill_status_json 2>/dev/null || printf '{"available":false,"state":"error"}')"
     qualification="$(cfip_rill_qualification_json 2>/dev/null || printf '{}')"
     pending='[]'; [[ -s "$CFIP_RILL_PENDING_FILE" ]] && pending="$(cat "$CFIP_RILL_PENDING_FILE")"
@@ -409,9 +414,12 @@ cmd_rill_diagnostics(){
     source_policy="$(cfip_source_policy_json 2>/dev/null || printf '{}')"
     source_qualification='{}'; [[ -s "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE" ]] && source_qualification="$(cat "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE")"
     reuse='{}'; [[ -s "$CFIP_REUSE_STATE_FILE" ]] && reuse="$(cat "$CFIP_REUSE_STATE_FILE")"
+    prefix_history="$(cfip_rill_prefix_history_json 2>/dev/null || printf '{}')"; colo_history="$(cfip_rill_colo_history_json 2>/dev/null || printf '{"entries":{},"unknownCount":0}')"
+    prefix_summary="$(jq -cn --argjson h "$prefix_history" --argjson now "$(date +%s)" '{trackedPrefixes:($h|length),recentHighQuality:([$h|to_entries[]|select((.value.successRate//0)<=1)|{prefix:.key,samples:(.value.samples//0),successRate:(.value.successRate//0)}]|sort_by(-.successRate,-.samples)|.[0:5]),recentLowQuality:([$h|to_entries[]|select((.value.successRate//0)<=1)|{prefix:.key,samples:(.value.samples//0),successRate:(.value.successRate//0),lastSeen:(.value.lastSeen//0)}]|sort_by(.successRate,.lastSeen)|.[0:5])}')"
+    colo_summary="$(jq -cn --argjson h "$colo_history" '{observedColoCount:($h.entries|length),latestObservedColo:($h.lastObserved//null),unknownCount:($h.unknownCount//0),history:($h.entries//{})}')"
     recent='[]'; [[ -f "$CFIP_RUN_HISTORY" ]] && recent="$(tail -n 20 "$CFIP_RUN_HISTORY" | jq -sc '.' 2>/dev/null || printf '[]')"
-    jq -cn --argjson status "$status" --argjson qualification "$qualification" --argjson pending "$pending" --argjson meta "$meta" --argjson sourcePolicy "$source_policy" --argjson sourceQualification "$source_qualification" --argjson reuse "$reuse" --argjson recent "$recent" \
-        '{success:true,runtime:$status,qualification:$qualification,recentDecisions:$recent,pendingFeedback:($pending[0:64]),sourcePolicy:$sourcePolicy,sourcePolicyQualification:$sourceQualification,reusePolicy:$reuse,stateMeta:$meta,warnings:[]}'
+    jq -cn --argjson status "$status" --argjson qualification "$qualification" --argjson pending "$pending" --argjson meta "$meta" --argjson sourcePolicy "$source_policy" --argjson sourceQualification "$source_qualification" --argjson reuse "$reuse" --argjson recent "$recent" --argjson prefix "$prefix_summary" --argjson colo "$colo_summary" \
+        '{success:true,runtime:$status,qualification:$qualification,recentDecisions:$recent,pendingFeedback:($pending[0:64]),sourcePolicy:$sourcePolicy,sourcePolicyQualification:$sourceQualification,reusePolicy:$reuse,prefixIntelligence:$prefix,coloIntelligence:$colo,stateMeta:$meta,warnings:[]}'
 }
 cmd_rill_reset(){
     load_config >/dev/null || return 1
@@ -430,6 +438,7 @@ cmd_rill_reset(){
     jq -cn --arg reason "manual_reset" --arg from "$quarantine" --argjson schema "$CFIP_RILL_SCHEMA_VERSION" \
         '{resetRequired:false,resetReason:$reason,migratedFrom:(if $from=="" then null else $from end),quarantinedState:($from!=""),featureSchemaVersion:$schema,at:(now|floor)}' \
         | cfip_atomic_write "$CFIP_RILL_STATE_META_FILE"
+    cfip_rill_rotate_lineage manual_reset || { cfip_json_error "failed to rotate Rill state lineage"; return 1; }
     rm -f "$CFIP_RILL_QUALIFICATION_FILE" "$CFIP_RILL_PENDING_FILE"
     jq -cn --arg generation "$actual" --arg quarantine "$quarantine" '{success:true,reset:true,previousStateGeneration:($generation|tonumber),quarantinedState:(if $quarantine=="" then null else $quarantine end)}'
 }

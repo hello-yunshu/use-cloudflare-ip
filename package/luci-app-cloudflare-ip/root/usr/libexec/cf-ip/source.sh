@@ -20,6 +20,10 @@ CFIP_SOURCE_POLICY_EFFECTIVE="${CFIP_SOURCE_POLICY_EFFECTIVE:-$CFIP_SOURCE_POLIC
 CFIP_SOURCE_POLICY_RECOMMENDED="${CFIP_SOURCE_POLICY_RECOMMENDED:-$CFIP_SOURCE_POLICY}"
 CFIP_SOURCE_POLICY_FILE="${CFIP_SOURCE_POLICY_FILE:-${CFIP_STATUS_DIR:-/etc/cf_ip}/source-policy.json}"
 CFIP_SOURCE_POLICY_QUALIFICATION_FILE="${CFIP_SOURCE_POLICY_QUALIFICATION_FILE:-${CFIP_SOURCE_POLICY_FILE%/*}/source-policy-qualification.json}"
+CFIP_SOURCE_POLICY_EXPLORATION_ENABLED="${CFIP_SOURCE_POLICY_EXPLORATION_ENABLED:-true}"
+CFIP_SOURCE_POLICY_EXPLORATION_EVERY="${CFIP_SOURCE_POLICY_EXPLORATION_EVERY:-8}"
+CFIP_SOURCE_POLICY_EXECUTED="${CFIP_SOURCE_POLICY_EXECUTED:-$CFIP_SOURCE_POLICY}"
+CFIP_SOURCE_POLICY_EXPLORATION=false
 CFIP_SOURCE_USED_COUNT=0
 
 cfip_source_policy_registry_json() {
@@ -42,7 +46,7 @@ cfip_source_policy_json() {
         state="$(cat "$CFIP_SOURCE_POLICY_FILE")"
     fi
     registry="$(cfip_source_policy_registry_json)"
-    jq -cn --arg requested "$CFIP_SOURCE_POLICY" --arg effective "$CFIP_SOURCE_POLICY_EFFECTIVE" --arg recommended "$CFIP_SOURCE_POLICY_RECOMMENDED" --argjson state "$state" --argjson registry "$registry" '($registry|map(select(.id==$effective))[0] // $registry[0]) as $policy | {requested:$requested,effective:$policy.id,recommended:$recommended,registry:$registry,history:$state}'
+    jq -cn --arg requested "$CFIP_SOURCE_POLICY" --arg effective "$CFIP_SOURCE_POLICY_EFFECTIVE" --arg recommended "$CFIP_SOURCE_POLICY_RECOMMENDED" --arg executed "${CFIP_SOURCE_POLICY_EXECUTED:-$CFIP_SOURCE_POLICY_EFFECTIVE}" --argjson exploration "${CFIP_SOURCE_POLICY_EXPLORATION:-false}" --argjson state "$state" --argjson registry "$registry" '($registry|map(select(.id==$effective))[0] // $registry[0]) as $policy | {requested:$requested,effective:$policy.id,executed:$executed,recommended:$recommended,exploration:$exploration,registry:$registry,history:$state}'
 }
 
 cfip_source_policy_order() {
@@ -67,9 +71,11 @@ cfip_source_policy_features() {
 }
 
 cfip_source_policy_decide() {
-    local actions decision features output="${CFIP_SOURCE_POLICY_DECISION_FILE:-${CFIP_RUNTIME_DIR:-/tmp/cf_ip}/source-policy-decision.json}" recommended
+    local actions decision features output="${CFIP_SOURCE_POLICY_DECISION_FILE:-${CFIP_RUNTIME_DIR:-/tmp/cf_ip}/source-policy-decision.json}" recommended run_index every
     CFIP_SOURCE_POLICY_EFFECTIVE="${CFIP_SOURCE_POLICY:-balanced}"
     CFIP_SOURCE_POLICY_RECOMMENDED="$CFIP_SOURCE_POLICY_EFFECTIVE"
+    CFIP_SOURCE_POLICY_EXECUTED="$CFIP_SOURCE_POLICY_EFFECTIVE"
+    CFIP_SOURCE_POLICY_EXPLORATION=false
     [[ "${CFIP_RILL_ENABLED:-false}" == true && "${CFIP_RILL_MODE:-off}" != off ]] || return 0
     actions="$(mktemp "${TMPDIR:-/tmp}/cfip-source-policy-actions.XXXXXX")" || return 0
     features="$(cfip_source_policy_features "${CFIP_SOURCE_STATUS_FILE:-}")"
@@ -80,12 +86,21 @@ cfip_source_policy_decide() {
         recommended="$(jq -r '.selectedActionId' "$output")"
         cfip_source_policy_valid "$recommended" || recommended="$CFIP_SOURCE_POLICY"
         CFIP_SOURCE_POLICY_RECOMMENDED="$recommended"
+        every="${CFIP_SOURCE_POLICY_EXPLORATION_EVERY:-8}"
+        [[ "$every" =~ ^[1-9][0-9]*$ ]] || every=8
+        run_index=0; [[ -s "${CFIP_RUN_HISTORY:-}" ]] && run_index="$(wc -l <"$CFIP_RUN_HISTORY" 2>/dev/null || printf 0)"
+        if [[ "$recommended" != "$CFIP_SOURCE_POLICY_EFFECTIVE" && "$CFIP_SOURCE_POLICY_EXPLORATION_ENABLED" == true && "${CFIP_SOURCE_POLICY_EXPLORATION_CAP:-1}" -gt 0 ]] && ((run_index % every == 0)); then
+            CFIP_SOURCE_POLICY_EFFECTIVE="$recommended"
+            CFIP_SOURCE_POLICY_EXECUTED="$recommended"
+            CFIP_SOURCE_POLICY_EXPLORATION=true
+        fi
+        jq --arg recommended "$CFIP_SOURCE_POLICY_RECOMMENDED" --arg executed "$CFIP_SOURCE_POLICY_EXECUTED" --argjson exploration "$CFIP_SOURCE_POLICY_EXPLORATION" '. + {recommendedAction:$recommended,executedAction:$executed,exploration:$exploration}' "$output" | cfip_atomic_write "$output"
     fi
     rm -f "$actions"
 }
 
 cfip_source_policy_record() {
-    local outcome="${1:-}" reward=0 policy="${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}" recommended="${CFIP_SOURCE_POLICY_RECOMMENDED:-$policy}" current qualification='{}' attributed=false decision_file="${CFIP_SOURCE_POLICY_DECISION_FILE:-}" source_count=0 stale_count=0 failed_count=0 success=false
+    local outcome="${1:-}" reward=0 policy="${CFIP_SOURCE_POLICY_EXECUTED:-${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}}" native_policy="${CFIP_SOURCE_POLICY:-balanced}" recommended="${CFIP_SOURCE_POLICY_RECOMMENDED:-$policy}" current qualification='{}' attributed=false disagreement=false evaluated=false decision_file="${CFIP_SOURCE_POLICY_DECISION_FILE:-}" decision_id='' source_count=0 stale_count=0 failed_count=0 success=false native_reward=null delta=null
     [[ -n "$outcome" && -s "$outcome" ]] || return 0
     source_count=0
     [[ -s "${CFIP_INPUT_POOL_FILE:-}" ]] && source_count="$(jq 'length' "$CFIP_INPUT_POOL_FILE" 2>/dev/null || printf 0)"
@@ -103,18 +118,42 @@ cfip_source_policy_record() {
     if [[ -s "$CFIP_SOURCE_POLICY_FILE" ]] && jq -e 'type=="object"' "$CFIP_SOURCE_POLICY_FILE" >/dev/null 2>&1; then
         current="$(cat "$CFIP_SOURCE_POLICY_FILE")"
     fi
-    [[ "$recommended" == "$policy" ]] && attributed=true
-    if [[ "$attributed" == true && -s "$decision_file" ]] && ! cfip_rill_policy_feedback "$decision_file" "$reward"; then
-        cfip_log "source policy feedback deferred"
+    if [[ -s "$decision_file" ]]; then
+        decision_id="$(jq -r '.decisionId // empty' "$decision_file" 2>/dev/null || true)"
+    fi
+    [[ "$recommended" != "$policy" ]] && disagreement=true
+    [[ -n "$decision_id" && "$recommended" == "$policy" ]] && attributed=true
+    if [[ -s "$CFIP_SOURCE_POLICY_FILE" ]]; then
+        native_reward="$(jq -r --arg policy "$native_policy" '.policies[$policy].ewmaReward // empty' "$CFIP_SOURCE_POLICY_FILE" 2>/dev/null || true)"
+    fi
+    [[ "$disagreement" == true && "${CFIP_SOURCE_POLICY_EXPLORATION:-false}" == true && "$native_reward" =~ ^-?[0-9]+([.][0-9]+)?$ ]] && evaluated=true
+    if [[ "$evaluated" == true ]]; then
+        delta="$(awk -v r="$reward" -v n="$native_reward" 'BEGIN { printf "%.8g", r-n }')"
+    fi
+    if [[ "$attributed" == true && -s "$decision_file" ]] && declare -F cfip_rill_policy_feedback >/dev/null 2>&1; then
+        if ! cfip_rill_policy_feedback "$decision_file" "$reward"; then
+            cfip_log "source policy feedback deferred"
+        fi
     fi
     [[ -s "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE" ]] && jq -e 'type=="object"' "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE" >/dev/null 2>&1 && qualification="$(cat "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE")"
-    jq -cn --arg policy "$policy" --arg recommended "$recommended" --argjson attributed "$attributed" --argjson reward "$reward" --argjson current "$current" --argjson q "$qualification" --argjson success "$success" '
+    jq -cn --arg policy "$policy" --arg nativePolicy "$native_policy" --arg recommended "$recommended" --arg decisionId "$decision_id" --argjson attributed "$attributed" --argjson disagreement "$disagreement" --argjson exploration "${CFIP_SOURCE_POLICY_EXPLORATION:-false}" --argjson reward "$reward" --argjson current "$current" '
       ($current.policies // {}) as $policies | ($policies[$policy] // {samples:0,ewmaReward:null}) as $old |
       $policies + {$policy:{samples:(($old.samples//0)+1),ewmaReward:(if ($old.ewmaReward|type)=="number" then (0.8*$old.ewmaReward+0.2*$reward) else $reward end),lastReward:$reward,lastUpdated:(now|floor)}}
-      | {schemaVersion:1,requested:($current.requested//null),selected:$policy,recommended:$recommended,policies:.,updatedAt:(now|floor)}
+      | {schemaVersion:2,requested:($current.requested//null),nativePolicy:$nativePolicy,selected:$policy,executed:$policy,recommended:$recommended,decisionId:(if $decisionId=="" then null else $decisionId end),exploration:$exploration,policies:.,updatedAt:(now|floor)}
     ' | cfip_atomic_write "$CFIP_SOURCE_POLICY_FILE"
-    jq -cn --argjson q "$qualification" --arg policy "$policy" --arg recommended "$recommended" --argjson attributed "$attributed" --argjson success "$success" --argjson reward "$reward" \
-      '{schemaVersion:1,state:(if ($q.samples//0)>=30 then "shadow-qualified" elif ($q.samples//0)>0 then "learning" else "cold" end),samples:(($q.samples//0)+1),attributed:(($q.attributed//0)+(if $attributed then 1 else 0 end)),disagreements:(($q.disagreements//0)+(if $policy==$recommended then 0 else 1 end)),lastRequested:$recommended,lastExecuted:$policy,lastReward:$reward,lastSuccess:$success,updatedAt:(now|floor)}' | cfip_atomic_write "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE"
+    local schema state_generation now window_count window_attributed window_disagreements window_evaluated window_errors wins losses ties rolling native_avg rill_avg mean_delta severe error_rate was_qualified downgrade_reason
+    schema="$(sha256sum "${CFIP_RILL_SCHEMA_FILE:-/dev/null}" 2>/dev/null | awk '{print $1}' || true)"; state_generation="$(cfip_rill_state_generation 2>/dev/null || printf 0)"; now="$(date +%s)"
+    window="$(jq -c '.window // []' <<<"$qualification")"
+    window="$(jq -cn --argjson w "$window" --arg policy "$policy" --arg nativePolicy "$native_policy" --arg recommended "$recommended" --arg decisionId "$decision_id" --arg schema "$schema" --argjson generation "$state_generation" --argjson attributed "$attributed" --argjson disagreement "$disagreement" --argjson evaluated "$evaluated" --argjson reward "$reward" --argjson success "$success" --argjson native "$native_reward" --argjson delta "$delta" --argjson exploration "${CFIP_SOURCE_POLICY_EXPLORATION:-false}" '$w + [{decisionId:(if $decisionId=="" then null else $decisionId end),recommendedAction:$recommended,executedAction:$policy,nativePolicy:$nativePolicy,reward:$reward,nativeReward:$native,rillReward:$reward,rewardDelta:$delta,attributed:$attributed,success:$success,disagreement:$disagreement,evaluatedDisagreement:$evaluated,exploration:$exploration,timestamp:(now|floor),modelGeneration:2,stateGeneration:$generation,featureSchemaHash:(if $schema=="" then null else $schema end)}] | .[-50:]')"
+    window_count="$(jq 'length' <<<"$window")"; window_attributed="$(jq '[.[]|select(.attributed==true)]|length' <<<"$window")"; window_disagreements="$(jq '[.[]|select(.disagreement==true)]|length' <<<"$window")"; window_evaluated="$(jq '[.[]|select(.evaluatedDisagreement==true)]|length' <<<"$window")"; window_errors="$(jq '[.[]|select(.success!=true)]|length' <<<"$window")"
+    wins="$(jq '[.[]|select(.evaluatedDisagreement==true and (.rewardDelta//0)>0.02)]|length' <<<"$window")"; losses="$(jq '[.[]|select(.evaluatedDisagreement==true and (.rewardDelta//0)<-0.02)]|length' <<<"$window")"; ties="$(jq '[.[]|select(.evaluatedDisagreement==true and ((.rewardDelta//0)>=-0.02 and (.rewardDelta//0)<=0.02))]|length' <<<"$window")"
+    rolling="$(jq -r '[.[]|select(.attributed==true and (.reward|type)=="number")|.reward]|if length>0 then add/length else null end' <<<"$window")"; native_avg="$(jq -r '[.[]|select((.nativeReward|type)=="number")|.nativeReward]|if length>0 then add/length else null end' <<<"$window")"; rill_avg="$(jq -r '[.[]|select((.rillReward|type)=="number")|.rillReward]|if length>0 then add/length else null end' <<<"$window")"; mean_delta="$(jq -r '[.[]|select((.rewardDelta|type)=="number")|.rewardDelta]|if length>0 then add/length else null end' <<<"$window")"; severe="$(jq '[.[]|select(.evaluatedDisagreement==true and (.rewardDelta//0)<-0.25)]|length' <<<"$window")"; error_rate="$(awk -v e="$window_errors" -v n="$window_count" 'BEGIN { if (n>0) printf "%.8g", e/n; else print 0 }')"
+    was_qualified="$(jq -r '(.state//"")|IN("qualified","shadow-qualified")' <<<"$qualification")"; state=learning; downgrade_reason=''
+    if [[ "$was_qualified" == true && ("$mean_delta" == null || "$(awk -v x="${mean_delta:-0}" 'BEGIN{print (x < -0.05) ? "true" : "false"}')" == true || "$error_rate" != 0) ]]; then state=shadow; downgrade_reason=rolling_regression
+    elif ((window_count >= 30 && window_attributed * 100 >= window_count * 80 && window_evaluated >= 5 && window_errors * 100 <= window_count * 5 && severe * 100 <= window_evaluated * 10)) && [[ "$mean_delta" != null ]] && awk -v x="$mean_delta" 'BEGIN { exit !(x >= -0.05) }'; then state=shadow-qualified
+    elif ((window_count > 0)); then state=learning; fi
+    jq -cn --arg state "$state" --arg policy "$policy" --arg nativePolicy "$native_policy" --arg recommended "$recommended" --arg decisionId "$decision_id" --arg reason "$downgrade_reason" --argjson window "$window" --argjson attributed "$attributed" --argjson evaluated "$evaluated" --argjson count "$window_count" --argjson windowAttributed "$window_attributed" --argjson disagreements "$window_disagreements" --argjson evaluatedDisagreements "$window_evaluated" --argjson wins "$wins" --argjson losses "$losses" --argjson ties "$ties" --argjson rolling "$rolling" --argjson native "$native_avg" --argjson rill "$rill_avg" --argjson delta "$mean_delta" --argjson severe "$severe" --argjson errors "$window_errors" --argjson errorRate "$error_rate" --argjson success "$success" --argjson reward "$reward" --arg schema "$schema" --argjson generation "$state_generation" --argjson exploration "${CFIP_SOURCE_POLICY_EXPLORATION:-false}" --argjson q "$qualification" '
+      {schemaVersion:2,state:$state,qualificationState:$state,qualificationVersion:1,requestedPolicy:$nativePolicy,recommendedAction:$recommended,executedAction:$policy,decisionId:(if $decisionId=="" then null else $decisionId end),exploration:$exploration,windowSamples:$count,samples:$count,attributedFeedback:($q.attributedFeedback//0 + (if $attributed then 1 else 0 end)),attributionCoverage:(if $count>0 then $windowAttributed/$count else 0 end),disagreements:$disagreements,evaluatedDisagreements:$evaluatedDisagreements,wins:$wins,losses:$losses,ties:$ties,winRate:(if $evaluatedDisagreements>0 then $wins/$evaluatedDisagreements else null end),rollingReward:$rolling,nativeReward:$native,rillReward:$rill,rewardDelta:$delta,regressions:$losses,severeRegressions:$severe,recentErrors:$errors,errorRate:$errorRate,lastReward:$reward,lastSuccess:$success,modelGeneration:2,stateGeneration:$generation,featureSchemaHash:(if $schema=="" then null else $schema end),resetRequired:false,downgradeReason:(if $reason=="" then null else $reason end),window:$window,updatedAt:(now|floor)}' | cfip_atomic_write "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE"
 }
 
 cfip_builtin_registry_json() {

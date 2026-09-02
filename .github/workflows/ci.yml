@@ -61,10 +61,14 @@ jobs:
           bash tests/rill-qualification-rolling.sh
           bash tests/probe-batching.sh
           bash tests/source-policy.sh
+          bash tests/source-policy-attribution.sh
           bash tests/resource-pressure-contract.sh
           bash tests/multi-ip-diversity-contract.sh
           bash tests/reuse-policy-contract.sh
+          bash tests/reuse-fresh-lifecycle.sh
           bash tests/delayed-feedback-lifecycle-contract.sh
+          bash tests/delayed-feedback-reset-lineage.sh
+          bash tests/prefix-colo-intelligence.sh
           bash tests/luci-validation-contract.sh
           bash tests/disabled-cron-contract.sh
           bash tests/evidence-manifest-default.sh

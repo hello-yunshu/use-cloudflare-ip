@@ -11,7 +11,7 @@ cfip_csv_num() {
 # Backward compatible specs: /path/result.csv:ipv4|ipv6|auto. A bare path uses auto family detection.
 cfip_parse_cfst() {
     local output="$1" protocol="$2" limit="$3"; shift 3
-    local tmp spec file family rank=0 line ip sent received loss latency download colo actual_family meta='{}'
+    local tmp spec file family rank=0 line ip sent received loss latency download colo actual_family meta='{}' prefix_key
     tmp="$(mktemp "${TMPDIR:-/tmp}/cfip-candidates.XXXXXX")" || return 1
     printf '[]' >"$tmp"
     for spec in "$@"; do
@@ -35,12 +35,13 @@ cfip_parse_cfst() {
             if [[ -n "${CFIP_INPUT_POOL_FILE:-}" && -s "${CFIP_INPUT_POOL_FILE:-}" ]]; then
                 meta="$(jq -c --arg ip "$ip" 'first(.[]|select(.ip==$ip)) // {}' "$CFIP_INPUT_POOL_FILE" 2>/dev/null || printf '{}')"
             fi
+            prefix_key="$(cfip_prefix_key "$ip" 2>/dev/null || true)"
             jq -c --arg ip "$ip" --arg family "$actual_family" --arg protocol "$protocol" --arg colo "${colo%$'\r'}" \
-                --argjson rank "$rank" --argjson sent "$sent_json" --argjson received "$received_json" \
+                --arg prefixKey "$prefix_key" --argjson rank "$rank" --argjson sent "$sent_json" --argjson received "$received_json" \
                 --argjson loss "$loss_json" --argjson latency "$latency_json" --argjson download "$download_json" --argjson meta "$meta" \
                 '. + [{schemaVersion:1,candidateId:("cfst:"+$ip),ip:$ip,family:$family,cfstRank:$rank,
                        sent:$sent,received:$received,lossRate:$loss,avgLatencyMs:$latency,downloadMBps:$download,
-                       colo:(if $colo=="" then null else $colo end),testProtocol:$protocol,
+                       colo:(if ($colo|gsub("^[[:space:]]+|[[:space:]]+$";""))=="" then null else ($colo|gsub("^[[:space:]]+|[[:space:]]+$";"")) end),prefixKey:(if $prefixKey=="" then null else $prefixKey end),testProtocol:$protocol,
                        origin:($meta.origin//"unknown"),sources:($meta.sources//[]),sourceCount:($meta.sourceCount//0),sourceStale:($meta.stale//false)}]' "$tmp" >"$tmp.next" && mv "$tmp.next" "$tmp"
         done <"$file"
     done

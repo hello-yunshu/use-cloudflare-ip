@@ -34,7 +34,7 @@ cfip_reuse_write_event() {
     jq --arg event "$event" --arg reason "$reason" --arg fp "$fp" --argjson savedProbes "$saved_probes" --argjson savedRuntime "$saved_runtime" --argjson now "$now" \
       '. as $state | (($state.recent // []) + [{event:$event,reason:(if $reason=="" then null else $reason end),at:$now}])[-32:] as $recent |
        $state + {schemaVersion:1,configFingerprint:$fp,recent:$recent} |
-       if $event=="full-optimize-success" then .lastFullOptimizeAt=$now | .fullOptimizeCount=((.fullOptimizeCount//0)+1)
+       if $event=="full-optimize-success" then .lastFullOptimizeAt=$now | .lastValidationAt=$now | .validationSuccess=true | .fullOptimizeCount=((.fullOptimizeCount//0)+1)
        elif $event=="reuse-success" then .lastValidationAt=$now | .validationSuccess=true | .reuseCount=((.reuseCount//0)+1) | .savedProbes=((.savedProbes//0)+$savedProbes) | .savedRuntimeSeconds=((.savedRuntimeSeconds//0)+$savedRuntime)
        elif $event=="reuse-failure" then .lastValidationAt=$now | .validationSuccess=false
        else . end' <<<"$state" | cfip_atomic_write "$CFIP_REUSE_STATE_FILE"
@@ -99,7 +99,7 @@ cfip_reuse_try_current() {
         [[ -s "$CFIP_REUSE_RILL_DECISION_FILE" ]] && recommended="$(jq -r '.selectedActionId' "$CFIP_REUSE_RILL_DECISION_FILE")"
         rm -f "$actions"
     fi
-    saved_probes="$(jq 'length' "$probe_output" 2>/dev/null || printf 0)"; saved_runtime="$(( $(date +%s)-start ))"
+    saved_probes="$(jq '.probes // [] | length' "$probe_output" 2>/dev/null || printf 0)"; saved_runtime="$(( $(date +%s)-start ))"
     cfip_reuse_record_decision REUSE_CURRENT "$recommended" false "validated_current_ip"
     # Keep the Rill recommendation attached to the native decision for UI and
     # diagnostics without letting it bypass the hard safety gate.

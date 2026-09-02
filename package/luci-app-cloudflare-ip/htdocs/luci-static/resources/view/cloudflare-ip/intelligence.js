@@ -8,6 +8,7 @@
 
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
 var callSelfCheck = rpc.declare({ object: 'cf_ip', method: 'rill-self-check', expect: { '': {} } });
+var callDiagnostics = rpc.declare({ object: 'cf_ip', method: 'rill-diagnostics', expect: { '': {} } });
 var callReset = rpc.declare({ object: 'cf_ip', method: 'rill-reset', params: [ 'expectedGeneration' ], expect: { '': {} } });
 
 function runtimeSummary(status) {
@@ -37,7 +38,8 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('cf_ip'),
-			callStatus().catch(function() { return { _statusError: true }; })
+			callStatus().catch(function() { return { _statusError: true }; }),
+			callDiagnostics().catch(function() { return {}; })
 		]);
 	},
 
@@ -45,6 +47,7 @@ return view.extend({
 		utils.loadSharedCSS();
 		data = data || [];
 		var status = data[1] || {};
+		var diagnostics = data[2] || {};
 		var m = new form.Map('cf_ip', _('Rill Intelligence'),
 			_('The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions.'));
 		var s, o;
@@ -134,8 +137,8 @@ return view.extend({
 	o.cfgvalue = function() { return status.fallbackReason || (status.intelligence || {}).lastResetReason || _('None'); };
 	o = s.option(form.DummyValue, '_source_policy', _('Source Strategy Loop'));
 	o.cfgvalue = function() {
-		var p = status.sourcePolicy || {}, q = status.sourcePolicyQualification || {};
-		return _('requested') + ': ' + (p.requested || p.policy || '?') + ', ' + _('effective') + ': ' + (p.effective || '?') + ', ' + _('recommended') + ': ' + (p.recommended || '?') + ', ' + _('qualified') + ': ' + (q.state || _('shadow'));
+		var p = status.sourcePolicy || diagnostics.sourcePolicy || {}, q = status.sourcePolicyQualification || diagnostics.sourcePolicyQualification || {};
+		return _('requested') + ': ' + (p.requested || p.policy || '?') + ', ' + _('executed') + ': ' + (p.executed || p.effective || '?') + ', ' + _('recommended') + ': ' + (p.recommended || '?') + ', ' + _('qualification') + ': ' + (q.qualificationState || q.state || _('learning')) + ', ' + _('attribution') + ': ' + (q.attributionCoverage == null ? '?' : (q.attributionCoverage * 100).toFixed(0) + '%') + ', ' + _('downgrade') + ': ' + (q.downgradeReason || _('none'));
 	};
 	o = s.option(form.DummyValue, '_reuse_policy', _('Reuse / Full Optimize'));
 	o.cfgvalue = function() {
@@ -146,6 +149,10 @@ return view.extend({
 	o.cfgvalue = function() { var e = status.efficiency || status.probeMetrics || {}; return _('probed') + ': ' + (e.candidatesProbed || 0) + ' / ' + (e.candidatesConsidered || 0) + ', ' + _('avoided') + ': ' + (e.avoidedProbes || 0) + ', ' + _('early stop') + ': ' + (e.earlyStopHit ? _('yes') : _('no')); };
 	o = s.option(form.DummyValue, '_comparison', _('Native vs Rill'));
 	o.cfgvalue = function() { var i = status.intelligence || {}; return _('native') + ': ' + (i.nativeReward == null ? '?' : i.nativeReward.toFixed(3)) + ', ' + _('Rill') + ': ' + (i.rillReward == null ? '?' : i.rillReward.toFixed(3)) + ', ' + _('regret') + ': ' + (i.shadowRegret == null ? 0 : i.shadowRegret.toFixed(3)); };
+	o = s.option(form.DummyValue, '_prefix', _('Prefix Intelligence'));
+	o.cfgvalue = function() { var p = diagnostics.prefixIntelligence || {}; return _('tracked') + ': ' + (p.trackedPrefixes || 0) + ', ' + _('high quality') + ': ' + ((p.recentHighQuality || []).length) + ', ' + _('low quality') + ': ' + ((p.recentLowQuality || []).length); };
+	o = s.option(form.DummyValue, '_colo', _('Colo Intelligence'));
+	o.cfgvalue = function() { var c = diagnostics.coloIntelligence || {}; return _('observed') + ': ' + (c.observedColoCount || 0) + ', ' + _('latest') + ': ' + (c.latestObservedColo || _('unknown')) + ', ' + _('unknown') + ': ' + (c.unknownCount || 0); };
 
 	o = s.option(form.Button, '_self_check', _('Shadow Self-check'));
 	o.inputtitle = _('Run now');

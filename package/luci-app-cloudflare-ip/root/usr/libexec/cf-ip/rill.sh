@@ -17,6 +17,7 @@ CFIP_RILL_PENDING_FILE="${CFIP_RILL_PENDING_FILE:-$CFIP_RILL_BASE_DIR/rill-pendi
 CFIP_RILL_QUALIFICATION_FILE="${CFIP_RILL_QUALIFICATION_FILE:-$CFIP_RILL_BASE_DIR/rill-qualification.json}"
 CFIP_RILL_STATE_META_FILE="${CFIP_RILL_STATE_META_FILE:-$CFIP_RILL_BASE_DIR/rill-state-meta.json}"
 CFIP_RILL_PREFIX_HISTORY_FILE="${CFIP_RILL_PREFIX_HISTORY_FILE:-$CFIP_RILL_BASE_DIR/prefix-history.json}"
+CFIP_RILL_COLO_HISTORY_FILE="${CFIP_RILL_COLO_HISTORY_FILE:-$CFIP_RILL_BASE_DIR/colo-history.json}"
 CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS="${CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS:-86400}"
 
 cfip_rill_schema_hash() {
@@ -29,6 +30,28 @@ cfip_rill_state_generation() {
     jq -r --arg name "cloudflare-ip" --arg partition "$CFIP_RILL_PARTITION_KEY" \
       '([.partitions[]? | select(.clientIdentityName==$name and .partitionKey==$partition)][0].handlerSnapshot.stateGeneration // 0)' \
       "$CFIP_RILL_STATE" 2>/dev/null || printf '0'
+}
+
+cfip_rill_lineage_id() {
+    local meta='{}' lineage
+    [[ -s "$CFIP_RILL_STATE_META_FILE" ]] && meta="$(jq -c 'if type=="object" then . else {} end' "$CFIP_RILL_STATE_META_FILE" 2>/dev/null || printf '{}')"
+    lineage="$(jq -r '.lineageId // empty' <<<"$meta")"
+    if [[ "$lineage" =~ ^[0-9a-f]{64}$ ]]; then
+        printf '%s' "$lineage"
+        return 0
+    fi
+    lineage="$(printf '%s:%s:%s' "${CFIP_RILL_STATE:-}" "$(date +%s%N 2>/dev/null || date +%s)" "${RANDOM:-0}" | sha256sum | awk '{print $1}')"
+    jq --arg lineage "$lineage" '. + {lineageId:$lineage}' <<<"$meta" | cfip_atomic_write "$CFIP_RILL_STATE_META_FILE" || return 1
+    printf '%s' "$lineage"
+}
+
+cfip_rill_rotate_lineage() {
+    local reason="${1:-reset}" lineage meta='{}'
+    lineage="$(printf '%s:%s:%s' "${CFIP_RILL_STATE:-}" "$(date +%s%N 2>/dev/null || date +%s)" "${RANDOM:-0}" | sha256sum | awk '{print $1}')"
+    [[ -s "$CFIP_RILL_STATE_META_FILE" ]] && meta="$(jq -c 'if type=="object" then . else {} end' "$CFIP_RILL_STATE_META_FILE" 2>/dev/null || printf '{}')"
+    jq --arg reason "$reason" --arg lineage "$lineage" --argjson schema "$CFIP_RILL_SCHEMA_VERSION" \
+      '. + {resetRequired:false,resetReason:$reason,lineageId:$lineage,featureSchemaVersion:$schema,at:(now|floor)}' <<<"$meta" \
+      | cfip_atomic_write "$CFIP_RILL_STATE_META_FILE"
 }
 
 cfip_rill_prepare_state() {
@@ -61,6 +84,67 @@ cfip_rill_prepare_state() {
 
 cfip_rill_history_json() {
     [[ -s "$CFIP_RILL_HISTORY_FILE" ]] && jq -e 'type == "object"' "$CFIP_RILL_HISTORY_FILE" >/dev/null 2>&1 && cat "$CFIP_RILL_HISTORY_FILE" || printf '{}'
+}
+
+cfip_rill_prefix_history_json() {
+    [[ -s "$CFIP_RILL_PREFIX_HISTORY_FILE" ]] && jq -e 'type == "object"' "$CFIP_RILL_PREFIX_HISTORY_FILE" >/dev/null 2>&1 && cat "$CFIP_RILL_PREFIX_HISTORY_FILE" || printf '{}'
+}
+
+cfip_rill_colo_history_json() {
+    [[ -s "$CFIP_RILL_COLO_HISTORY_FILE" ]] && jq -e 'type == "object" and (.entries|type=="object")' "$CFIP_RILL_COLO_HISTORY_FILE" >/dev/null 2>&1 && cat "$CFIP_RILL_COLO_HISTORY_FILE" || printf '{"schemaVersion":1,"entries":{},"unknownCount":0,"lastObserved":null}'
+}
+
+cfip_rill_update_prefix_history() {
+    local observations="$1" now tmp
+    [[ -s "$observations" ]] || return 0
+    now="$(date +%s)"
+    tmp="$(mktemp "${TMPDIR:-/tmp}/cfip-prefix-history.XXXXXX")" || return 1
+    cfip_rill_prefix_history_json | jq --argjson now "$now" --slurpfile rows "$observations" '
+      def row: {samples:0,successes:0,failures:0,successRate:0.5,failureRate:0.5,latencySamples:[],ttfbSamples:[],lossSamples:[],throughputSamples:[],medianTotalMs:null,p95TotalMs:null,medianTtfbMs:null,lossRate:0.5,throughput:0,consecutiveFailures:0,lastSeen:0,rewardEWMA:0};
+      def nums($a): ($a|map(select(type=="number" and isfinite)));
+      def median($a): if ($a|length)>0 then $a|sort|.[((length-1)/2|floor)] else null end;
+      def p95($a): if ($a|length)>0 then $a|sort|.[([((length*0.95)|floor),length-1]|min)] else null end;
+      def ewma($old;$value): if ($value|type)!="number" then $old elif ($old|type)!="number" then $value else (0.8*$old+0.2*$value) end;
+      reduce ($rows[0][]? | select((.prefixKey|type)=="string" and .prefixKey!="")) as $c (.;
+        ($c.prefixKey) as $key | (.[$key] // row) as $old |
+        (($c.eligible==true) and (($c.probeSummary.totalMs//null)|type=="number")) as $ok |
+        ($c.probeSummary // {}) as $p |
+        (($old.latencySamples + [($p.totalMs//null)|select(type=="number")])[-32:]|nums(.)) as $lat |
+        (($old.ttfbSamples + [($p.ttfbMs//null)|select(type=="number")])[-32:]|nums(.)) as $ttfb |
+        (($old.lossSamples + [($c.lossRate//null)|select(type=="number")])[-32:]|nums(.)) as $loss |
+        (($old.throughputSamples + [($c.downloadMBps//null)|select(type=="number")])[-32:]|nums(.)) as $throughput |
+        (if $ok then 0.5 else -0.5 end) as $reward |
+        .[$key] = ($old + {samples:(($old.samples//0)+1),successes:(($old.successes//0)+(if $ok then 1 else 0 end)),failures:(($old.failures//0)+(if $ok then 0 else 1 end)),successRate:((($old.successes//0)+(if $ok then 1 else 0 end))/(($old.samples//0)+1)),failureRate:((($old.failures//0)+(if $ok then 0 else 1 end))/(($old.samples//0)+1)),latencySamples:$lat,ttfbSamples:$ttfb,lossSamples:$loss,throughputSamples:$throughput,medianTotalMs:median($lat),p95TotalMs:p95($lat),medianTtfbMs:median($ttfb),lossRate:(if ($loss|length)>0 then ($loss|add/length) else ($old.lossRate//0.5) end),throughput:(if ($throughput|length)>0 then ($throughput|add/length) else ($old.throughput//0) end),consecutiveFailures:(if $ok then 0 else (($old.consecutiveFailures//0)+1) end),lastSeen:$now,rewardEWMA:ewma($old.rewardEWMA;$reward)})
+      ) | to_entries | sort_by(.value.lastSeen) | .[-256:] | from_entries
+    ' >"$tmp" && cat "$tmp" | cfip_atomic_write "$CFIP_RILL_PREFIX_HISTORY_FILE"
+    local rc=$?; rm -f "$tmp"; return "$rc"
+}
+
+cfip_rill_update_colo_history() {
+    local observations="$1" now tmp
+    [[ -s "$observations" ]] || return 0
+    now="$(date +%s)"
+    tmp="$(mktemp "${TMPDIR:-/tmp}/cfip-colo-history.XXXXXX")" || return 1
+    cfip_rill_colo_history_json | jq --argjson now "$now" --slurpfile rows "$observations" '
+      def row: {samples:0,successes:0,failures:0,successRate:0.5,failureRate:0.5,latencySamples:[],ttfbSamples:[],lossSamples:[],throughputSamples:[],medianLatency:null,p95Latency:null,medianTtfb:null,loss:0.5,throughput:0,rewardEWMA:0,lastSeen:0};
+      def nums($a): ($a|map(select(type=="number" and isfinite)));
+      def median($a): if ($a|length)>0 then $a|sort|.[((length-1)/2|floor)] else null end;
+      def p95($a): if ($a|length)>0 then $a|sort|.[([((length*0.95)|floor),length-1]|min)] else null end;
+      def ewma($old;$value): if ($value|type)!="number" then $old elif ($old|type)!="number" then $value else (0.8*$old+0.2*$value) end;
+      reduce ($rows[0][]?) as $c (.;
+        ($c.colo|tostring|gsub("^[[:space:]]+|[[:space:]]+$";"")) as $colo |
+        if ($colo=="" or $colo=="null" or ($c.colo|type)!="string") then .unknownCount=(.unknownCount//0)+1
+        else ($c.probeSummary//{}) as $p | ($c.eligible==true and (($p.totalMs//null)|type=="number")) as $ok | (.entries[$colo] // row) as $old |
+          (($old.latencySamples + [($p.totalMs//null)|select(type=="number")])[-32:]|nums(.)) as $lat |
+          (($old.ttfbSamples + [($p.ttfbMs//null)|select(type=="number")])[-32:]|nums(.)) as $ttfb |
+          (($old.lossSamples + [($c.lossRate//null)|select(type=="number")])[-32:]|nums(.)) as $loss |
+          (($old.throughputSamples + [($c.downloadMBps//null)|select(type=="number")])[-32:]|nums(.)) as $throughput |
+          (if $ok then 0.5 else -0.5 end) as $reward |
+          .entries[$colo]=($old+{samples:(($old.samples//0)+1),successes:(($old.successes//0)+(if $ok then 1 else 0 end)),failures:(($old.failures//0)+(if $ok then 0 else 1 end)),successRate:((($old.successes//0)+(if $ok then 1 else 0 end))/(($old.samples//0)+1)),failureRate:((($old.failures//0)+(if $ok then 0 else 1 end))/(($old.samples//0)+1)),latencySamples:$lat,ttfbSamples:$ttfb,lossSamples:$loss,throughputSamples:$throughput,medianLatency:median($lat),p95Latency:p95($lat),medianTtfb:median($ttfb),loss:(if ($loss|length)>0 then ($loss|add/length) else ($old.loss//0.5) end),throughput:(if ($throughput|length)>0 then ($throughput|add/length) else ($old.throughput//0) end),rewardEWMA:ewma($old.rewardEWMA;$reward),lastSeen:$now}) | .lastObserved=$colo
+        end
+      ) | .schemaVersion=1 | .entries=(.entries|to_entries|sort_by(.value.lastSeen)|.[-128:]|from_entries)
+    ' >"$tmp" && cat "$tmp" | cfip_atomic_write "$CFIP_RILL_COLO_HISTORY_FILE"
+    local rc=$?; rm -f "$tmp"; return "$rc"
 }
 
 cfip_rill_reward_json() {
@@ -152,24 +236,31 @@ cfip_rill_update_history() {
         })
       ) | to_entries | sort_by(.value.lastSeen) | .[-256:] | from_entries
     ' >"$tmp" && cat "$tmp" | cfip_atomic_write "$CFIP_RILL_HISTORY_FILE"
-    local rc=$?; rm -f "$tmp"; return "$rc"
+    local rc=$?; rm -f "$tmp"
+    cfip_rill_update_prefix_history "$observations" || cfip_log "prefix history update deferred"
+    cfip_rill_update_colo_history "$observations" || cfip_log "colo history update deferred"
+    return "$rc"
 }
 
 cfip_rill_probe_priority() {
-    local input="$1" output="$2" history
+    local input="$1" output="$2" history prefix_history colo_history
     [[ -s "$input" ]] || { printf '[]\n' | cfip_atomic_write "$output"; return 0; }
     if [[ "${CFIP_RILL_ENABLED:-false}" != true || "${CFIP_RILL_MODE:-off}" == off ]]; then
         cat "$input" | cfip_atomic_write "$output"
         return $?
     fi
-    history="$(cfip_rill_history_json)"
-    jq --argjson history "$history" '
+    history="$(cfip_rill_history_json)"; prefix_history="$(cfip_rill_prefix_history_json)"; colo_history="$(cfip_rill_colo_history_json)"
+    jq --argjson history "$history" --argjson prefixHistory "$prefix_history" --argjson coloHistory "$colo_history" --argjson now "$(date +%s)" '
       map((.ip|tostring) as $id |
         (($history[$id].successCount//0)+($history[$id].failureCount//0)) as $samples |
         (($history[$id].successCount//0) / ($samples+1)) as $prior |
         ((($history[$id].ewmaTotalMs // 10000) / 10000) | if . < 0 then 0 elif . > 1 then 1 else . end) as $latency |
         ((($history[$id].sourceReliability // .sourceReliability // 0.5))|if .<0 then 0 elif .>1 then 1 else . end) as $source |
-        . + {probePriority:(0.35*$prior + 0.25*(1-$latency) + 0.20*$source + 0.20*(1-((.cfstRank//128)/128)))}
+        ($prefixHistory[(.prefixKey // "")] // {}) as $prefix |
+        (if (($prefix.samples//0)>0) then (0.5 + ((($prefix.successRate//0.5)-0.5) * ([1-(($now-($prefix.lastSeen//0))/604800),0]|max)) - ([($prefix.consecutiveFailures//0),3]|min)*0.05) else 0.5 end) as $prefixScore |
+        ($coloHistory.entries[(.colo|tostring)] // {}) as $colo |
+        (if (($colo.samples//0)>0) then ($colo.successRate//0.5) else 0.5 end) as $coloScore |
+        . + {prefixHistoryScore:$prefixScore,coloQuality:$coloScore,probePriority:(0.30*$prior + 0.20*(1-$latency) + 0.15*$source + 0.15*$prefixScore + 0.10*$coloScore + 0.10*(1-((.cfstRank//128)/128)))}
       ) | sort_by(-.probePriority,($history[(.ip|tostring)].consecutiveFailures//0),(.cfstRank//999999),(.ip|tostring))
     ' "$input" | cfip_atomic_write "$output"
 }
@@ -374,15 +465,16 @@ cfip_rill_status_json() {
 }
 
 cfip_rill_actions_json() {
-    local history now
-    history="$(cfip_rill_history_json)"; now="$(date +%s)"
-    jq -c --argjson history "$history" --argjson now "$now" '
+    local history prefix_history now
+    history="$(cfip_rill_history_json)"; prefix_history="$(cfip_rill_prefix_history_json)"; now="$(date +%s)"
+    jq -c --argjson history "$history" --argjson prefixHistory "$prefix_history" --argjson now "$now" '
       def n($v;$fallback): if ($v|type)=="number" and ($v|isfinite) then $v else $fallback end;
       def clamp($v;$fallback;$lo;$hi): (n($v;$fallback) | if . < $lo then $lo elif . > $hi then $hi else . end);
       def ms($v): clamp($v;10000;0;10000)/10000;
       def samples($v): (($v|map(select(type=="number"))|sort) // []);
       [.[] as $candidate |
         ($history[($candidate.ip|tostring)] // {}) as $h |
+        ($prefixHistory[($candidate.prefixKey // "")] // {}) as $ph |
         (samples($h.latencySamples // [])) as $lat |
         ($lat|length) as $len |
         (if $len>0 then $lat[($len-1)/2|floor] else 10000 end) as $median |
@@ -400,7 +492,8 @@ cfip_rill_actions_json() {
           (if (($h.successCount//0)+($h.failureCount//0)) > 0 then clamp((($h.failureCount//0) / (($h.successCount//0)+($h.failureCount//0)));0.5;0;1) else 0.5 end),
           clamp($median;10000;0;10000)/10000, clamp($p95;10000;0;10000)/10000,
           clamp($h.consecutiveFailures;0;0;10)/10, clamp((($now-($h.lastSeen//$now))/86400);1;0;1),
-          (if $h.lastSelected==true then 1 else 0 end), clamp($h.delayedStability;0.5;0;1)
+          (if $h.lastSelected==true then 1 else 0 end),
+          (if (($ph.samples//0)>0) then clamp((0.5 + ((($ph.successRate//0.5)-0.5) * ([1-(($now-($ph.lastSeen//0))/604800),0]|max)) - ([($ph.consecutiveFailures//0),3]|min)*0.05);0.5;0;1) else 0.5 end)
         ]}]
     ' "$1"
 }
@@ -464,14 +557,14 @@ cfip_rill_feedback() {
 }
 
 cfip_rill_queue_feedback() {
-    local decision="$1" outcome="$2" domains="${3:-}" queued="$(date +%s)" due="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_SECONDS:-600}))" expires="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS:-86400}))" current schema
-    schema="$(cfip_rill_schema_hash 2>/dev/null || printf '')"
+    local decision="$1" outcome="$2" domains="${3:-}" queued="$(date +%s)" due="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_SECONDS:-600}))" expires="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS:-86400}))" current schema lineage
+    schema="$(cfip_rill_schema_hash 2>/dev/null || printf '')"; lineage="$(cfip_rill_lineage_id 2>/dev/null || printf '')"
     current='[]'
     if [[ -s "$CFIP_RILL_PENDING_FILE" ]] && jq -e 'type=="array"' "$CFIP_RILL_PENDING_FILE" >/dev/null 2>&1; then
         current="$(cat "$CFIP_RILL_PENDING_FILE")"
     fi
-    jq -cn --argjson current "$current" --argjson due "$due" --argjson expires "$expires" --argjson queued "$queued" --arg schema "$schema" --arg domains "$domains" --argjson decision "$(cat "$decision")" --argjson outcome "$(cat "$outcome")" \
-      '($current + [{dueAt:$due,expiresAt:$expires,decision:$decision,outcome:$outcome,domains:(if $domains=="" then null else $domains end),queuedAt:$queued,modelGeneration:2,featureSchemaHash:$schema,stateGeneration:($decision.generation//0)}] | reverse | unique_by(.decision.decisionId // ((.decision.selectedActionId // "") + ":" + ((.stateGeneration // 0)|tostring))) | reverse)[-64:]' | cfip_atomic_write "$CFIP_RILL_PENDING_FILE"
+    jq -cn --argjson current "$current" --argjson due "$due" --argjson expires "$expires" --argjson queued "$queued" --arg schema "$schema" --arg lineage "$lineage" --arg domains "$domains" --argjson decision "$(cat "$decision")" --argjson outcome "$(cat "$outcome")" \
+      '($current + [{dueAt:$due,expiresAt:$expires,decision:$decision,outcome:$outcome,domains:(if $domains=="" then null else $domains end),queuedAt:$queued,modelGeneration:2,featureSchemaHash:$schema,stateGeneration:($decision.generation//0),stateLineage:(if $lineage=="" then null else $lineage end)}] | reverse | unique_by(.decision.decisionId // ((.decision.selectedActionId // "") + ":" + ((.stateGeneration // 0)|tostring))) | reverse)[-64:]' | cfip_atomic_write "$CFIP_RILL_PENDING_FILE"
 }
 
 cfip_rill_record_delayed_counter() {
@@ -508,9 +601,10 @@ cfip_rill_process_pending_feedback() {
         cfip_rill_quarantine_pending_queue || return 1
         return 0
     fi
-    local now current due expires item tmp_decision tmp_outcome refreshed_outcome feedback_rc remaining='[]' domains
+    local now current due expires item tmp_decision tmp_outcome refreshed_outcome feedback_rc remaining='[]' domains current_lineage item_lineage item_generation
     now="$(date +%s)"
     current="$(cat "$CFIP_RILL_PENDING_FILE" 2>/dev/null || printf '[]')"
+    current_lineage="$(cfip_rill_lineage_id 2>/dev/null || printf '')"
     while IFS= read -r item; do
         due="$(jq -r '.dueAt // 0' <<<"$item")"
         if ((due > now)); then remaining="$(jq -cn --argjson a "$remaining" --argjson i "$item" '$a+[$i]')"; continue; fi
@@ -519,9 +613,20 @@ cfip_rill_process_pending_feedback() {
             cfip_rill_record_delayed_counter delayedExpired
             continue
         fi
+        item_lineage="$(jq -r '.stateLineage // empty' <<<"$item")"; item_generation="$(jq -r '.stateGeneration // 0' <<<"$item")"
         if [[ "$(jq -r '.modelGeneration // 0' <<<"$item")" != "$CFIP_RILL_MODEL_GENERATION" || "$(jq -r '.featureSchemaHash // empty' <<<"$item")" != "$(cfip_rill_schema_hash 2>/dev/null || printf '')" ]]; then
             cfip_rill_record_delayed_counter delayedRejected
             cfip_log "Rill delayed feedback rejected: generation_or_schema_mismatch"
+            continue
+        fi
+        if [[ -n "$item_lineage" && "$item_lineage" != "$current_lineage" ]]; then
+            cfip_rill_record_delayed_counter delayedRejected
+            cfip_log "Rill delayed feedback rejected: lineage_mismatch"
+            continue
+        fi
+        if [[ -f "${CFIP_RILL_STATE:-}" ]] && ((item_generation > 0 && $(cfip_rill_state_generation) < item_generation)); then
+            cfip_rill_record_delayed_counter delayedRejected
+            cfip_log "Rill delayed feedback rejected: state_generation_mismatch"
             continue
         fi
         tmp_decision="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-pending-decision.XXXXXX")"; tmp_outcome="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-pending-outcome.XXXXXX")"

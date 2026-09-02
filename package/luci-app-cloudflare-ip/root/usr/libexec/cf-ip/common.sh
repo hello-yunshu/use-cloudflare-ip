@@ -56,6 +56,29 @@ cfip_ip_family() {
     return 1
 }
 
+# Return the canonical aggregate key used by Prefix Intelligence.  IPv4 is
+# grouped by /24 and IPv6 by /64; IPv6 is normalized through the same parser
+# used by the address safety checks, so textual compression does not create
+# duplicate groups.
+cfip_prefix_key() {
+    local ip="$1" family hex out i a b c _
+    if cfip_is_ipv4 "$ip"; then
+        IFS=. read -r a b c _ <<<"$ip"
+        printf '%s.%s.%s.0/24' "$((10#$a))" "$((10#$b))" "$((10#$c))"
+        return 0
+    fi
+    family="$(cfip_ip_family "$ip" 2>/dev/null || true)"
+    [[ "$family" == ipv6 ]] || return 1
+    declare -F cfip_expand_ipv6_hex >/dev/null 2>&1 || return 1
+    hex="$(cfip_expand_ipv6_hex "$ip")" || return 1
+    out=""
+    for ((i=0; i<16; i+=4)); do
+        [[ -n "$out" ]] && out+=:
+        out+="${hex:i:4}"
+    done
+    printf '%s/64' "$out"
+}
+
 cfip_ipv6_in_prefix() {
     local ip="$1" cidr="$2" network prefix ip_hex network_hex fixed rem mask ip_nibble network_nibble
     [[ "$cidr" == */* ]] || return 1

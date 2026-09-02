@@ -7,6 +7,7 @@
 var callReadLog = rpc.declare({ object: 'cf_ip', method: 'read-log', expect: { '': {} } });
 var callClearLog = rpc.declare({ object: 'cf_ip', method: 'clear-log', expect: { '': {} } });
 var callIpHistory = rpc.declare({ object: 'cf_ip', method: 'ip-history', expect: { '': {} } });
+var callRillDiagnostics = rpc.declare({ object: 'cf_ip', method: 'rill-diagnostics', expect: { '': {} } });
 
 var css = `
 	.cfi-ip-table {
@@ -35,11 +36,13 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			utils.callStatus().catch(function() { return {}; }),
-			callIpHistory().catch(function() { return { success: false, ips: [] }; })
+			callIpHistory().catch(function() { return { success: false, ips: [] }; }),
+			callRillDiagnostics().catch(function() { return { success: false, error: _('Diagnostics unavailable') }; })
 		]).then(function(results) {
 			return {
 				status: results[0],
-				historyData: results[1]
+				historyData: results[1],
+				diagnostics: results[2]
 			};
 		});
 	},
@@ -48,11 +51,28 @@ return view.extend({
 		utils.loadSharedCSS();
 		var status = data.status || {};
 		var historyData = data.historyData || {};
+		var diagnostics = data.diagnostics || {};
 
 		var container = E('div', { 'class': 'cbi-map cfi-dashboard' });
 		container.appendChild(E('style', {}, css));
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Logs & Records')));
+
+		var intelligenceSection = E('div', { 'class': 'cbi-section cfi-section' });
+		intelligenceSection.appendChild(E('h3', {}, _('Rill Diagnostics')));
+		intelligenceSection.appendChild(E('p', {}, _('This snapshot explains fallback, qualification, delayed feedback, Prefix and Colo intelligence without exposing the internal model.')));
+		var diagnosticsPre = E('pre', { 'class': 'cfi-log-area', 'style': 'white-space:pre-wrap;max-height:28em;overflow:auto' }, JSON.stringify({
+			runtime: diagnostics.runtime || {},
+			qualification: diagnostics.qualification || {},
+			sourcePolicyQualification: diagnostics.sourcePolicyQualification || {},
+			reusePolicy: diagnostics.reusePolicy || {},
+			prefixIntelligence: diagnostics.prefixIntelligence || {},
+			coloIntelligence: diagnostics.coloIntelligence || {},
+			pendingFeedback: diagnostics.pendingFeedback || [],
+			stateMeta: diagnostics.stateMeta || {}
+		}, null, 2));
+		intelligenceSection.appendChild(diagnosticsPre);
+		container.appendChild(intelligenceSection);
 
 		/* Recent Logs */
 		var logSection = E('div', { 'class': 'cbi-section cfi-section' });
