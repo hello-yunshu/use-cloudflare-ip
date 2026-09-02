@@ -13,8 +13,9 @@
 | E. P1-4 multi-IP diversity | ✅ CODE CLOSED | 仅在 Native Safe Envelope 内，按 IPv4 / IPv6 prefix、family、source class 做 deterministic selection；`tests/multi-ip-diversity-contract.sh` 通过。 |
 | F. P1-5 delayed feedback | ✅ CODE CLOSED | queue 带 `expiresAt`、feature schema hash、model/state generation；重启后验证并处理，expiry/mismatch 计数并 drop；`tests/delayed-feedback-lifecycle-contract.sh` 通过。 |
 | G. transaction/UI safety | ✅ CODE CLOSED | explicit sync mode 重算目标并控制 stop/apply/restart；LuCI save/apply 前调用同一 semantic validation RPC；disabled start 清理历史 cron。 |
-| H. remote current-SHA CI | ⏳ AFTER PUSH | 必须以本次提交的新 SHA 的 terminal Actions 为准；旧 run 不能替代本次证据。 |
-| I. real-device / soak | ⚠️ NOT RUN | 需要 OpenWrt 设备、指定 proxy/protocol 场景和持续运行证据；见对应文档。 |
+| H. remote current-SHA CI | ✅ PASS | 当前提交 `0cd064fa3cc6722a0fa3ffd7d2ff09568b55d16d` 的 Actions run `33601273356` 已 terminal success，14 个 jobs 全部通过。 |
+| I. Docker-backed install/runtime smoke | ✅ PASS (Docker) | OpenWrt 25.12.5 x86/64 容器已安装当前 SHA 生成的三个 APK，并通过包校验、PassWall/OpenClash semantic validation、非法配置拒绝、RPC dispatch、状态/诊断 JSON、Runtime help、禁用 cron 清理；不等同物理硬件证据。 |
+| J. physical-device / soak | ⚠️ NOT RUN | 仍需要物理 OpenWrt 设备、指定 proxy/protocol 场景和 72h/7d 持续运行证据；见对应文档。 |
 
 ## Local implementation evidence
 
@@ -37,4 +38,4 @@
 
 ## Current release conclusion
 
-代码层面的 P1 closure 已完成并有本地合同测试；在当前 package PR #3 未合并、package main 与合约 pinned commit 不一致、真机与 Soak 尚未提供之前，结论为：**⚠️ 尚未满足 RC Gate**。
+代码层面的 P1 closure、当前 SHA CI 和 Docker-backed 安装运行 smoke 已完成；在当前 package PR #3 未合并、package main 与合约 pinned commit 不一致、物理设备与 Soak 尚未提供之前，结论为：**⚠️ 尚未满足 RC Gate**。
