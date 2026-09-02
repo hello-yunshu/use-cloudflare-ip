@@ -230,7 +230,10 @@ jobs:
                    APK=/builder/staging_dir/host/bin/apk bash "$GITHUB_WORKSPACE/luci-app-cloudflare-ip/tests/package-content-contract.sh" "$file" apk "$mode" ;;
             esac
           done
-          (cd "$GITHUB_WORKSPACE/output" && sha256sum -- *) > "$GITHUB_WORKSPACE/output/SHA256SUMS"
+          (
+            cd "$GITHUB_WORKSPACE/output"
+            sha256sum -- "${base_file##*/}" "${rill_file##*/}" "${preview_file##*/}"
+          ) > "$GITHUB_WORKSPACE/output/SHA256SUMS"
       - uses: actions/upload-artifact@v7
         with:
           name: luci-app-cloudflare-ip-${{ matrix.pkgtype }}-${{ matrix.branch }}
