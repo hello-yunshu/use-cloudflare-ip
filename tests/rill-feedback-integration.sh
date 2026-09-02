@@ -54,5 +54,5 @@ CFIP_RUN_ID=shell-feedback-run cfip_post_apply_probe "$TMP/selected.json" exampl
 jq -e '.validated==true and .ip=="104.16.1.1" and (.reward|type)=="number" and .observedAt>0 and (.appliedIps|length)==1' "$TMP/outcome.json" >/dev/null
 cfip_rill_feedback "$TMP/decision-d1.json" "$TMP/outcome.json" | cat >/dev/null
 jq -e 'select(.request.method=="feedback") | .request.generation==2 and .modelGeneration==2 and .stateGeneration==2 and .request.selectedActionId=="104.16.1.1"' "$TMP/runtime-request.ndjson" >/dev/null
-jq -e '([.partitions[] | select(.clientIdentityName=="cloudflare-ip" and .partitionKey=="default")][0]) as $p | $p.handlerSnapshot.stateGeneration==3 and ($p.handlerSnapshot.state|implode|fromjson).feedback==1 and ($p.handlerSnapshot.state|implode|fromjson).actions["104.16.1.1"].samples==1 and ($p.handlerSnapshot.state|implode|fromjson).featureCount==22' "$CFIP_RILL_STATE" >/dev/null
+jq -e '([.partitions[] | select(.clientIdentityName=="cloudflare-ip" and .partitionKey=="candidate")][0]) as $p | $p.handlerSnapshot.stateGeneration==3 and ($p.handlerSnapshot.state|implode|fromjson).feedback==1 and ($p.handlerSnapshot.state|implode|fromjson).actions["104.16.1.1"].samples==1 and ($p.handlerSnapshot.state|implode|fromjson).featureCount==22' "$CFIP_RILL_STATE" >/dev/null
 echo 'shell outcome to compiled Rill Runtime feedback integration passed'

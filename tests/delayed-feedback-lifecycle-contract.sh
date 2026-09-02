@@ -14,12 +14,13 @@ jq -cn --arg id "$id" '{requestId:$id,apiVersion:3,response:{kind:"result",outpu
 SH
 chmod +x "$CFIP_RILL_RUNTIME"
 cat > "$TMP/decision.json" <<'JSON'
-{"decisionId":"restart-decision","selectedActionId":"104.16.1.1","generation":2}
+{"decisionId":"restart-decision","selectedActionId":"104.16.1.1","partitionKey":"candidate","generation":2}
 JSON
 cat > "$TMP/outcome.json" <<'JSON'
 {"candidateOutcome":"success","hostOutcome":"success","censored":false,"observedIp":"104.16.1.1","decisionActionId":"104.16.1.1","reward":0.8}
 JSON
 cfip_rill_queue_feedback "$TMP/decision.json" "$TMP/outcome.json"
+jq -e '.[0].partitionKey == "candidate" and .[0].decision.partitionKey == "candidate"' "$CFIP_RILL_PENDING_FILE" >/dev/null
 jq '.[].dueAt=0' "$CFIP_RILL_PENDING_FILE" | cfip_atomic_write "$CFIP_RILL_PENDING_FILE"
 CFIP_RUN_ID=restart-child bash -c '
   set -euo pipefail

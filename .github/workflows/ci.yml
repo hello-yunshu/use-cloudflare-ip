@@ -337,6 +337,8 @@ jobs:
           LD_LIBRARY_PATH: ${{ runner.temp }}/musl-libs:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
         run: |
           bash tests/rill-feedback-integration.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
+          bash tests/rill-multi-learner-isolation.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
+          bash tests/source-policy-real-runtime-qualification-lifecycle.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
           bash tests/rill-feedback-negative.sh
       - name: Record same-release evidence
         shell: bash

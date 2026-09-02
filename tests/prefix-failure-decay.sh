@@ -16,4 +16,6 @@ printf '%s\n' '[]' >"$CFIP_RILL_HISTORY_FILE"
 printf '%s\n' '[{"ip":"104.16.1.9","family":"ipv4","cfstRank":1,"prefixKey":"104.16.1.0/24"}]' >"$TMP/input.json"
 cfip_rill_probe_priority "$TMP/input.json" "$TMP/output.json"
 jq -e '.[0].prefixHistoryScore == 0.5' "$TMP/output.json" >/dev/null
+cfip_rill_actions_json "$TMP/input.json" >"$TMP/actions.json"
+jq -e '.[0].features[21] == 0.5' "$TMP/actions.json" >/dev/null
 echo 'Prefix failure penalty decay contract passed'

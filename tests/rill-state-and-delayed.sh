@@ -12,13 +12,13 @@ source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/rill.sh"
 
 old_state="$(jq -cn --arg s '{"handlerStateVersion":2,"featureCount":8,"weights":[],"actions":{}}' \
-  '{formatVersion:1,partitions:[{clientIdentityName:"cloudflare-ip",partitionKey:"default",handlerSnapshot:{state:($s|explode),stateGeneration:4}}]}')"
+  '{formatVersion:1,partitions:[{clientIdentityName:"cloudflare-ip",partitionKey:"candidate",handlerSnapshot:{state:($s|explode),stateGeneration:4}}]}')"
 printf '%s\n' "$old_state" > "$CFIP_RILL_STATE"
 cfip_rill_prepare_state
 quarantine="$(find "$TMP" -maxdepth 1 -name 'state.json.quarantine.*' -type f -print -quit)"
 test -n "$quarantine"
 test "$(jq -r .resetRequired "$CFIP_RILL_STATE_META_FILE")" = true
-test "$(jq -r .resetReason "$CFIP_RILL_STATE_META_FILE")" = feature_schema_v2_required
+test "$(jq -r .resetReason "$CFIP_RILL_STATE_META_FILE")" = feature_width_mismatch
 
 printf '%s\n' '{not-json' > "$CFIP_RILL_STATE"
 cfip_rill_prepare_state

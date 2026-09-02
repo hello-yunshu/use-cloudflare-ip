@@ -426,20 +426,26 @@ cmd_rill_self_check(){
 }
 cmd_rill_diagnostics(){
     load_config >/dev/null || return 1
-    local status qualification pending meta source_policy source_qualification reuse recent prefix_history colo_history prefix_summary colo_summary
+    local status qualification pending meta source_policy source_qualification reuse recent prefix_history colo_history prefix_summary colo_summary source_runtime source_health source_inspect
     status="$(cfip_rill_status_json 2>/dev/null || printf '{"available":false,"state":"error"}')"
     qualification="$(cfip_rill_qualification_json 2>/dev/null || printf '{}')"
     pending='[]'; [[ -s "$CFIP_RILL_PENDING_FILE" ]] && pending="$(cat "$CFIP_RILL_PENDING_FILE")"
     meta='{}'; [[ -s "$CFIP_RILL_STATE_META_FILE" ]] && meta="$(cat "$CFIP_RILL_STATE_META_FILE")"
     source_policy="$(cfip_source_policy_json 2>/dev/null || printf '{}')"
     source_qualification="$(cfip_source_policy_qualification_json 2>/dev/null || printf '{}')"
+    source_runtime='{}'
+    if [[ "$(jq -r '.available // false' <<<"$status")" == true ]] && declare -F cfip_rill_health_json >/dev/null 2>&1; then
+        source_health="$(CFIP_RILL_PARTITION_KEY="$CFIP_RILL_SOURCE_PARTITION_KEY" cfip_rill_health_json 2>/dev/null || printf '{}')"
+        source_inspect="$(CFIP_RILL_PARTITION_KEY="$CFIP_RILL_SOURCE_PARTITION_KEY" cfip_rill_inspect_json 2>/dev/null || printf '{}')"
+        source_runtime="$(jq -cn --arg partition "$CFIP_RILL_SOURCE_PARTITION_KEY" --argjson health "$source_health" --argjson inspect "$source_inspect" '{partitionKey:$partition,health:$health,inspect:$inspect}')"
+    fi
     reuse='{}'; [[ -s "$CFIP_REUSE_STATE_FILE" ]] && reuse="$(cat "$CFIP_REUSE_STATE_FILE")"
     prefix_history="$(cfip_rill_prefix_history_json 2>/dev/null || printf '{}')"; colo_history="$(cfip_rill_colo_history_json 2>/dev/null || printf '{"entries":{},"unknownCount":0}')"
     prefix_summary="$(jq -cn --argjson h "$prefix_history" --argjson now "$(date +%s)" '{trackedPrefixes:($h|length),recentHighQuality:([$h|to_entries[]|select((.value.successRate//0)<=1)|{prefix:.key,samples:(.value.samples//0),successRate:(.value.successRate//0)}]|sort_by(-.successRate,-.samples)|.[0:5]),recentLowQuality:([$h|to_entries[]|select((.value.successRate//0)<=1)|{prefix:.key,samples:(.value.samples//0),successRate:(.value.successRate//0),lastSeen:(.value.lastSeen//0)}]|sort_by(.successRate,.lastSeen)|.[0:5])}')"
     colo_summary="$(jq -cn --argjson h "$colo_history" '{observedColoCount:($h.entries|length),latestObservedColo:($h.lastObserved//null),unknownCount:($h.unknownCount//0),history:($h.entries//{})}')"
     recent='[]'; [[ -f "$CFIP_RUN_HISTORY" ]] && recent="$(tail -n 20 "$CFIP_RUN_HISTORY" | jq -sc '.' 2>/dev/null || printf '[]')"
-    jq -cn --argjson status "$status" --argjson qualification "$qualification" --argjson pending "$pending" --argjson meta "$meta" --argjson sourcePolicy "$source_policy" --argjson sourceQualification "$source_qualification" --argjson reuse "$reuse" --argjson recent "$recent" --argjson prefix "$prefix_summary" --argjson colo "$colo_summary" \
-        '{success:true,runtime:$status,qualification:$qualification,recentDecisions:$recent,pendingFeedback:($pending[0:64]),sourcePolicy:$sourcePolicy,sourcePolicyQualification:$sourceQualification,reusePolicy:$reuse,prefixIntelligence:$prefix,coloIntelligence:$colo,stateMeta:$meta,warnings:[]}'
+    jq -cn --argjson status "$status" --argjson qualification "$qualification" --argjson pending "$pending" --argjson meta "$meta" --argjson sourcePolicy "$source_policy" --argjson sourceQualification "$source_qualification" --argjson sourceRuntime "$source_runtime" --argjson reuse "$reuse" --argjson recent "$recent" --argjson prefix "$prefix_summary" --argjson colo "$colo_summary" \
+        '{success:true,runtime:$status,runtimePartitions:{candidate:$status,sourcePolicy:$sourceRuntime},qualification:$qualification,recentDecisions:$recent,pendingFeedback:($pending[0:64]),sourcePolicy:$sourcePolicy,sourcePolicyQualification:$sourceQualification,reusePolicy:$reuse,prefixIntelligence:$prefix,coloIntelligence:$colo,stateMeta:$meta,warnings:[]}'
 }
 cmd_rill_reset(){
     load_config >/dev/null || return 1
