@@ -52,6 +52,9 @@ cfip_rill_rotate_lineage() {
     jq --arg reason "$reason" --arg lineage "$lineage" --argjson schema "$CFIP_RILL_SCHEMA_VERSION" \
       '. + {resetRequired:false,resetReason:$reason,lineageId:$lineage,featureSchemaVersion:$schema,at:(now|floor)}' <<<"$meta" \
       | cfip_atomic_write "$CFIP_RILL_STATE_META_FILE"
+    if [[ -n "${CFIP_SOURCE_POLICY_QUALIFICATION_FILE:-}" ]]; then
+        rm -f "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE"
+    fi
 }
 
 cfip_rill_prepare_state() {
@@ -257,7 +260,10 @@ cfip_rill_probe_priority() {
         ((($history[$id].ewmaTotalMs // 10000) / 10000) | if . < 0 then 0 elif . > 1 then 1 else . end) as $latency |
         ((($history[$id].sourceReliability // .sourceReliability // 0.5))|if .<0 then 0 elif .>1 then 1 else . end) as $source |
         ($prefixHistory[(.prefixKey // "")] // {}) as $prefix |
-        (if (($prefix.samples//0)>0) then (0.5 + ((($prefix.successRate//0.5)-0.5) * ([1-(($now-($prefix.lastSeen//0))/604800),0]|max)) - ([($prefix.consecutiveFailures//0),3]|min)*0.05) else 0.5 end) as $prefixScore |
+        (if (($prefix.samples//0)>0) then
+          ([1-(($now-($prefix.lastSeen//0))/604800),0]|max) as $freshness |
+          (0.5 + ((($prefix.successRate//0.5)-0.5) * $freshness) - ([($prefix.consecutiveFailures//0),3]|min)*0.05*$freshness)
+        else 0.5 end) as $prefixScore |
         ($coloHistory.entries[(.colo|tostring)] // {}) as $colo |
         (if (($colo.samples//0)>0) then ($colo.successRate//0.5) else 0.5 end) as $coloScore |
         . + {prefixHistoryScore:$prefixScore,coloQuality:$coloScore,probePriority:(0.30*$prior + 0.20*(1-$latency) + 0.15*$source + 0.15*$prefixScore + 0.10*$coloScore + 0.10*(1-((.cfstRank//128)/128)))}

@@ -62,6 +62,12 @@ jobs:
           bash tests/probe-batching.sh
           bash tests/source-policy.sh
           bash tests/source-policy-attribution.sh
+          bash tests/source-policy-disagreement-lifecycle.sh
+          bash tests/source-policy-qualification-lifecycle.sh
+          bash tests/source-policy-reset-lineage.sh
+          bash tests/source-policy-exploration-config.sh
+          bash tests/cfst-version-contract.sh
+          bash tests/source-refresh-deadline.sh
           bash tests/resource-pressure-contract.sh
           bash tests/multi-ip-diversity-contract.sh
           bash tests/reuse-policy-contract.sh
@@ -69,7 +75,10 @@ jobs:
           bash tests/delayed-feedback-lifecycle-contract.sh
           bash tests/delayed-feedback-reset-lineage.sh
           bash tests/prefix-colo-intelligence.sh
+          bash tests/prefix-failure-decay.sh
           bash tests/luci-validation-contract.sh
+          bash tests/luci-staged-validation.sh
+          bash tests/installed-routing-contract.sh
           bash tests/disabled-cron-contract.sh
           bash tests/evidence-manifest-default.sh
           jq empty plans/rill/drift-decision.json

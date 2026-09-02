@@ -81,7 +81,7 @@ case "$1" in
 		cat <<'EOF'
 {
 	"status": {},
-	"validate-config": {},
+		"validate-config": { "candidate": "candidate" },
 	"check-env": {},
 	"refresh-env": {},
 	"run": {},
@@ -116,7 +116,9 @@ EOF
 				"$CF_IP_AUTO_BIN" --status 2>/dev/null || true
 				;;
 			validate-config)
-				_out="$($CF_IP_AUTO_BIN --validate-config 2>/dev/null)" || true
+				read _input
+				_candidate="$(printf '%s\n' "$_input" | jq -c '.candidate // {}' 2>/dev/null)" || _candidate='{}'
+				_out="$($CF_IP_AUTO_BIN --validate-config "$_candidate" 2>/dev/null)" || true
 				[ -n "$_out" ] && printf '%s\n' "$_out" || printf '%s\n' '{"success":false,"error":"configuration validation failed"}'
 				;;
 			check-env)

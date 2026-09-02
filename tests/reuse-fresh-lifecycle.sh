@@ -4,42 +4,91 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-export CFIP_STATUS_DIR="$TMP" CFIP_RUNTIME_DIR="$TMP/runtime" CFIP_LOG_FILE="$TMP/log"
-mkdir -p "$CFIP_RUNTIME_DIR"
-source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"
-source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/reuse.sh"
+export CFIP_STATUS_DIR="$TMP/status" CFIP_RUNTIME_DIR="$TMP/runtime" CFIP_LOG_FILE="$TMP/log"
+export CFIP_LIB_DIR="$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip"
+mkdir -p "$CFIP_STATUS_DIR" "$CFIP_RUNTIME_DIR"
+source "$ROOT/package/luci-app-cloudflare-ip/root/usr/bin/cf-ip-auto-v2"
 
-CFIP_REUSE_STATE_FILE="$TMP/reuse-policy.json"
-CFIP_STATUS_FILE="$TMP/status.json"
-CFIP_SELECTED_FILE="$TMP/selected.json"
-CFIP_OUTCOME_FILE="$TMP/outcome.json"
-CFIP_REUSE_DECISION_FILE="$TMP/decision.json"
+CFIP_REUSE_STATE_FILE="$CFIP_STATUS_DIR/reuse-policy.json"
+CFIP_STATUS_FILE="$CFIP_STATUS_DIR/status.json"
 CFIP_REUSE_ENABLED=true CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL=86400
 CFIP_REUSE_VALIDATION_TIMEOUT=5 CFIP_REUSE_LOSS_LIMIT=0.25
 CFIP_REUSE_TTFB_LIMIT=3000 CFIP_REUSE_TOTAL_LIMIT=5000
-CFIP_MODE=passwall CFIP_TARGET_DOMAINS='one.example,two.example'
-CFIP_IP_TYPE=ipv4 CFIP_SPEEDTEST_PROTOCOL=tcp
-CFIP_PASSWALL_TARGET_DOMAIN=one.example CFIP_OPENCLASH_CONFIG=''
-CFIP_OPENCLASH_TARGET_DOMAIN='' CFIP_OPENCLASH_TRANSPORT_FILTER=''
 CFIP_SOURCE_POLICY=balanced CFIP_IP_COUNT=1
+CFIP_RUN_NUMBER=0 CFST_RUNS=0 POOL_RUNS=0 PROBE_RUNS=0
 
-printf '%s\n' '{"best_ips":["104.16.1.1"],"last_result":"success"}' >"$CFIP_STATUS_FILE"
-test "$(jq -r '.validationSuccess' < <(cfip_reuse_state_json))" = false
-# A genuinely fresh state may first fail on its missing configuration
-# fingerprint; the important contract is that it is not reusable.
-test -n "$(cfip_reuse_hard_gate_reason)"
-
-# This is the production event emitted only after apply, post-apply probe and
-# transaction commit. The next process must be able to reuse it naturally.
-cfip_reuse_write_event full-optimize-success full_optimize_completed 0 0
-test "$(jq -r '.lastValidationAt > 0 and .validationSuccess == true and .fullOptimizeCount == 1' "$CFIP_REUSE_STATE_FILE")" = true
-
-cfip_post_apply_probe() {
-  jq -cn '{candidateOutcome:"success",hostOutcome:"success",censored:false,observedIp:"104.16.1.1",probes:[{success:true,lossRate:0.01,ttfbMs:20,totalMs:50}]}' >"$4"
+load_config() {
+    CFIP_ENABLED=true CFIP_MODE=passwall CFIP_IP_COUNT=1 CFIP_IP_TYPE=ipv4
+    CFIP_SPEEDTEST_PROTOCOL=tcp CFIP_SPEEDTEST_CFCOLO='' CFIP_SPEEDTEST_DN=8 CFIP_SPEEDTEST_DT=6
+    CFIP_SPEEDTEST_TLL=40 CFIP_SPEEDTEST_TL='' CFIP_SPEEDTEST_THREADS=1 CFIP_SPEEDTEST_PING_COUNT=1
+    CFIP_STOP_SERVICE=false CFIP_STARTUP_DELAY='' CFIP_WORK_DIR="$TMP/work" CFIP_CRON_INTERVAL=6h
+    CFIP_CANDIDATE_BUDGET=128 CFIP_PROBE_TOP_COUNT=1 CFIP_PROBE_CONCURRENCY=1 CFIP_PROBE_TIMEOUT=5
+    CFIP_MEASUREMENT_TIMEOUT=60 CFIP_RECOVERY_TIMEOUT=30 CFIP_PROBE_BATCH_SIZE=1 CFIP_MAX_PROBE_COUNT=1
+    CFIP_EARLY_STOP_ENABLED=true CFIP_BUILTIN_SOURCES='cloudflare-official-v4' CFIP_SOURCE_POLICY=balanced
+    CFIP_TARGET_DOMAINS='one.example' CFIP_PASSWALL_TARGET_DOMAIN=one.example
+    CFIP_RILL_ENABLED=false CFIP_RILL_MODE=off CFIP_REUSE_ENABLED=true
+    return 0
 }
-cfip_reuse_try_current
-test "$(jq -r '.actualPolicy' "$CFIP_REUSE_DECISION_FILE")" = REUSE_CURRENT
-test "$(jq -r '.reuseCount' "$CFIP_REUSE_STATE_FILE")" = 1
-test "$(jq -r '.savedProbes' "$CFIP_REUSE_STATE_FILE")" = 1
-test "$(jq -r '.validationSuccess' "$CFIP_REUSE_STATE_FILE")" = true
-echo 'Reuse fresh full-optimize to current validation lifecycle passed'
+acquire_lock() { return 0; }
+release_lock() { :; }
+cleanup_run_files() { :; }
+init_run_paths() {
+    CFIP_RUN_NUMBER=$((CFIP_RUN_NUMBER + 1)); CFIP_RUN_ID="lifecycle-$CFIP_RUN_NUMBER"
+    local d="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID"
+    mkdir -p "$d"
+    CFIP_INPUT_POOL_FILE="$d/input-pool.json" CFIP_CANDIDATE_INPUT_FILE="$d/cfst-input.txt"
+    CFIP_PROBE_INPUT_FILE="$d/probe-input.json" CFIP_CANDIDATES_FILE="$d/candidates.json"
+    CFIP_PROBED_FILE="$d/probed.json" CFIP_NATIVE_FILE="$d/native.json" CFIP_SELECTED_FILE="$d/selected.json"
+    CFIP_RILL_FILE="$d/rill.json" CFIP_DECISION_FILE="$d/decision.json" CFIP_OUTCOME_FILE="$d/outcome.json"
+    CFIP_TXN_RESULT_FILE="$d/transaction.json" CFIP_SOURCE_STATUS_FILE="$d/source-status.json"
+    CFIP_PROBE_METRICS_FILE="$d/probe-metrics.json" CFIP_SOURCE_POLICY_DECISION_FILE="$d/source-policy-decision.json"
+    CFIP_REUSE_DECISION_FILE="$d/reuse-decision.json" CFIP_REUSE_RILL_DECISION_FILE="$d/reuse-rill-decision.json"
+}
+write_status() {
+    local best='[]'
+    if [[ -s "${CFIP_SELECTED_FILE:-}" ]]; then
+        best="$(jq '[.[].ip]' "$CFIP_SELECTED_FILE")"
+    elif [[ -s "$CFIP_STATUS_FILE" ]]; then
+        best="$(jq -c '.best_ips // []' "$CFIP_STATUS_FILE")"
+    fi
+    jq -cn --arg result "$3" --arg phase "$2" --argjson best "$best" '{last_result:$result,phase:$phase,best_ips:$best}' >"$CFIP_STATUS_FILE"
+}
+cfip_source_policy_decide() { :; }
+cfip_source_policy_record() { :; }
+ensure_cfst() { CFST_RUNS=$((CFST_RUNS + 1)); return 0; }
+cfip_prepare_candidate_pool() {
+    POOL_RUNS=$((POOL_RUNS + 1))
+    printf '%s\n' '[{"ip":"104.16.1.1","family":"ipv4","sourceClass":"official","sourceCount":1,"stale":false}]' >"$1"
+    printf '%s\n' '104.16.1.1' >"$2"
+    printf '%s\n' '[{"success":true,"stale":false}]' >"$3"
+}
+run_cfst() {
+    printf '%s\n' '[{"ip":"104.16.1.1","family":"ipv4","cfstRank":1,"downloadMBps":80,"eligible":true,"probeSummary":{"totalMs":50,"ttfbMs":20},"lossRate":0}]' >"$CFIP_CANDIDATES_FILE"
+}
+cfip_rill_probe_priority() { cp "$1" "$2"; }
+cfip_probe_candidates_batched() { cp "$1" "$2"; PROBE_RUNS=$((PROBE_RUNS + 1)); }
+cfip_rill_update_history() { :; }
+cfip_txn_prepare() { :; }
+cfip_txn_apply() { :; }
+cfip_txn_commit() { :; }
+cfip_txn_rollback() { :; }
+cfip_post_apply_probe() {
+    jq -cn '{candidateOutcome:"success",hostOutcome:"success",censored:false,observedIp:"104.16.1.1",probes:[{success:true,lossRate:0.01,ttfbMs:20,totalMs:50}]}' >"$4"
+}
+cfip_rill_queue_feedback() { :; }
+cfip_publish_result() { :; }
+
+run_v2 >/dev/null
+test "$CFST_RUNS" -eq 1
+test "$POOL_RUNS" -eq 1
+test "$PROBE_RUNS" -eq 1
+jq -e '.fullOptimizeCount == 1 and .validationSuccess == true' "$CFIP_REUSE_STATE_FILE" >/dev/null
+jq -e '.last_result == "success" and .best_ips == ["104.16.1.1"]' "$CFIP_STATUS_FILE" >/dev/null
+
+run_v2 >/dev/null
+test "$CFST_RUNS" -eq 1
+test "$POOL_RUNS" -eq 1
+test "$PROBE_RUNS" -eq 1
+jq -e '.reuseCount == 1 and .fullOptimizeCount == 1 and .validationSuccess == true' "$CFIP_REUSE_STATE_FILE" >/dev/null
+jq -e '.actualPolicy == "REUSE_CURRENT" and .reason == "validated_current_ip"' "$CFIP_RUNTIME_DIR/run-lifecycle-2/reuse-decision.json" >/dev/null
+echo 'Reuse lifecycle executes full optimize once then real current-IP reuse'
