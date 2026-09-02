@@ -6,15 +6,15 @@
 
 | Gate | 当前结论 | 证据 / 边界 |
 |---|---|---|
-| A. Runtime/package/qualification parity | ⚠️ OPEN | Cloudflare 合约当前绑定 Preview `da8389fec7f879b826d8d17cbc6bb98c03ef8462`、package `38f21f02c06a880abd3cd020004814887f3943a5`、qualification run `33511365899`；package PR #3 仍为 `BLOCKED`，package `main` 已是 `87514ee67a4a6b404f354c99eb66e656555d7f5f`，因此不能声称正式 release branch 已收敛。 |
+| A. Runtime/package/qualification parity | ⚠️ OPEN | Cloudflare 合约当前绑定 Preview `da8389fec7f879b826d8d17cbc6bb98c03ef8462`、package `38f21f02c06a880abd3cd020004814887f3943a5`（`rill-runtime-preview` 1.5.6-r2）、qualification run `33511365899`（PASS）；package PR #3 仍为 `OPEN / BLOCKED / REVIEW_REQUIRED`，package `main` 仍为 `87514ee67a4a6b404f354c99eb66e656555d7f5f`，因此不能声称正式 release branch 已收敛。 |
 | B. P1-1 resource pressure | ✅ CODE CLOSED | `rill.sh` 从 Runtime health 与 inspect 的真实 `resourceProfile/resourceUtilization` 计算 90% pressure，并传递为 `resourcePressure`、`healthHealthy=false` 和 `runtime_resource_pressure` fallback；`tests/resource-pressure-contract.sh` 通过。 |
 | C. P1-2 Source Strategy Learner | ✅ SHADOW CODE CLOSED | 独立 `source-policy` decide/feedback、bounded semantic features、source-specific reward、strict decision attribution、bounded guarded exploration 和 rolling qualification ledger 已接入；Native 配置仍是执行 authority，Rill 默认 Shadow。 |
 | D. P1-3 reuse/current vs full optimize | ✅ CODE CLOSED | 配置 fingerprint、fresh → full optimize → post-apply validation → reuse-current 生命周期、loss/TTFB/total 硬门槛、atomic state 和 Rill Shadow recommendation 已接入；Native gate 决定是否跳过 CFST/acquisition，且保存真实 `.probes` 数量。 |
 | E. P1-4 multi-IP diversity | ✅ CODE CLOSED | 仅在 Native Safe Envelope 内，按 canonical IPv4 `/24` / IPv6 `/64` prefix、family、source class 做 deterministic selection；Prefix/Colo aggregate history 有 bounded retention、decay 和 diagnostics；相关合同通过。 |
 | F. P1-5 delayed feedback | ✅ CODE CLOSED | queue 带 `expiresAt`、feature schema hash、model/state generation 和 state lineage；正常 restart 可处理，reset/incompatible lineage 会拒绝并计数；相关合同通过。 |
 | G. transaction/UI safety | ✅ CODE CLOSED | explicit sync mode 重算目标并控制 stop/apply/restart；LuCI save/apply 前调用同一 semantic validation RPC；disabled start 清理历史 cron。 |
-| H. remote current-SHA CI | ✅ PASS | 最终提交 `46b4ceae5d65e5a97abef523f59223bd4dbd5284` 的 Actions run `33615504728` 已 terminal success；host/legacy/RPC/workflow、四个 OpenWrt package matrix、same-release Runtime integration、qualification/evidence guards 全部通过。 |
-| I. OpenWrt package/build evidence | ✅ PASS (CI) | 当前 SHA 的四个 OpenWrt SDK package jobs、package content contracts 和 same-release generic Runtime integration 已通过；历史 Docker 安装运行记录仍只属于旧 SHA，当前 Docker install smoke 未执行。 |
+| H. remote current-SHA CI | ✅ PASS | 最终代码提交 `39e5a9246a7ffff2819c3e7b0e30e823bf031c38`（tree `3bf8851cef23464613cd7401ed125a5b4171adce`）的 Actions run `33625649824` 已 terminal success；host/legacy/RPC/workflow、四个 OpenWrt package matrix、same-release Runtime integration、package-release/qualification/evidence guards 全部通过。 |
+| I. OpenWrt package/build evidence | ✅ PASS (CI) | run `33625649824` 的四个 OpenWrt SDK package jobs、package content contracts 和 same-release generic Runtime integration 已通过；历史 Docker 安装运行记录仍只属于旧 SHA，当前 Docker install smoke 未执行。 |
 | J. physical-device / soak | ⚪ SOAK SKIPPED (user-approved) | 72h/7d Soak 按用户批准直接跳过；物理 OpenWrt 设备、指定 proxy/protocol 场景仍未验证，不宣称硬件通过。 |
 
 ## Local implementation evidence
@@ -39,4 +39,6 @@
 
 ## Current release conclusion
 
-代码层面的 P1 closure、本地回归和最终 SHA `46b4ceae5d65e5a97abef523f59223bd4dbd5284` 的远端 CI run `33615504728` 已完成并通过。当前 Docker install smoke、物理设备和 Soak 仍分别为 NOT RUN / NOT RUN / 按用户批准跳过。由于当前 package PR #3 仍 `BLOCKED / REVIEW_REQUIRED`、package `main` 与合约 pinned commit 不一致，结论仍为：**⚠️ 尚未满足 RC Gate**。
+代码层面的 P1 closure、本地回归和最终 SHA `39e5a9246a7ffff2819c3e7b0e30e823bf031c38`（tree `3bf8851cef23464613cd7401ed125a5b4171adce`）的远端 CI run `33625649824` 已 terminal success。该 run 同时证明了四个 OpenWrt 包构建、same-release generic Runtime integration、package-release-guard、qualification-guard 和 evidence-manifest。当前 Docker install smoke、物理设备和 Soak 仍分别为 NOT RUN / NOT RUN / 按用户批准跳过。
+
+由于 package PR #3 当前仍为 `OPEN / BLOCKED / REVIEW_REQUIRED`，其 qualified commit `38f21f02c06a880abd3cd020004814887f3943a5` 尚未进入 package `main`，Runtime/package release convergence 仍未关闭。因此本轮结论必须为：**❌ Final Full Closure 未通过**；代码 Closure 已完成，可以在 package main 收敛后继续 RC / Physical Device Validation，但不能提前声称 release convergence 或 Full Closure。
