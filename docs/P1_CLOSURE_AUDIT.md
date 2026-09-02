@@ -13,8 +13,8 @@
 | E. P1-4 multi-IP diversity | ✅ CODE CLOSED | 仅在 Native Safe Envelope 内，按 canonical IPv4 `/24` / IPv6 `/64` prefix、family、source class 做 deterministic selection；Prefix/Colo aggregate history 有 bounded retention、decay 和 diagnostics；相关合同通过。 |
 | F. P1-5 delayed feedback | ✅ CODE CLOSED | queue 带 `expiresAt`、feature schema hash、model/state generation 和 state lineage；正常 restart 可处理，reset/incompatible lineage 会拒绝并计数；相关合同通过。 |
 | G. transaction/UI safety | ✅ CODE CLOSED | explicit sync mode 重算目标并控制 stop/apply/restart；LuCI save/apply 前调用同一 semantic validation RPC；disabled start 清理历史 cron。 |
-| H. remote current-SHA CI | ⏳ RUNNING AT AUDIT | 修复提交 `f40dfefa7f9ad448aa20e6df8edafe38be62e739` 的 Actions run `33614944281` 已创建；必须以该 run terminal 结果为准，不能沿用旧 SHA 的绿色结果。 |
-| I. Docker-backed install/runtime smoke | ⚠️ PRIOR EVIDENCE ONLY | `docs/REAL_DEVICE_VALIDATION.md` 中的 Docker 安装运行记录对应旧 Cloudflare SHA `0cd064...`；本次 f40dfef 的 Actions package matrix 只在 terminal 成功后作为当前包构建证据，不能把旧容器记录升级为当前 SHA 的安装运行证据。 |
+| H. remote current-SHA CI | ✅ PASS | 最终提交 `46b4ceae5d65e5a97abef523f59223bd4dbd5284` 的 Actions run `33615504728` 已 terminal success；host/legacy/RPC/workflow、四个 OpenWrt package matrix、same-release Runtime integration、qualification/evidence guards 全部通过。 |
+| I. OpenWrt package/build evidence | ✅ PASS (CI) | 当前 SHA 的四个 OpenWrt SDK package jobs、package content contracts 和 same-release generic Runtime integration 已通过；历史 Docker 安装运行记录仍只属于旧 SHA，当前 Docker install smoke 未执行。 |
 | J. physical-device / soak | ⚪ SOAK SKIPPED (user-approved) | 72h/7d Soak 按用户批准直接跳过；物理 OpenWrt 设备、指定 proxy/protocol 场景仍未验证，不宣称硬件通过。 |
 
 ## Local implementation evidence
@@ -39,4 +39,4 @@
 
 ## Current release conclusion
 
-代码层面的 P1 closure 和本地回归已完成；当前 SHA 的远端 CI run `33614944281` 在本审计更新时仍需 terminal 结论。Soak 已按用户批准跳过。由于当前 package PR #3 仍 `BLOCKED / REVIEW_REQUIRED`、package `main` 与合约 pinned commit 不一致，结论仍为：**⚠️ 尚未满足 RC Gate**。
+代码层面的 P1 closure、本地回归和最终 SHA `46b4ceae5d65e5a97abef523f59223bd4dbd5284` 的远端 CI run `33615504728` 已完成并通过。当前 Docker install smoke、物理设备和 Soak 仍分别为 NOT RUN / NOT RUN / 按用户批准跳过。由于当前 package PR #3 仍 `BLOCKED / REVIEW_REQUIRED`、package `main` 与合约 pinned commit 不一致，结论仍为：**⚠️ 尚未满足 RC Gate**。
