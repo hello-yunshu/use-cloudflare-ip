@@ -387,15 +387,6 @@ run_v2() {
         fail_run "post-apply validation failed"
         return 1
     fi
-    if [[ "$(jq -r '.effectiveMode // empty' "$CFIP_DECISION_FILE" 2>/dev/null)" == assisted ]]; then
-        holdout_json="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/holdout.json"
-        if ! cfip_rill_holdout "$CFIP_DECISION_FILE" "$CFIP_NATIVE_FILE" "$CFIP_OUTCOME_FILE" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" "$holdout_json"; then
-            jq -cn '{performed:false,reason:"not_due_or_unavailable",feedbackEligible:false}' | cfip_atomic_write "$holdout_json"
-        fi
-    else
-        holdout_json="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/holdout.json"
-        jq -cn '{performed:false,reason:"effective_mode_not_assisted",feedbackEligible:false}' | cfip_atomic_write "$holdout_json"
-    fi
     CFIP_TXN_STATE=HEALTH_OK
     CFIP_MEASUREMENT_DEADLINE=0
     if ! cfip_txn_commit; then
@@ -406,12 +397,20 @@ run_v2() {
         return 1
     fi
     jq -cn '{success:true,rolledBack:false,health:"validated"}' | cfip_atomic_write "$CFIP_TXN_RESULT_FILE"
+    holdout_json="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/holdout.json"
+    if [[ "$(jq -r '.effectiveMode // empty' "$CFIP_DECISION_FILE" 2>/dev/null)" == assisted ]]; then
+        if ! cfip_rill_holdout "$CFIP_DECISION_FILE" "$CFIP_NATIVE_FILE" "$CFIP_OUTCOME_FILE" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" "$holdout_json"; then
+            jq -cn '{performed:false,reason:"not_due_or_unavailable",feedbackEligible:false}' | cfip_atomic_write "$holdout_json"
+        fi
+    else
+        jq -cn '{performed:false,reason:"effective_mode_not_assisted",feedbackEligible:false}' | cfip_atomic_write "$holdout_json"
+    fi
     cfip_reuse_write_event full-optimize-success full_optimize_completed 0 0 || cfip_log "reuse policy state update deferred"
     CFIP_PHASE=publishing
     cfip_publish_result "$CFIP_SELECTED_FILE" || cfip_log "LAN result publisher failed; network selection remains valid"
     CFIP_PHASE=feedback
     local feedback_file="$CFIP_OUTCOME_FILE" shadow_outcome=""
-    if [[ "$CFIP_RILL_MODE" == shadow && -s "$CFIP_RILL_FILE" && "$(jq -r '.selectedActionId // empty' "$CFIP_DECISION_FILE")" != "$(jq -r '.[0].ip // empty' "$CFIP_NATIVE_FILE")" ]]; then
+    if [[ "$(jq -r '.effectiveMode // empty' "$CFIP_DECISION_FILE" 2>/dev/null)" == shadow && -s "$CFIP_RILL_FILE" && -n "$(jq -r '.selectedActionId // empty' "$CFIP_DECISION_FILE")" && "$(jq -r '.selectedActionId // empty' "$CFIP_DECISION_FILE")" != "$(jq -r '.authorityActionId // empty' "$CFIP_DECISION_FILE")" ]]; then
         shadow_outcome="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/shadow-outcome.json"
         if cfip_rill_shadow_observe "$CFIP_DECISION_FILE" "$CFIP_RILL_FILE" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" "$shadow_outcome" "$CFIP_OUTCOME_FILE"; then
             feedback_file="$shadow_outcome"

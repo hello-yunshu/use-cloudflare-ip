@@ -7,10 +7,7 @@ source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"; 
 cat >"$TMP/decision.json" <<'JSON'
 {"effectiveMode":"assisted","nativeOrder":["104.16.1.1"],"authorityActionId":"104.16.1.2"}
 JSON
-jq -cn '[range(0;3)|{effectiveMode:"assisted",nativeTop1:"104.16.1.1",authorityActionId:"104.16.1.2",comparisonResult:"tie"}]' >"$CFIP_RILL_EVIDENCE_FILE"
-set +e; cfip_rill_holdout_due "$TMP/decision.json"; rc=$?; set -e
-test "$rc" = 1
-jq -cn '[range(0;4)|{effectiveMode:"assisted",nativeTop1:"104.16.1.1",authorityActionId:"104.16.1.2",comparisonResult:"tie"}]' >"$CFIP_RILL_EVIDENCE_FILE"
-set +e; cfip_rill_holdout_due "$TMP/decision.json"; rc=$?; set -e
+for n in $(seq 1 4); do jq -cn --arg id "decision-$n" '{decisionId:$id,effectiveMode:"assisted",nativeOrder:["104.16.1.1"],authorityActionId:"104.16.1.2"}' >"$TMP/decision.json"; set +e; cfip_rill_holdout_due "$TMP/decision.json"; rc=$?; set -e; test "$rc" = 1; done
+jq -cn '{decisionId:"decision-5",effectiveMode:"assisted",nativeOrder:["104.16.1.1"],authorityActionId:"104.16.1.2"}' >"$TMP/decision.json"; set +e; cfip_rill_holdout_due "$TMP/decision.json"; rc=$?; set -e
 test "$rc" = 0
 echo 'Assisted holdout sampling is deterministic and bounded by the configured interval'

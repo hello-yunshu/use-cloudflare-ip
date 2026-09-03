@@ -95,6 +95,9 @@ jobs:
           bash tests/rill-holdout-evaluation-no-feedback.sh
           bash tests/rill-holdout-global-cadence.sh
           bash tests/rill-holdout-budget.sh
+          bash tests/rill-holdout-cadence-over-cap.sh
+          bash tests/rill-holdout-budget-censor.sh
+          bash tests/rill-holdout-post-commit.sh
           bash tests/rill-evidence-store.sh
           bash tests/rill-evidence-byte-cap.sh
           bash tests/rill-evidence-corruption.sh
