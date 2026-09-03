@@ -1,10 +1,10 @@
-# 2.1 Architecture Consolidation and Closure Audit
+# 2.1.1 Architecture Consolidation and Closure Audit
 
-审计对象：2.0 closure、`cloudflare-ip-2.1-dev` 和 `release/2.1.0`。本文件区分本地代码、远端 CI、Runtime/package qualification、真机和 Soak 证据；任何一层都不能替代另一层。
+审计对象：2.0 closure、已发布的 2.1 基线和本轮 `release/2.1.1` semantic closure。本文区分本地代码、远端 CI、Runtime/package qualification、真机和 Soak 证据；任何一层都不能替代另一层。
 
 ## Architecture decision
 
-2.1 只保留一个 Runtime Learner：`Candidate Learner`，使用 22D candidate schema、candidate partition、reward/feedback/delayed feedback、rolling qualification、guarded assisted 和 resource-pressure fail-closed。新增 Context、non-blocking Holdout、budgeted Evidence Store、Continuous Qualification、Confidence Reasons 和 LuCI diagnostics，均服务于 Candidate Learner 的可观测收益。Source Intelligence 是 Cloudflare consumer 内的确定性 registry/profile/order/cache/scheduler；Native Reuse 是独立的 current-IP validation hard gate，不进入 Runtime Learner。
+2.1.1 只保留一个 Runtime Learner：`Candidate Learner`，使用 22D candidate schema、candidate partition、reward/feedback/delayed feedback、rolling qualification、guarded assisted 和 resource-pressure fail-closed。Training feedback 与 evaluation evidence 分离；Shadow comparison 与 Assisted Native Holdout 都进入 evaluation，但 Holdout 永不训练 Runtime。Material context change 会轮换 lineage、隔离旧 evidence，并允许新 context 在重新资格化后恢复 Assisted。新增 Context、non-blocking Holdout、budgeted Evidence Store、Continuous Qualification、Confidence Reasons 和 LuCI diagnostics，均服务于 Candidate Learner 的可观测收益。Source Intelligence 是 Cloudflare consumer 内的确定性 registry/profile/order/cache/scheduler；Native Reuse 是独立的 current-IP validation hard gate，不进入 Runtime Learner。
 
 经过消融审计，Source Learner / Reuse Learner 的当前 contextual modeling 无法提供与复杂度匹配的生产决策收益；保留 deterministic Source Intelligence 和 Native Adaptive Reuse 后，用户核心能力不损失。2.0 因此主动收敛为单 Candidate Learner 架构。
 

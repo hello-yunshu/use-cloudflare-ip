@@ -27,12 +27,12 @@
 
 ## 当前版本
 
-当前主线是 Cloudflare IP `2.1.0`。2.1 在 2.0 的确定性 Native 安全边界上增加
+当前主线是 Cloudflare IP `2.1.1`。2.1.1 在 2.0 的确定性 Native 安全边界上增加
 Candidate Intelligence：上下文指纹与隔离、非阻塞 holdout、受预算约束的 evidence store、
 持续 qualification、置信度原因和 LuCI diagnostics。Runtime 仍只有一个 Candidate Learner；
 Source Intelligence 与 Reuse 仍分别由确定性 consumer 逻辑和 Native current-IP hard gate 负责。
 
-正式包只从 `main` 的 successful exact-head CI 自动晋级到 `v2.1.0-1`。IPK/APK、
+正式包只从 `main` 的 successful exact-head CI 自动晋级到 `v2.1.1-1`。IPK/APK、
 `sha256sums.txt` 和 `qualification.json` 是同一资格化证据链的一部分；真实 OpenWrt 设备、
 硬件矩阵和 Soak 不由主机或 SDK 测试替代。
 
@@ -263,7 +263,7 @@ htdocs/luci-static/resources/
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
 ## 2.1 Candidate Intelligence 引擎
 
-包版本 `2.1.0` 在完整的 1.8.3 行为基线和 2.0 closure 上演进。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；确定性候选来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、单一 Candidate Learner、Native Reuse hard gate、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Generic Rill runtime contract 由 `hello-yunshu/rill-ml` 负责；OpenWrt package/distribution 由 `hello-yunshu/rill-openwrt-packages` 负责，并以独立的 `rill-runtime-preview` 包锁定资格化 Preview commit。Cloudflare 只保留消费者映射；启用 Rill 时需额外安装同版本 `luci-app-cloudflare-ip-rill`，Runtime 由 package manager 提供。
+包版本 `2.1.1` 在完整的 1.8.3 行为基线和 2.0 closure 上演进。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；确定性候选来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、单一 Candidate Learner、Native Reuse hard gate、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Candidate 的 training feedback 与 evaluation evidence 分离；Material context change 会轮换 lineage、隔离旧 evidence，并允许新 context 在重新资格化后恢复 Assisted。Generic Rill runtime contract 由 `hello-yunshu/rill-ml` 负责；OpenWrt package/distribution 由 `hello-yunshu/rill-openwrt-packages` 负责，并以独立的 `rill-runtime-preview` 包锁定资格化 Preview commit。Cloudflare 只保留消费者映射；启用 Rill 时需额外安装同版本 `luci-app-cloudflare-ip-rill`，Runtime 由 package manager 提供。
 
 候选测速数量默认 128，允许 100-512 个唯一候选。历史优质 IP、社区种子和 Cloudflare 官方网段探索约占 1/8、5/8、1/4；官方 CIDR 会先由调度器采样为具体 IP，每个任务只启动一次 CFST。社区源中的 `IP:port` 只贡献 IP，域名候选会被拒绝且不会 DNS 解析。
 
@@ -271,6 +271,6 @@ htdocs/luci-static/resources/
 
 2.0 的自更新已弃用，因为引擎是多文件、由软件包管理。默认 `auto_update=0`，请通过经过验证的 IPK/APK 升级。UCI、CFST、来源 last-good 缓存、managed ownership 和有限历史会保留；运行、探测和 publisher 文件可重建。LAN Publisher 默认关闭，只允许 LAN 绑定，拒绝 `0.0.0.0`，提供 `/ip.txt`、`/best-ipv4.txt`、`/best-ipv6.txt` 和 `/result.json`。
 
-发布门禁：稳定发布必须通过完整 legacy 矩阵、Host/RPC/LuCI、同版本通用 Rill consumer integration、当前 OpenWrt 24.10.8 IPK、25.12.5 APK 以及兼容性 24.10.5/25.12.0 gate、回滚和真实 CFST smoke；Docker/软件包检查不等同于真实 OpenWrt 设备或硬件 soak。发布候选分支允许精确 `2.1.0`，开发分支只允许 `2.1.0-dev`，正式 release 只由 `main` workflow_run 触发。
+发布门禁：稳定发布必须通过完整 legacy 矩阵、Host/RPC/LuCI、同版本通用 Rill consumer integration、当前 OpenWrt 24.10.8 IPK、25.12.5 APK 以及兼容性 24.10.5/25.12.0 gate、回滚和真实 CFST smoke；Docker/软件包检查不等同于真实 OpenWrt 设备或硬件 soak。发布候选分支允许精确 `2.1.1`，开发分支只允许 `2.1.1-dev`，正式 release 只由 `main` workflow_run 触发。
 
 候选不足时报告 degraded candidate count，绝不复制最快 IP 伪造数量；多个来源会增加可用 seed 池，但所有候选仍在本地统一重测，来源数量不等于单次测速数量无限增加。LAN Publisher 仅为默认关闭的 LAN 可选兼容输出，不替代 PassWall/OpenClash 直接修改。

@@ -28,6 +28,7 @@ CFIP_RUN_ID=full-lifecycle-2 cfip_rill_rank_shadow "$TMP/native.json" "$TMP/deci
 test "$(jq -r .generation "$TMP/decision-2.json")" -gt "$generation_after_feedback"
 CFIP_RILL_DELAYED_FEEDBACK_SECONDS=600 cfip_rill_queue_feedback "$TMP/decision-2.json" "$TMP/outcome.json" one.example
 test "$(cfip_rill_pending_count)" = 1
+lineage_before_context="$(jq -r '.lineageId' "$CFIP_RILL_STATE_META_FILE")"
 CFIP_TARGET_DOMAINS='two.example'; cfip_rill_context_guard
 test "$(jq -r '.[0].rejectedReason' "$CFIP_RILL_PENDING_FILE")" = context_changed
 cfip_rill_process_pending_feedback
@@ -36,4 +37,11 @@ test "$(jq -r '.delayedRejected' "$CFIP_RILL_QUALIFICATION_FILE")" = 1
 CFIP_RUN_ID=full-lifecycle-3 cfip_rill_rank_shadow "$TMP/native.json" "$TMP/decision-new-context.json"
 test "$(jq -r .generation "$TMP/decision-new-context.json")" = 1
 test "$(jq -r .contextChanged "$CFIP_RILL_STATE_META_FILE")" = true
+new_selected_ip="$(jq -r '.selectedActionId' "$TMP/decision-new-context.json")"
+jq -cn --arg ip "$new_selected_ip" '[{ip:$ip,family:"ipv4"}]' > "$TMP/selected-new-context.json"
+cfip_post_apply_probe "$TMP/selected-new-context.json" two.example 1 "$TMP/outcome-new-context.json"
+cfip_rill_feedback "$TMP/decision-new-context.json" "$TMP/outcome-new-context.json"
+test "$(cfip_rill_state_generation)" -gt 1
+lineage_after_context="$(jq -r '.lineageId' "$CFIP_RILL_STATE_META_FILE")"
+test "$lineage_after_context" != "$lineage_before_context"
 echo 'Actual packaged Runtime full lifecycle, restart, inspect, delayed feedback, and context isolation passed'
