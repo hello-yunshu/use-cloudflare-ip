@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Deterministic current-IP reuse policy. Rill may recommend, but the Native
-# safety gates remain the execution authority until independent qualification.
+# Deterministic current-IP reuse policy. Native hard gates are the only
+# authority; this path never invokes the Rill Runtime.
 
 CFIP_REUSE_STATE_FILE="${CFIP_REUSE_STATE_FILE:-${CFIP_STATUS_DIR:-/etc/cf_ip}/reuse-policy.json}"
 CFIP_REUSE_ATTEMPTED=false
@@ -57,57 +57,42 @@ cfip_reuse_hard_gate_reason() {
 }
 
 cfip_reuse_record_decision() {
-    local actual="$1" recommended="${2:-}" forced="${3:-false}" reason="${4:-}" output="${CFIP_REUSE_DECISION_FILE:-${CFIP_RUNTIME_DIR:-/tmp/cf_ip}/reuse-decision.json}"
-    jq -cn --arg actual "$actual" --arg recommended "$recommended" --argjson forced "$forced" --arg reason "$reason" \
-      '{schemaVersion:1,decisionKind:"reuse-policy",requestedPolicy:"native",recommendedPolicy:(if $recommended=="" then null else $recommended end),actualPolicy:$actual,forced:$forced,reason:(if $reason=="" then null else $reason end),authority:(if $actual=="REUSE_CURRENT" then "native-deterministic" else "native-safety-gate" end),at:(now|floor)}' | cfip_atomic_write "$output"
+    local actual="$1" forced="${2:-false}" reason="${3:-}" output="${CFIP_REUSE_DECISION_FILE:-${CFIP_RUNTIME_DIR:-/tmp/cf_ip}/reuse-decision.json}"
+    jq -cn --arg actual "$actual" --argjson forced "$forced" --arg reason "$reason" \
+      '{schemaVersion:1,decisionKind:"native-reuse",actualPolicy:$actual,forced:$forced,reason:(if $reason=="" then null else $reason end),authority:"native-hard-gate",at:(now|floor)}' | cfip_atomic_write "$output"
 }
 
 cfip_reuse_try_current() {
-    local reason current probe_output saved_probes saved_runtime="0" recommended="" actions features start
+    local reason current probe_output saved_probes saved_runtime="0" start
     CFIP_REUSE_ATTEMPTED=true
     reason="$(cfip_reuse_hard_gate_reason)" || reason=""
     if [[ -n "$reason" ]]; then
         CFIP_REUSE_FALLBACK_REASON="$reason"
-        cfip_reuse_record_decision FULL_OPTIMIZE "" true "$reason"
+        cfip_reuse_record_decision FULL_OPTIMIZE true "$reason"
         return 1
     fi
     current="$(mktemp "${TMPDIR:-/tmp}/cfip-reuse-current.XXXXXX")" || return 1
     jq '[.best_ips[]? as $ip | {ip:$ip,family:(if ($ip|contains(":")) then "ipv6" else "ipv4" end),origin:"reuse-current",sources:["current"],sourceClass:"current",sourceCount:0,stale:false}]' "$CFIP_STATUS_FILE" | jq --argjson n "$CFIP_IP_COUNT" '.[0:$n]' >"$current"
-    [[ "$(jq 'length' "$current")" == "$CFIP_IP_COUNT" ]] || { rm -f "$current"; CFIP_REUSE_FALLBACK_REASON=current_ip_count_insufficient; cfip_reuse_record_decision FULL_OPTIMIZE "" true "$CFIP_REUSE_FALLBACK_REASON"; return 1; }
+    [[ "$(jq 'length' "$current")" == "$CFIP_IP_COUNT" ]] || { rm -f "$current"; CFIP_REUSE_FALLBACK_REASON=current_ip_count_insufficient; cfip_reuse_record_decision FULL_OPTIMIZE true "$CFIP_REUSE_FALLBACK_REASON"; return 1; }
     start="$(date +%s)"; CFIP_PHASE=reuse_validation; CFIP_MEASUREMENT_STARTED_AT="$(cfip_monotonic_seconds)"; CFIP_MEASUREMENT_DEADLINE=$((CFIP_MEASUREMENT_STARTED_AT+CFIP_REUSE_VALIDATION_TIMEOUT))
     cp "$current" "$CFIP_SELECTED_FILE"
     probe_output="$(mktemp "${TMPDIR:-/tmp}/cfip-reuse-outcome.XXXXXX")" || { rm -f "$current"; return 1; }
     if ! cfip_post_apply_probe "$current" "$CFIP_TARGET_DOMAINS" "$CFIP_REUSE_VALIDATION_TIMEOUT" "$probe_output"; then
         CFIP_REUSE_FALLBACK_REASON=current_validation_failed
-        cfip_reuse_record_decision FULL_OPTIMIZE "" false "$CFIP_REUSE_FALLBACK_REASON"
+        cfip_reuse_record_decision FULL_OPTIMIZE false "$CFIP_REUSE_FALLBACK_REASON"
         cfip_reuse_write_event reuse-failure "$CFIP_REUSE_FALLBACK_REASON"
         rm -f "$current" "$probe_output"; return 1
     fi
     if ! jq -e --argjson loss "$CFIP_REUSE_LOSS_LIMIT" --argjson ttfb "$CFIP_REUSE_TTFB_LIMIT" --argjson total "$CFIP_REUSE_TOTAL_LIMIT" \
       'all(.probes[]; .success==true and (.lossRate//0)<=$loss and (.ttfbMs//999999)<=$ttfb and (.totalMs//999999)<=$total)' "$probe_output" >/dev/null 2>&1; then
         CFIP_REUSE_FALLBACK_REASON=current_quality_regression
-        cfip_reuse_record_decision FULL_OPTIMIZE "" false "$CFIP_REUSE_FALLBACK_REASON"
+        cfip_reuse_record_decision FULL_OPTIMIZE false "$CFIP_REUSE_FALLBACK_REASON"
         cfip_reuse_write_event reuse-failure "$CFIP_REUSE_FALLBACK_REASON"
         rm -f "$current" "$probe_output"; return 1
     fi
-    # Rill observes the reuse/full decision, while Native keeps authority.
-    if [[ "${CFIP_RILL_ENABLED:-false}" == true && "${CFIP_RILL_MODE:-off}" != off ]]; then
-        actions="$(mktemp "${TMPDIR:-/tmp}/cfip-reuse-actions.XXXXXX")"; features="$(jq -cn --argjson age "$(jq -r 'now-(.lastFullOptimizeAt//0)' <<<"$(cfip_reuse_state_json)")" '{age:([$age/86400,1]|min),validated:1}')"
-        jq -cn --argjson f "$features" '[{id:"REUSE_CURRENT",features:[$f.age,$f.validated,1,0,0.8]},{id:"FULL_OPTIMIZE",features:[$f.age,0,0,1,0.2]}]' >"$actions"
-        CFIP_REUSE_RILL_DECISION_FILE="${CFIP_REUSE_RILL_DECISION_FILE:-${CFIP_RUNTIME_DIR:-/tmp/cf_ip}/reuse-rill-decision.json}"
-        cfip_rill_policy_decide reuse-policy "$actions" "$CFIP_REUSE_RILL_DECISION_FILE" || true
-        [[ -s "$CFIP_REUSE_RILL_DECISION_FILE" ]] && recommended="$(jq -r '.selectedActionId' "$CFIP_REUSE_RILL_DECISION_FILE")"
-        rm -f "$actions"
-    fi
     saved_probes="$(jq '.probes // [] | length' "$probe_output" 2>/dev/null || printf 0)"; saved_runtime="$(( $(date +%s)-start ))"
-    cfip_reuse_record_decision REUSE_CURRENT "$recommended" false "validated_current_ip"
-    # Keep the Rill recommendation attached to the native decision for UI and
-    # diagnostics without letting it bypass the hard safety gate.
-    [[ -s "${CFIP_REUSE_RILL_DECISION_FILE:-}" ]] && jq --argjson actual "$(cat "$CFIP_REUSE_RILL_DECISION_FILE")" '. + {rill:$actual}' "$CFIP_REUSE_DECISION_FILE" | cfip_atomic_write "$CFIP_REUSE_DECISION_FILE" || true
+    cfip_reuse_record_decision REUSE_CURRENT false "validated_current_ip"
     cp "$probe_output" "$CFIP_OUTCOME_FILE"
-    if [[ -s "${CFIP_REUSE_RILL_DECISION_FILE:-}" ]] && [[ "$(jq -r '.selectedActionId' "$CFIP_REUSE_RILL_DECISION_FILE")" == REUSE_CURRENT ]]; then
-        cfip_rill_policy_feedback "$CFIP_REUSE_RILL_DECISION_FILE" "$(jq -r '.reward // 0' "$CFIP_OUTCOME_FILE")" || cfip_log "reuse policy feedback deferred"
-    fi
     cfip_reuse_write_event reuse-success validated_current_ip "$saved_probes" "$saved_runtime"
     rm -f "$current" "$probe_output"
     CFIP_MEASUREMENT_DEADLINE=0

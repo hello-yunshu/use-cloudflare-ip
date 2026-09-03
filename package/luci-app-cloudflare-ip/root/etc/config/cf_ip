@@ -51,7 +51,6 @@ config rill 'rill'
 	option safe_top_k '3'
 	option min_feedback_samples '30'
 	option delayed_feedback_minutes '10'
-	option exploration_cap '1'
 
 config lan 'lan'
 	option enabled '0'

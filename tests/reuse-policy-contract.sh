@@ -8,6 +8,7 @@ source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/reuse.sh"
 CFIP_REUSE_STATE_FILE="$TMP/reuse-policy.json"; CFIP_STATUS_FILE="$TMP/status.json"; CFIP_SELECTED_FILE="$TMP/selected.json"; CFIP_OUTCOME_FILE="$TMP/outcome.json"; CFIP_REUSE_DECISION_FILE="$TMP/decision.json"
 CFIP_REUSE_ENABLED=true CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL=86400 CFIP_REUSE_VALIDATION_TIMEOUT=5 CFIP_REUSE_LOSS_LIMIT=0.25 CFIP_REUSE_TTFB_LIMIT=3000 CFIP_REUSE_TOTAL_LIMIT=5000
+CFIP_RILL_ENABLED=true CFIP_RILL_MODE=assisted CFIP_RILL_RUNTIME="$TMP/nonexistent-runtime" CFIP_RILL_STATE="$TMP/rill-state.json"
 CFIP_MODE=passwall CFIP_TARGET_DOMAINS='one.example,two.example' CFIP_IP_TYPE=ipv4 CFIP_SPEEDTEST_PROTOCOL=tcp CFIP_PASSWALL_TARGET_DOMAIN='one.example' CFIP_OPENCLASH_CONFIG='' CFIP_OPENCLASH_TARGET_DOMAIN='' CFIP_OPENCLASH_TRANSPORT_FILTER='' CFIP_SOURCE_POLICY=balanced CFIP_IP_COUNT=1
 printf '%s\n' '{"best_ips":["104.16.1.1"],"last_result":"success"}' > "$CFIP_STATUS_FILE"
 fp="$(cfip_reuse_config_fingerprint)"
@@ -19,6 +20,9 @@ cfip_post_apply_probe() {
 }
 cfip_reuse_try_current
 test "$(jq -r '.actualPolicy' "$CFIP_REUSE_DECISION_FILE")" = REUSE_CURRENT
+test "$(jq -r '.decisionKind' "$CFIP_REUSE_DECISION_FILE")" = native-reuse
+test "$(jq -r 'has("recommendedPolicy") or has("rill")' "$CFIP_REUSE_DECISION_FILE")" = false
+test ! -e "$TMP/rill-state.json"
 test "$(jq -r '.reuseCount' "$CFIP_REUSE_STATE_FILE")" = 1
 test "$(jq -r '.fullOptimizeCount' "$CFIP_REUSE_STATE_FILE")" = 1
 test "$(jq -r '.[0].ip' "$CFIP_SELECTED_FILE")" = 104.16.1.1

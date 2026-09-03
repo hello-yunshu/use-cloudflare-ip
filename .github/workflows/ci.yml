@@ -61,11 +61,7 @@ jobs:
           bash tests/rill-qualification-rolling.sh
           bash tests/probe-batching.sh
           bash tests/source-policy.sh
-          bash tests/source-policy-attribution.sh
-          bash tests/source-policy-disagreement-lifecycle.sh
-          bash tests/source-policy-qualification-lifecycle.sh
-          bash tests/source-policy-reset-lineage.sh
-          bash tests/source-policy-exploration-config.sh
+          bash tests/rill-single-learner-contract.sh
           bash tests/cfst-version-contract.sh
           bash tests/source-refresh-deadline.sh
           bash tests/resource-pressure-contract.sh
@@ -337,8 +333,6 @@ jobs:
           LD_LIBRARY_PATH: ${{ runner.temp }}/musl-libs:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
         run: |
           bash tests/rill-feedback-integration.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
-          bash tests/rill-multi-learner-isolation.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
-          bash tests/source-policy-real-runtime-qualification-lifecycle.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
           bash tests/rill-feedback-negative.sh
       - name: Record same-release evidence
         shell: bash

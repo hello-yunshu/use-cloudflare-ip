@@ -7,9 +7,7 @@ CFIP_RILL_SCHEMA_FILE="${CFIP_RILL_SCHEMA_FILE:-/usr/share/cf-ip/rill-feature-sc
 CFIP_RILL_SCHEMA_VERSION=2
 CFIP_RILL_MODEL_GENERATION=2
 CFIP_RILL_CANDIDATE_PARTITION_KEY="${CFIP_RILL_CANDIDATE_PARTITION_KEY:-candidate}"
-CFIP_RILL_SOURCE_PARTITION_KEY="${CFIP_RILL_SOURCE_PARTITION_KEY:-source-policy}"
-CFIP_RILL_REUSE_PARTITION_KEY="${CFIP_RILL_REUSE_PARTITION_KEY:-reuse-policy}"
-CFIP_RILL_PARTITION_KEY="${CFIP_RILL_PARTITION_KEY:-$CFIP_RILL_CANDIDATE_PARTITION_KEY}"
+CFIP_RILL_PARTITION_KEY="$CFIP_RILL_CANDIDATE_PARTITION_KEY"
 CFIP_RILL_BASE_DIR="${CFIP_STATUS_DIR:-}"
 if [[ -z "$CFIP_RILL_BASE_DIR" ]]; then
     CFIP_RILL_BASE_DIR="${CFIP_RILL_STATE:-/etc/cf_ip}"
@@ -22,22 +20,6 @@ CFIP_RILL_STATE_META_FILE="${CFIP_RILL_STATE_META_FILE:-$CFIP_RILL_BASE_DIR/rill
 CFIP_RILL_PREFIX_HISTORY_FILE="${CFIP_RILL_PREFIX_HISTORY_FILE:-$CFIP_RILL_BASE_DIR/prefix-history.json}"
 CFIP_RILL_COLO_HISTORY_FILE="${CFIP_RILL_COLO_HISTORY_FILE:-$CFIP_RILL_BASE_DIR/colo-history.json}"
 CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS="${CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS:-86400}"
-
-cfip_rill_partition_for_kind() {
-    case "${1:-candidate}" in
-        source-policy) printf '%s' "$CFIP_RILL_SOURCE_PARTITION_KEY" ;;
-        reuse-policy) printf '%s' "$CFIP_RILL_REUSE_PARTITION_KEY" ;;
-        *) printf '%s' "$CFIP_RILL_CANDIDATE_PARTITION_KEY" ;;
-    esac
-}
-
-cfip_rill_state_generation_for_partition() {
-    local previous="${CFIP_RILL_PARTITION_KEY:-$CFIP_RILL_CANDIDATE_PARTITION_KEY}" partition="${1:-$CFIP_RILL_CANDIDATE_PARTITION_KEY}" generation
-    CFIP_RILL_PARTITION_KEY="$partition"
-    generation="$(cfip_rill_state_generation)"
-    CFIP_RILL_PARTITION_KEY="$previous"
-    printf '%s' "$generation"
-}
 
 cfip_rill_schema_hash() {
     [[ -s "$CFIP_RILL_SCHEMA_FILE" ]] || return 1
@@ -71,9 +53,6 @@ cfip_rill_rotate_lineage() {
     jq --arg reason "$reason" --arg lineage "$lineage" --argjson schema "$CFIP_RILL_SCHEMA_VERSION" \
       '. + {resetRequired:false,resetReason:$reason,lineageId:$lineage,featureSchemaVersion:$schema,at:(now|floor)}' <<<"$meta" \
       | cfip_atomic_write "$CFIP_RILL_STATE_META_FILE"
-    if [[ -n "${CFIP_SOURCE_POLICY_QUALIFICATION_FILE:-}" ]]; then
-        rm -f "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE"
-    fi
 }
 
 cfip_rill_prepare_state() {
@@ -81,16 +60,14 @@ cfip_rill_prepare_state() {
     mkdir -p "${CFIP_RILL_STATE%/*}"
     [[ ! -e "$CFIP_RILL_STATE" ]] && return 0
     local reason="" valid=true state_width
-    jq -e --arg candidate "$CFIP_RILL_CANDIDATE_PARTITION_KEY" --arg source "$CFIP_RILL_SOURCE_PARTITION_KEY" --arg reuse "$CFIP_RILL_REUSE_PARTITION_KEY" \
-      '.formatVersion == 1 and (.partitions|type == "array") and ((.partitions|length) > 0) and all(.partitions[]?; .clientIdentityName != "cloudflare-ip" or (.partitionKey == $candidate or .partitionKey == $source or .partitionKey == $reuse))' \
+    jq -e --arg candidate "$CFIP_RILL_CANDIDATE_PARTITION_KEY" \
+      '.formatVersion == 1 and (.partitions|type == "array") and ((.partitions|length) > 0) and all(.partitions[]?; .clientIdentityName != "cloudflare-ip" or .partitionKey == $candidate)' \
       "$CFIP_RILL_STATE" >/dev/null 2>&1 || valid=false
     if [[ "$valid" == true ]]; then
         state_width="$(jq -r --arg name cloudflare-ip --arg partition "$CFIP_RILL_PARTITION_KEY" \
           '([.partitions[]? | select(.clientIdentityName==$name and .partitionKey==$partition)][0].handlerSnapshot.state|implode|fromjson|.featureCount // 0)' \
           "$CFIP_RILL_STATE" 2>/dev/null || printf 0)"
-        local expected_width=22
-        [[ "$CFIP_RILL_PARTITION_KEY" == "$CFIP_RILL_SOURCE_PARTITION_KEY" || "$CFIP_RILL_PARTITION_KEY" == "$CFIP_RILL_REUSE_PARTITION_KEY" ]] && expected_width=6
-        [[ "$state_width" == 0 || "$state_width" == "$expected_width" ]] || { valid=false; reason="feature_width_mismatch"; }
+        [[ "$state_width" == 0 || "$state_width" == 22 ]] || { valid=false; reason="feature_width_mismatch"; }
     else
         reason="invalid_or_legacy_snapshot"
     fi
@@ -322,48 +299,6 @@ cfip_rill_assisted_ready() {
     jq -e --arg schema "$schema" '(.available==true and .state=="healthy" and .health=="healthy" and .healthHealthy==true and .resourcePressure==false and .featureSchemaVersion==2 and .modelGeneration==2 and .featureSchemaHash==$schema and (.qualificationState=="shadow-qualified" or .qualificationState=="guarded-assisted") and .resetRequired==false)' <<<"$status" >/dev/null 2>&1
 }
 
-# Generic policy decisions use the Runtime's typed action ledger but stay
-# separate from candidate ranking. The consumer owns execution and may keep
-# the policy in shadow until its own qualification gate is satisfied.
-cfip_rill_policy_decide() (
-    local kind="$1" actions="$2" output="$3" schema request tmp rc=0 response_bytes scores selected generation
-    [[ "${CFIP_RILL_ENABLED:-false}" == true && "${CFIP_RILL_MODE:-off}" != off ]] || return 2
-    [[ -x "$CFIP_RILL_RUNTIME" && -s "$actions" ]] || return 3
-    CFIP_RILL_PARTITION_KEY="$(cfip_rill_partition_for_kind "$kind")"
-    schema="$(cfip_rill_schema_hash)" || return 4
-    cfip_rill_prepare_state || return 10
-    tmp="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-policy-response.XXXXXX")" || return 4
-    request="$(jq -cn --arg id "decision-${kind}-${CFIP_RUN_ID:-policy}" --arg schema "$schema" --arg partition "$CFIP_RILL_PARTITION_KEY" --arg kind "$kind" --argjson generation "$(cfip_rill_state_generation)" --argjson actions "$(cat "$actions")" \
-      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},partitionKey:$partition,capability:"org.rill.preview.decide",featureSchemaHash:$schema,modelGeneration:2,stateGeneration:$generation,payloadLimit:1048576,request:{method:"decide",context:{actions:$actions}}}')"
-    cfip_run_with_timeout "${CFIP_RILL_TIMEOUT_S:-2}" sh -c 'printf "%s\n" "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation "$5"' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" "$CFIP_RILL_MODEL_GENERATION" >"$tmp" 2>>"$CFIP_LOG_FILE" || rc=$?
-    response_bytes="$(wc -c <"$tmp" 2>/dev/null || printf 0)"
-    if ((rc != 0 || response_bytes > 262144)) || ! jq -e --arg id "decision-${kind}-${CFIP_RUN_ID:-policy}" \
-      '.requestId==$id and .response.kind=="result" and .response.output.accepted==true and (.response.output.selectedActionId|type)=="string" and (.response.output.scores|type)=="array" and (.response.output.scores|length)>0' "$tmp" >/dev/null 2>&1; then
-        rm -f "$tmp"; return 5
-    fi
-    selected="$(jq -r '.response.output.selectedActionId' "$tmp")"; generation="$(jq -r '.stateGeneration // 0' "$tmp")"; scores="$(jq -c '.response.output.scores | sort_by(-.score,.id)' "$tmp")"
-    jq -n --arg kind "$kind" --arg partition "$CFIP_RILL_PARTITION_KEY" --arg decisionId "$(jq -r '.requestId' "$tmp")" --arg selected "$selected" --argjson generation "$generation" --argjson actions "$(cat "$actions")" --argjson scores "$scores" \
-      '{success:true,decisionKind:$kind,partitionKey:$partition,decisionId:$decisionId,selectedActionId:$selected,generation:$generation,actions:$actions,scores:$scores}' | cfip_atomic_write "$output"
-    rm -f "$tmp"
-)
-
-cfip_rill_policy_feedback() (
-    local decision="$1" reward="$2" decision_id selected schema state_generation request response_file rc=0 expected_request_id partition
-    [[ "${CFIP_RILL_ENABLED:-false}" == true && -x "$CFIP_RILL_RUNTIME" && -s "$decision" ]] || return 0
-    decision_id="$(jq -r '.decisionId // empty' "$decision")"; selected="$(jq -r '.selectedActionId // empty' "$decision")"; partition="$(jq -r '.partitionKey // empty' "$decision")"
-    [[ -n "$partition" ]] || partition="$(cfip_rill_partition_for_kind "$(jq -r '.decisionKind // candidate' "$decision")")"
-    CFIP_RILL_PARTITION_KEY="$partition"
-    [[ -n "$decision_id" && -n "$selected" && "$reward" =~ ^-?[0-9]+([.][0-9]+)?$ ]] || return 12
-    schema="$(cfip_rill_schema_hash)" || return 1; state_generation="$(cfip_rill_state_generation)"; expected_request_id="feedback-${decision_id}"
-    request="$(jq -cn --arg id "$expected_request_id" --arg decisionId "$decision_id" --arg selected "$selected" --arg schema "$schema" --arg partition "$CFIP_RILL_PARTITION_KEY" --argjson stateGeneration "$state_generation" --argjson reward "$reward" \
-      '{requestId:$id,apiVersion:3,clientIdentity:{name:"cloudflare-ip",version:"2.0.0"},partitionKey:$partition,capability:"org.rill.preview.feedback",featureSchemaHash:$schema,modelGeneration:2,stateGeneration:$stateGeneration,payloadLimit:1048576,request:{method:"feedback",decisionId:$decisionId,selectedActionId:$selected,reward:$reward,outcomeTimeMs:(now*1000|floor),generation:2}}')"
-    response_file="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-policy-feedback.XXXXXX")" || return 1
-    cfip_run_with_timeout "${CFIP_RILL_TIMEOUT_S:-2}" sh -c 'printf "%s\n" "$1" | "$2" preview-serve --state "$3" --feature-schema-hash "$4" --model-generation "$5"' sh "$request" "$CFIP_RILL_RUNTIME" "$CFIP_RILL_STATE" "$schema" "$CFIP_RILL_MODEL_GENERATION" >"$response_file" 2>>"$CFIP_LOG_FILE" || rc=$?
-    if ((rc != 0)) || ! jq -e --arg id "$expected_request_id" '.requestId==$id and ((.response.kind=="result" and .response.output.accepted==true) or .response.kind=="error")' "$response_file" >/dev/null 2>&1; then rm -f "$response_file"; return 8; fi
-    if jq -e '.response.kind=="error"' "$response_file" >/dev/null 2>&1; then rm -f "$response_file"; return 9; fi
-    rm -f "$response_file"
-)
-
 cfip_rill_record_qualification() {
     local candidate_outcome="$1" attribution="$2" delayed="$3" error="$4" reward="${5:-}" outcome_file="${6:-}" current state count attributed completed errors failures delayed_expired delayed_rejected minimum recent_rewards window native_reward rill_reward delta disagreement
     current="$(cfip_rill_qualification_json)"
@@ -456,7 +391,7 @@ cfip_rill_health_json() {
 
 cfip_rill_status_json() {
     local request response health inspect schema qualification meta history pending health_status health_ok resource_pressure resource_reason_codes partition
-    partition="${CFIP_RILL_PARTITION_KEY:-${CFIP_RILL_CANDIDATE_PARTITION_KEY:-candidate}}"
+    partition="$CFIP_RILL_CANDIDATE_PARTITION_KEY"
     if [[ "${CFIP_RILL_ENABLED:-false}" != true || "${CFIP_RILL_MODE:-off}" == off ]]; then
         jq -cn --arg partition "$partition" '{available:false,state:"disabled",mode:"off",channel:"preview",partitionKey:$partition,featureSchemaVersion:2,modelGeneration:2}'
         return 0
@@ -580,8 +515,8 @@ cfip_rill_feedback() (
     local decision_json="$1" outcome_json="$2" request response_file rc=0 decision_id selected_id observed_id schema state_generation expected_request_id reward candidate_outcome host_outcome delayed partition
     [[ "${CFIP_RILL_ENABLED:-false}" == true && -x "$CFIP_RILL_RUNTIME" ]] || return 0
     partition="$(jq -r '.partitionKey // empty' "$decision_json" 2>/dev/null || true)"
-    [[ -n "$partition" ]] || partition="$CFIP_RILL_CANDIDATE_PARTITION_KEY"
-    CFIP_RILL_PARTITION_KEY="$partition"
+    [[ -z "$partition" || "$partition" == "$CFIP_RILL_CANDIDATE_PARTITION_KEY" ]] || { cfip_log "Rill feedback rejected: non-candidate partition"; return 12; }
+    CFIP_RILL_PARTITION_KEY="$CFIP_RILL_CANDIDATE_PARTITION_KEY"
     candidate_outcome="$(jq -r '.candidateOutcome // (if .validated==true then "success" else "unknown" end)' "$outcome_json")"; host_outcome="$(jq -r '.hostOutcome // "success"' "$outcome_json")"
     [[ "$host_outcome" == success && "$candidate_outcome" != unknown && "$(jq -r '.censored // false' "$outcome_json")" != true ]] || return 0
     decision_id="$(jq -r '.decisionId // empty' "$decision_json")"; selected_id="$(jq -r '.selectedActionId // empty' "$decision_json")"; observed_id="$(jq -r '.observedIp // .decisionActionId // empty' "$outcome_json")"
@@ -600,7 +535,7 @@ cfip_rill_feedback() (
 cfip_rill_queue_feedback() {
     local decision="$1" outcome="$2" domains="${3:-}" queued="$(date +%s)" due="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_SECONDS:-600}))" expires="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS:-86400}))" current schema lineage partition
     schema="$(cfip_rill_schema_hash 2>/dev/null || printf '')"; lineage="$(cfip_rill_lineage_id 2>/dev/null || printf '')"
-    partition="$(jq -r '.partitionKey // empty' "$decision" 2>/dev/null || true)"; [[ -n "$partition" ]] || partition="$CFIP_RILL_CANDIDATE_PARTITION_KEY"
+    partition="$CFIP_RILL_CANDIDATE_PARTITION_KEY"
     current='[]'
     if [[ -s "$CFIP_RILL_PENDING_FILE" ]] && jq -e 'type=="array"' "$CFIP_RILL_PENDING_FILE" >/dev/null 2>&1; then
         current="$(cat "$CFIP_RILL_PENDING_FILE")"
@@ -643,7 +578,7 @@ cfip_rill_process_pending_feedback() {
         cfip_rill_quarantine_pending_queue || return 1
         return 0
     fi
-    local now current due expires item tmp_decision tmp_outcome refreshed_outcome feedback_rc remaining='[]' domains current_lineage item_lineage item_generation item_partition previous_partition
+    local now current due expires item tmp_decision tmp_outcome refreshed_outcome feedback_rc remaining='[]' domains current_lineage item_lineage item_generation item_partition
     now="$(date +%s)"
     current="$(cat "$CFIP_RILL_PENDING_FILE" 2>/dev/null || printf '[]')"
     current_lineage="$(cfip_rill_lineage_id 2>/dev/null || printf '')"
@@ -656,30 +591,26 @@ cfip_rill_process_pending_feedback() {
             continue
         fi
         item_partition="$(jq -r '.partitionKey // .decision.partitionKey // empty' <<<"$item")"
-        if [[ "$item_partition" != "$CFIP_RILL_CANDIDATE_PARTITION_KEY" && "$item_partition" != "$CFIP_RILL_SOURCE_PARTITION_KEY" && "$item_partition" != "$CFIP_RILL_REUSE_PARTITION_KEY" ]]; then
+        if [[ "$item_partition" != "$CFIP_RILL_CANDIDATE_PARTITION_KEY" ]]; then
             cfip_rill_record_delayed_counter delayedRejected
             cfip_log "Rill delayed feedback rejected: invalid_partition"
             continue
         fi
-        previous_partition="$CFIP_RILL_PARTITION_KEY"
-        CFIP_RILL_PARTITION_KEY="$item_partition"
+        CFIP_RILL_PARTITION_KEY="$CFIP_RILL_CANDIDATE_PARTITION_KEY"
         item_lineage="$(jq -r '.stateLineage // empty' <<<"$item")"; item_generation="$(jq -r '.stateGeneration // 0' <<<"$item")"
         if [[ "$(jq -r '.modelGeneration // 0' <<<"$item")" != "$CFIP_RILL_MODEL_GENERATION" || "$(jq -r '.featureSchemaHash // empty' <<<"$item")" != "$(cfip_rill_schema_hash 2>/dev/null || printf '')" ]]; then
             cfip_rill_record_delayed_counter delayedRejected
             cfip_log "Rill delayed feedback rejected: generation_or_schema_mismatch"
-            CFIP_RILL_PARTITION_KEY="$previous_partition"
             continue
         fi
         if [[ -n "$item_lineage" && "$item_lineage" != "$current_lineage" ]]; then
             cfip_rill_record_delayed_counter delayedRejected
             cfip_log "Rill delayed feedback rejected: lineage_mismatch"
-            CFIP_RILL_PARTITION_KEY="$previous_partition"
             continue
         fi
         if [[ -f "${CFIP_RILL_STATE:-}" ]] && ((item_generation > 0 && $(cfip_rill_state_generation) < item_generation)); then
             cfip_rill_record_delayed_counter delayedRejected
             cfip_log "Rill delayed feedback rejected: state_generation_mismatch"
-            CFIP_RILL_PARTITION_KEY="$previous_partition"
             continue
         fi
         tmp_decision="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-pending-decision.XXXXXX")"; tmp_outcome="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-pending-outcome.XXXXXX")"
@@ -695,7 +626,6 @@ cfip_rill_process_pending_feedback() {
         CFIP_RILL_PROCESSING_DELAYED=false
         if ((feedback_rc != 0 && feedback_rc != 9)); then remaining="$(jq -cn --argjson a "$remaining" --argjson i "$item" '$a+[$i]')"; fi
         rm -f "$tmp_decision" "$tmp_outcome"
-        CFIP_RILL_PARTITION_KEY="$previous_partition"
     done < <(jq -c '.[]?' <<<"$current")
     printf '%s\n' "$remaining" | cfip_atomic_write "$CFIP_RILL_PENDING_FILE"
 }

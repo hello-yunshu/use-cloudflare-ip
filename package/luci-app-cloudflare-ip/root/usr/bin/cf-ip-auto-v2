@@ -24,10 +24,10 @@ CFIP_PUBLISH_ENABLED=false; CFIP_PUBLISH_BIND=""; CFIP_PUBLISH_PORT=12345
 CFIP_PASSWALL_TARGET_DOMAIN=""; CFIP_PASSWALL_NAME_SUFFIX=" [CF-{n}]"
 CFIP_OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"; CFIP_OPENCLASH_TARGET_DOMAIN=""; CFIP_OPENCLASH_NAME_SUFFIX=" [CF-{n}]"; CFIP_OPENCLASH_TRANSPORT_FILTER=""; CFIP_OPENCLASH_BACKUP_COUNT=3
 CFIP_GITHUB_MIRROR=""
-CFIP_RILL_ENABLED=false; CFIP_RILL_MODE=shadow; CFIP_RILL_RUNTIME="/usr/bin/rill-runtime"; CFIP_RILL_STATE="$CFIP_STATUS_DIR/rill-state.json"; CFIP_RILL_TIMEOUT_S=2; CFIP_RILL_SAFE_TOP_K=3; CFIP_RILL_MIN_FEEDBACK_SAMPLES=30; CFIP_RILL_DELAYED_FEEDBACK_SECONDS=600; CFIP_RILL_EXPLORATION_CAP=1; CFIP_RILL_DELAYED_PROBE_TIMEOUT=5
+CFIP_RILL_ENABLED=false; CFIP_RILL_MODE=shadow; CFIP_RILL_RUNTIME="/usr/bin/rill-runtime"; CFIP_RILL_STATE="$CFIP_STATUS_DIR/rill-state.json"; CFIP_RILL_TIMEOUT_S=2; CFIP_RILL_SAFE_TOP_K=3; CFIP_RILL_MIN_FEEDBACK_SAMPLES=30; CFIP_RILL_DELAYED_FEEDBACK_SECONDS=600; CFIP_RILL_DELAYED_PROBE_TIMEOUT=5
 CFIP_REUSE_ENABLED=true; CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL=86400; CFIP_REUSE_VALIDATION_TIMEOUT=5; CFIP_REUSE_LOSS_LIMIT=0.25; CFIP_REUSE_TTFB_LIMIT=3000; CFIP_REUSE_TOTAL_LIMIT=5000; CFIP_REUSE_STATE_FILE="$CFIP_STATUS_DIR/reuse-policy.json"; CFIP_REUSE_DECISION_FILE=""
 
-CFIP_CANDIDATES_FILE=""; CFIP_PROBED_FILE=""; CFIP_NATIVE_FILE=""; CFIP_SELECTED_FILE=""; CFIP_RILL_FILE=""; CFIP_DECISION_FILE=""; CFIP_OUTCOME_FILE=""; CFIP_TXN_RESULT_FILE=""; CFIP_SOURCE_POLICY_DECISION_FILE=""; CFIP_REUSE_DECISION_FILE=""; CFIP_REUSE_RILL_DECISION_FILE=""
+CFIP_CANDIDATES_FILE=""; CFIP_PROBED_FILE=""; CFIP_NATIVE_FILE=""; CFIP_SELECTED_FILE=""; CFIP_RILL_FILE=""; CFIP_DECISION_FILE=""; CFIP_OUTCOME_FILE=""; CFIP_TXN_RESULT_FILE=""; CFIP_REUSE_DECISION_FILE=""
 CFIP_INPUT_POOL_FILE=""; CFIP_CANDIDATE_INPUT_FILE=""; CFIP_PROBE_INPUT_FILE=""; CFIP_SOURCE_STATUS_FILE=""; CFIP_MEASUREMENT_DEADLINE=0; CFIP_MEASUREMENT_STARTED_AT=0; CFIP_RECOVERY_DEADLINE=0; CFIP_RECOVERY_STARTED_AT=0; CFIP_RECOVERY_ACTIVE=false; CFIP_RECOVERY_ERROR=""
 
 for lib in common.sh config.sh status.sh source.sh scheduler.sh cfst.sh observe.sh transaction.sh openclash-transform.sh openclash-readback.sh publisher.sh rill-disabled.sh reuse.sh; do
@@ -52,11 +52,10 @@ load_config() {
     CFIP_SPEEDTEST_PROTOCOL="$(uci_get cf_ip.main.speedtest_protocol tcp)"; CFIP_SPEEDTEST_CFCOLO="$(uci_get cf_ip.main.speedtest_cfcolo '')"; CFIP_SPEEDTEST_DN="$(uci_get cf_ip.main.speedtest_dn 8)"; CFIP_SPEEDTEST_DT="$(uci_get cf_ip.main.speedtest_dt 6)"; CFIP_SPEEDTEST_TLL="$(uci_get cf_ip.main.speedtest_tll 40)"; CFIP_SPEEDTEST_TL="$(uci_get cf_ip.main.speedtest_tl '')"; CFIP_SPEEDTEST_THREADS="$(uci_get cf_ip.main.speedtest_threads 200)"; CFIP_SPEEDTEST_PING_COUNT="$(uci_get cf_ip.main.speedtest_ping_count 3)"
     CFIP_STOP_SERVICE="$(cfip_bool "$(uci_get cf_ip.main.stop_service 1)")"; CFIP_STARTUP_DELAY="$(uci_get cf_ip.main.startup_delay '')"; CFIP_WORK_DIR="$(uci_get cf_ip.main.work_dir /usr/bin)"; [[ -n "$CFIP_WORK_DIR" ]] || CFIP_WORK_DIR=/usr/bin
     CFIP_CRON_INTERVAL="$(uci_get cf_ip.main.cron_interval 6h)"; CFIP_CANDIDATE_BUDGET="$(uci_get cf_ip.main.candidate_budget 128)"; CFIP_PROBE_TOP_COUNT="$(uci_get cf_ip.main.probe_top_count "$(uci_get cf_ip.main.candidate_limit 8)")"; CFIP_PROBE_CONCURRENCY="$(uci_get cf_ip.main.probe_concurrency 4)"; CFIP_PROBE_TIMEOUT="$(uci_get cf_ip.main.probe_timeout 5)"; CFIP_MEASUREMENT_TIMEOUT="$(uci_get cf_ip.main.measurement_timeout 60)"; CFIP_RECOVERY_TIMEOUT="$(uci_get cf_ip.main.recovery_timeout 30)"; CFIP_PROBE_BATCH_SIZE="$(uci_get cf_ip.main.probe_batch_size 4)"; CFIP_MAX_PROBE_COUNT="$(uci_get cf_ip.main.max_probe_count "$CFIP_PROBE_TOP_COUNT")"; CFIP_EARLY_STOP_ENABLED="$(cfip_bool "$(uci_get cf_ip.main.early_stop_enabled 1)")"; CFIP_BUILTIN_SOURCES="$(uci_get cf_ip.main.builtin_sources 'cloudflare-official-v4 cloudflare-official-v6')"; CFIP_SOURCE_POLICY="$(uci_get cf_ip.main.source_policy balanced)"; local builtin_list; builtin_list="$(uci -q show cf_ip.main.builtin_sources 2>/dev/null | sed -n "s/^cf_ip\.main\.builtin_sources='\(.*\)'$/\1/p" | tr '\n' ' ')"; [[ -n "$builtin_list" ]] && CFIP_BUILTIN_SOURCES="$builtin_list"; CFIP_GITHUB_MIRROR="$(uci_get cf_ip.main.github_mirror '')"; CFIP_VERBOSE="$(cfip_bool "$(uci_get cf_ip.main.verbose 0)")"
-    CFIP_SOURCE_POLICY_EFFECTIVE="$CFIP_SOURCE_POLICY"; CFIP_SOURCE_POLICY_RECOMMENDED="$CFIP_SOURCE_POLICY"
     CFIP_PASSWALL_TARGET_DOMAIN="$(uci_get cf_ip.passwall.target_domain '')"; CFIP_PASSWALL_NAME_SUFFIX="$(uci_get cf_ip.passwall.name_suffix ' [CF-{n}]')"
     CFIP_OPENCLASH_CONFIG="$(uci_get cf_ip.openclash.config /etc/openclash/config/config.yaml)"; CFIP_OPENCLASH_TARGET_DOMAIN="$(uci_get cf_ip.openclash.target_domain '')"; CFIP_OPENCLASH_NAME_SUFFIX="$(uci_get cf_ip.openclash.name_suffix ' [CF-{n}]')"; CFIP_OPENCLASH_TRANSPORT_FILTER="$(uci_get cf_ip.openclash.transport_filter '')"; CFIP_OPENCLASH_BACKUP_COUNT="$(uci_get cf_ip.openclash.backup_count 3)"
     CFIP_PUBLISH_ENABLED="$(cfip_bool "$(uci_get cf_ip.lan.enabled 0)")"; CFIP_PUBLISH_BIND="$(uci_get cf_ip.lan.bind_address '')"; CFIP_PUBLISH_PORT="$(uci_get cf_ip.lan.port 12345)"
-    CFIP_RILL_ENABLED="$(cfip_bool "$(uci_get cf_ip.rill.enabled 0)")"; CFIP_RILL_MODE="$(uci_get cf_ip.rill.mode shadow)"; CFIP_RILL_RUNTIME="$(uci_get cf_ip.rill.runtime /usr/bin/rill-runtime)"; CFIP_RILL_STATE="$(uci_get cf_ip.rill.state_file "$CFIP_STATUS_DIR/rill-state.json")"; CFIP_RILL_SAFE_TOP_K="$(uci_get cf_ip.rill.safe_top_k 3)"; CFIP_RILL_MIN_FEEDBACK_SAMPLES="$(uci_get cf_ip.rill.min_feedback_samples 30)"; local delayed_minutes; delayed_minutes="$(uci_get cf_ip.rill.delayed_feedback_minutes 10)"; [[ "$delayed_minutes" =~ ^[1-9][0-9]*$ ]] || delayed_minutes=10; CFIP_RILL_DELAYED_FEEDBACK_SECONDS="$((delayed_minutes*60))"; CFIP_RILL_EXPLORATION_CAP="$(uci_get cf_ip.rill.exploration_cap 1)"; CFIP_SOURCE_POLICY_EXPLORATION_CAP="$CFIP_RILL_EXPLORATION_CAP"; [[ "$CFIP_RILL_EXPLORATION_CAP" =~ ^[1-9][0-9]*$ ]] && CFIP_SOURCE_POLICY_EXPLORATION_ENABLED=true || CFIP_SOURCE_POLICY_EXPLORATION_ENABLED=false
+    CFIP_RILL_ENABLED="$(cfip_bool "$(uci_get cf_ip.rill.enabled 0)")"; CFIP_RILL_MODE="$(uci_get cf_ip.rill.mode shadow)"; CFIP_RILL_RUNTIME="$(uci_get cf_ip.rill.runtime /usr/bin/rill-runtime)"; CFIP_RILL_STATE="$(uci_get cf_ip.rill.state_file "$CFIP_STATUS_DIR/rill-state.json")"; CFIP_RILL_SAFE_TOP_K="$(uci_get cf_ip.rill.safe_top_k 3)"; CFIP_RILL_MIN_FEEDBACK_SAMPLES="$(uci_get cf_ip.rill.min_feedback_samples 30)"; local delayed_minutes; delayed_minutes="$(uci_get cf_ip.rill.delayed_feedback_minutes 10)"; [[ "$delayed_minutes" =~ ^[1-9][0-9]*$ ]] || delayed_minutes=10; CFIP_RILL_DELAYED_FEEDBACK_SECONDS="$((delayed_minutes*60))"
     CFIP_REUSE_ENABLED="$(cfip_bool "$(uci_get cf_ip.main.reuse_enabled 1)")"; CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL="$(uci_get cf_ip.main.max_full_optimize_interval 86400)"; CFIP_REUSE_VALIDATION_TIMEOUT="$(uci_get cf_ip.main.reuse_validation_timeout 5)"; CFIP_REUSE_LOSS_LIMIT="$(uci_get cf_ip.main.reuse_loss_limit 0.25)"; CFIP_REUSE_TTFB_LIMIT="$(uci_get cf_ip.main.reuse_ttfb_limit 3000)"; CFIP_REUSE_TOTAL_LIMIT="$(uci_get cf_ip.main.reuse_total_limit 5000)"; CFIP_REUSE_STATE_FILE="$CFIP_STATUS_DIR/reuse-policy.json"
     local timeout_ms; timeout_ms="$(uci_get cf_ip.rill.timeout_ms 2000)"; [[ "$timeout_ms" =~ ^[0-9]+$ ]] && ((timeout_ms>0)) && CFIP_RILL_TIMEOUT_S=$(((timeout_ms+999)/1000)) || CFIP_RILL_TIMEOUT_S=2
     if [[ "$CFIP_IP_COUNT" =~ ^[1-9][0-9]*$ && "$CFIP_PROBE_TOP_COUNT" =~ ^[1-9][0-9]*$ ]] && ((CFIP_PROBE_TOP_COUNT < CFIP_IP_COUNT)); then CFIP_PROBE_TOP_COUNT="$CFIP_IP_COUNT"; fi
@@ -81,7 +80,6 @@ validate_config() {
     [[ "$CFIP_RILL_MODE" == off || "$CFIP_RILL_MODE" == shadow || "$CFIP_RILL_MODE" == assisted ]] || { cfip_json_error "invalid rill mode"; return 1; }
     [[ "$CFIP_RILL_SAFE_TOP_K" =~ ^[1-9][0-9]*$ ]] && ((CFIP_RILL_SAFE_TOP_K<=8)) || { cfip_json_error "safe_top_k must be 1..8"; return 1; }
     [[ "$CFIP_RILL_MIN_FEEDBACK_SAMPLES" =~ ^[1-9][0-9]*$ ]] && ((CFIP_RILL_MIN_FEEDBACK_SAMPLES<=200)) || { cfip_json_error "min_feedback_samples must be 1..200"; return 1; }
-    [[ "$CFIP_RILL_EXPLORATION_CAP" =~ ^[0-9]+$ ]] && ((CFIP_RILL_EXPLORATION_CAP<=1)) || { cfip_json_error "exploration_cap must be 0..1"; return 1; }
     cfip_source_policy_valid "$CFIP_SOURCE_POLICY" || { cfip_json_error "invalid source_policy"; return 1; }
     ((CFIP_RILL_DELAYED_FEEDBACK_SECONDS>=60 && CFIP_RILL_DELAYED_FEEDBACK_SECONDS<=86400)) || { cfip_json_error "delayed_feedback_minutes must be 1..1440"; return 1; }
     [[ "$CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL" =~ ^[1-9][0-9]*$ ]] && ((CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL>=300 && CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL<=604800)) || { cfip_json_error "max_full_optimize_interval must be 300..604800"; return 1; }
@@ -113,7 +111,7 @@ acquire_lock() {
 }
 release_lock(){ rm -rf "$CFIP_LOCK_DIR" 2>/dev/null || true; }
 
-init_run_paths(){ CFIP_RUN_ID="$(cfip_generate_run_id)"; local d="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID"; mkdir -p "$d"; CFIP_INPUT_POOL_FILE="$d/input-pool.json"; CFIP_CANDIDATE_INPUT_FILE="$d/cfst-input.txt"; CFIP_PROBE_INPUT_FILE="$d/probe-input.json"; CFIP_SOURCE_STATUS_FILE="$CFIP_RUNTIME_DIR/source-status.json"; CFIP_CANDIDATES_FILE="$d/candidates.json"; CFIP_PROBED_FILE="$d/probed.json"; CFIP_NATIVE_FILE="$d/native.json"; CFIP_SELECTED_FILE="$d/selected.json"; CFIP_RILL_FILE="$d/rill.json"; CFIP_DECISION_FILE="$d/decision.json"; CFIP_OUTCOME_FILE="$d/outcome.json"; CFIP_TXN_RESULT_FILE="$d/transaction.json"; CFIP_PROBE_METRICS_FILE="$d/probe-metrics.json"; CFIP_SOURCE_POLICY_DECISION_FILE="$d/source-policy-decision.json"; CFIP_REUSE_DECISION_FILE="$d/reuse-decision.json"; CFIP_REUSE_RILL_DECISION_FILE="$d/reuse-rill-decision.json"; }
+init_run_paths(){ CFIP_RUN_ID="$(cfip_generate_run_id)"; local d="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID"; mkdir -p "$d"; CFIP_INPUT_POOL_FILE="$d/input-pool.json"; CFIP_CANDIDATE_INPUT_FILE="$d/cfst-input.txt"; CFIP_PROBE_INPUT_FILE="$d/probe-input.json"; CFIP_SOURCE_STATUS_FILE="$CFIP_RUNTIME_DIR/source-status.json"; CFIP_CANDIDATES_FILE="$d/candidates.json"; CFIP_PROBED_FILE="$d/probed.json"; CFIP_NATIVE_FILE="$d/native.json"; CFIP_SELECTED_FILE="$d/selected.json"; CFIP_RILL_FILE="$d/rill.json"; CFIP_DECISION_FILE="$d/decision.json"; CFIP_OUTCOME_FILE="$d/outcome.json"; CFIP_TXN_RESULT_FILE="$d/transaction.json"; CFIP_PROBE_METRICS_FILE="$d/probe-metrics.json"; CFIP_REUSE_DECISION_FILE="$d/reuse-decision.json"; }
 cleanup_run_files(){ find "$CFIP_RUNTIME_DIR" -maxdepth 1 -type d -name 'run-*' -mmin +120 -exec rm -rf {} + 2>/dev/null || true; }
 
 write_status() {
@@ -154,12 +152,9 @@ write_status() {
     if [[ -s "${CFIP_REUSE_DECISION_FILE:-}" && -s "$CFIP_STATUS_FILE" ]]; then
         jq --slurpfile reuse "$CFIP_REUSE_DECISION_FILE" '. + {reusePolicy: ($reuse[0] // {})}' "$CFIP_STATUS_FILE" | cfip_atomic_write "$CFIP_STATUS_FILE"
     fi
-    if [[ -s "${CFIP_SOURCE_POLICY_QUALIFICATION_FILE:-}" && -s "$CFIP_STATUS_FILE" ]]; then
-        jq --slurpfile qualification "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE" '. + {sourcePolicyQualification: ($qualification[0] // {})}' "$CFIP_STATUS_FILE" | cfip_atomic_write "$CFIP_STATUS_FILE"
-    fi
 }
 
-remember_history(){ [[ -n "$CFIP_RUN_ID" ]] || return 0; mkdir -p "$CFIP_STATUS_DIR"; jq -cn --arg runId "$CFIP_RUN_ID" --arg result "$CFIP_LAST_RESULT" --arg mode "$CFIP_MODE" --arg policy "${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}" --argjson best "$( [[ -f "$CFIP_SELECTED_FILE" ]] && jq '[.[].ip]' "$CFIP_SELECTED_FILE" || printf '[]')" '{schemaVersion:1,time:now,runId:$runId,result:$result,mode:$mode,sourcePolicy:$policy,bestIps:$best}' >>"$CFIP_RUN_HISTORY"; tail -n 100 "$CFIP_RUN_HISTORY" >"$CFIP_RUN_HISTORY.tmp" 2>/dev/null && mv "$CFIP_RUN_HISTORY.tmp" "$CFIP_RUN_HISTORY" || true; [[ -s "${CFIP_INPUT_POOL_FILE:-}" ]] && cfip_source_policy_record "${CFIP_OUTCOME_FILE:-}" || true; }
+remember_history(){ [[ -n "$CFIP_RUN_ID" ]] || return 0; mkdir -p "$CFIP_STATUS_DIR"; jq -cn --arg runId "$CFIP_RUN_ID" --arg result "$CFIP_LAST_RESULT" --arg mode "$CFIP_MODE" --arg policy "${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}" --argjson best "$( [[ -f "$CFIP_SELECTED_FILE" ]] && jq '[.[].ip]' "$CFIP_SELECTED_FILE" || printf '[]')" '{schemaVersion:1,time:now,runId:$runId,result:$result,mode:$mode,sourcePolicy:$policy,bestIps:$best}' >>"$CFIP_RUN_HISTORY"; tail -n 100 "$CFIP_RUN_HISTORY" >"$CFIP_RUN_HISTORY.tmp" 2>/dev/null && mv "$CFIP_RUN_HISTORY.tmp" "$CFIP_RUN_HISTORY" || true; }
 
 apply_startup_delay(){ local d="$CFIP_STARTUP_DELAY"; [[ "${CFIP_SKIP_STARTUP_DELAY:-false}" == true ]] && return 0; [[ -z "$d" || "$d" == 0 ]] && return 0; [[ "$d" == random ]] && d=300; [[ "$d" =~ ^[0-9]+$ ]] || return 1; ((d>0)) && sleep $((RANDOM%(d+1))); }
 
@@ -243,7 +238,7 @@ select_assisted_candidates() {
     history="$(cfip_rill_history_json)"
     safe="$(jq --argjson k "$CFIP_RILL_SAFE_TOP_K" --argjson history "$(cfip_rill_history_json)" '.[0:$k] | map(select(.eligible==true and ((.probeSummary.lossRate // .lossRate // 0) <= 0.25) and ((.probeSummary.ttfbMs // 0) <= 3000) and ((.probeSummary.totalMs // 0) <= 5000) and (($history[.ip].consecutiveFailures // 0) < 3)))' "$CFIP_NATIVE_FILE")"
     ids="$(jq -c '[.[].ip]' <<<"$safe")"; [[ "$(jq 'length' <<<"$safe")" -gt 0 ]] || return 0
-    selected="$(jq --argjson ids "$ids" --argjson history "$history" --argjson count "$CFIP_IP_COUNT" --argjson cap "$CFIP_RILL_EXPLORATION_CAP" '
+    selected="$(jq --argjson ids "$ids" --argjson history "$history" --argjson count "$CFIP_IP_COUNT" --argjson cap "${CFIP_RILL_UNSEEN_CANDIDATE_CAP:-1}" '
       def prefix:
         if (.family // "") == "ipv6" then ((.ip|tostring)|split(":")[0:4]|join(":"))
         else ((.ip|tostring)|split(".")[0:3]|join(".")) end;
@@ -308,7 +303,6 @@ run_v2() {
         return 0
     fi
     write_status true "$CFIP_PHASE" "$CFIP_LAST_RESULT" ""
-    cfip_source_policy_decide || cfip_log "source policy recommendation unavailable; configured policy remains authoritative"
     apply_startup_delay || { fail_run "invalid startup delay"; return 1; }
     CFIP_PHASE=acquiring
     ensure_cfst || { fail_run "failed to prepare CloudflareSpeedTest"; return 1; }
@@ -426,26 +420,19 @@ cmd_rill_self_check(){
 }
 cmd_rill_diagnostics(){
     load_config >/dev/null || return 1
-    local status qualification pending meta source_policy source_qualification reuse recent prefix_history colo_history prefix_summary colo_summary source_runtime source_health source_inspect
+    local status qualification pending meta source_policy reuse recent prefix_history colo_history prefix_summary colo_summary
     status="$(cfip_rill_status_json 2>/dev/null || printf '{"available":false,"state":"error"}')"
     qualification="$(cfip_rill_qualification_json 2>/dev/null || printf '{}')"
     pending='[]'; [[ -s "$CFIP_RILL_PENDING_FILE" ]] && pending="$(cat "$CFIP_RILL_PENDING_FILE")"
     meta='{}'; [[ -s "$CFIP_RILL_STATE_META_FILE" ]] && meta="$(cat "$CFIP_RILL_STATE_META_FILE")"
     source_policy="$(cfip_source_policy_json 2>/dev/null || printf '{}')"
-    source_qualification="$(cfip_source_policy_qualification_json 2>/dev/null || printf '{}')"
-    source_runtime='{}'
-    if [[ "$(jq -r '.available // false' <<<"$status")" == true ]] && declare -F cfip_rill_health_json >/dev/null 2>&1; then
-        source_health="$(CFIP_RILL_PARTITION_KEY="$CFIP_RILL_SOURCE_PARTITION_KEY" cfip_rill_health_json 2>/dev/null || printf '{}')"
-        source_inspect="$(CFIP_RILL_PARTITION_KEY="$CFIP_RILL_SOURCE_PARTITION_KEY" cfip_rill_inspect_json 2>/dev/null || printf '{}')"
-        source_runtime="$(jq -cn --arg partition "$CFIP_RILL_SOURCE_PARTITION_KEY" --argjson health "$source_health" --argjson inspect "$source_inspect" '{partitionKey:$partition,health:$health,inspect:$inspect}')"
-    fi
     reuse='{}'; [[ -s "$CFIP_REUSE_STATE_FILE" ]] && reuse="$(cat "$CFIP_REUSE_STATE_FILE")"
     prefix_history="$(cfip_rill_prefix_history_json 2>/dev/null || printf '{}')"; colo_history="$(cfip_rill_colo_history_json 2>/dev/null || printf '{"entries":{},"unknownCount":0}')"
     prefix_summary="$(jq -cn --argjson h "$prefix_history" --argjson now "$(date +%s)" '{trackedPrefixes:($h|length),recentHighQuality:([$h|to_entries[]|select((.value.successRate//0)<=1)|{prefix:.key,samples:(.value.samples//0),successRate:(.value.successRate//0)}]|sort_by(-.successRate,-.samples)|.[0:5]),recentLowQuality:([$h|to_entries[]|select((.value.successRate//0)<=1)|{prefix:.key,samples:(.value.samples//0),successRate:(.value.successRate//0),lastSeen:(.value.lastSeen//0)}]|sort_by(.successRate,.lastSeen)|.[0:5])}')"
     colo_summary="$(jq -cn --argjson h "$colo_history" '{observedColoCount:($h.entries|length),latestObservedColo:($h.lastObserved//null),unknownCount:($h.unknownCount//0),history:($h.entries//{})}')"
     recent='[]'; [[ -f "$CFIP_RUN_HISTORY" ]] && recent="$(tail -n 20 "$CFIP_RUN_HISTORY" | jq -sc '.' 2>/dev/null || printf '[]')"
-    jq -cn --argjson status "$status" --argjson qualification "$qualification" --argjson pending "$pending" --argjson meta "$meta" --argjson sourcePolicy "$source_policy" --argjson sourceQualification "$source_qualification" --argjson sourceRuntime "$source_runtime" --argjson reuse "$reuse" --argjson recent "$recent" --argjson prefix "$prefix_summary" --argjson colo "$colo_summary" \
-        '{success:true,runtime:$status,runtimePartitions:{candidate:$status,sourcePolicy:$sourceRuntime},qualification:$qualification,recentDecisions:$recent,pendingFeedback:($pending[0:64]),sourcePolicy:$sourcePolicy,sourcePolicyQualification:$sourceQualification,reusePolicy:$reuse,prefixIntelligence:$prefix,coloIntelligence:$colo,stateMeta:$meta,warnings:[]}'
+    jq -cn --argjson status "$status" --argjson qualification "$qualification" --argjson pending "$pending" --argjson meta "$meta" --argjson sourcePolicy "$source_policy" --argjson reuse "$reuse" --argjson recent "$recent" --argjson prefix "$prefix_summary" --argjson colo "$colo_summary" \
+        '{success:true,runtime:$status,qualification:$qualification,recentDecisions:$recent,pendingFeedback:($pending[0:64]),sourcePolicy:$sourcePolicy,reusePolicy:$reuse,prefixIntelligence:$prefix,coloIntelligence:$colo,stateMeta:$meta,warnings:[]}'
 }
 cmd_rill_reset(){
     load_config >/dev/null || return 1
@@ -465,7 +452,7 @@ cmd_rill_reset(){
         '{resetRequired:false,resetReason:$reason,migratedFrom:(if $from=="" then null else $from end),quarantinedState:($from!=""),featureSchemaVersion:$schema,at:(now|floor)}' \
         | cfip_atomic_write "$CFIP_RILL_STATE_META_FILE"
     cfip_rill_rotate_lineage manual_reset || { cfip_json_error "failed to rotate Rill state lineage"; return 1; }
-    rm -f "$CFIP_RILL_QUALIFICATION_FILE" "$CFIP_RILL_PENDING_FILE" "$CFIP_SOURCE_POLICY_QUALIFICATION_FILE"
+    rm -f "$CFIP_RILL_QUALIFICATION_FILE" "$CFIP_RILL_PENDING_FILE"
     jq -cn --arg generation "$actual" --arg quarantine "$quarantine" '{success:true,reset:true,previousStateGeneration:($generation|tonumber),quarantinedState:(if $quarantine=="" then null else $quarantine end)}'
 }
 

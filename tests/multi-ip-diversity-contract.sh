@@ -5,7 +5,7 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 export CFIP_LIB_DIR="$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip" CFIP_STATUS_DIR="$TMP" CFIP_RUNTIME_DIR="$TMP/runtime"
 mkdir -p "$CFIP_RUNTIME_DIR"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/bin/cf-ip-auto-v2"
-CFIP_RILL_MODE=assisted CFIP_RILL_ENABLED=true CFIP_RILL_SAFE_TOP_K=8 CFIP_RILL_EXPLORATION_CAP=1 CFIP_IP_COUNT=3
+CFIP_RILL_MODE=assisted CFIP_RILL_ENABLED=true CFIP_RILL_SAFE_TOP_K=8 CFIP_RILL_UNSEEN_CANDIDATE_CAP=1 CFIP_IP_COUNT=3
 CFIP_NATIVE_FILE="$TMP/native.json"; CFIP_RILL_FILE="$TMP/rill.json"; CFIP_SELECTED_FILE="$TMP/selected.json"
 cat > "$CFIP_NATIVE_FILE" <<'JSON'
 [

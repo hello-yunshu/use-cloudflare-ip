@@ -40,14 +40,15 @@ IPK/APK qualification and immutable `qualification.json` evidence.
 ## Consumer decision and learning boundaries
 
 ```text
-source candidates -> CFST -> history-aware probe priority -> mandatory probe
-  -> Native eligible safe envelope -> Rill preference
+deterministic source registry/profile/order -> CFST -> history-aware probe priority
+  -> mandatory probe -> Native eligible safe envelope -> Candidate Learner preference
   -> Shadow observation or Guarded Assisted selection -> transaction
   -> immediate validation -> delayed candidate outcome -> feedback
   -> qualification state
 ```
 
-The v2 consumer schema has 22 bounded features. Candidate history is bounded
+The v2 consumer schema has 22 bounded features and one `candidate` Runtime
+partition. Candidate history is bounded
 and atomically replaced. Shadow feedback always observes the Rill-selected IP
 separately when it differs from the Native authority. Host transaction errors
 are censored and cannot train a candidate. Assisted is only effective when the
@@ -55,7 +56,7 @@ persisted qualification state is `shadow-qualified` or `guarded-assisted`; it
 can select only inside the Native top-K envelope and falls back to Native on
 any invalid Runtime result.
 
-Measurement is also bounded: the fixed source-policy registry orders at most
+Measurement is also bounded: the deterministic source registry orders at most
 the configured source set, candidate probes run in capped batches, and the
 early-stop decision is deterministic from the safe envelope and remaining
 CFST ranks. Reward v2 is bounded to `[-1,1]` and records total latency, TTFB,

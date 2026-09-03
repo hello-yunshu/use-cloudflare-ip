@@ -64,7 +64,7 @@ return view.extend({
 		var diagnosticsPre = E('pre', { 'class': 'cfi-log-area', 'style': 'white-space:pre-wrap;max-height:28em;overflow:auto' }, JSON.stringify({
 			runtime: diagnostics.runtime || {},
 			qualification: diagnostics.qualification || {},
-			sourcePolicyQualification: diagnostics.sourcePolicyQualification || {},
+			sourcePolicy: diagnostics.sourcePolicy || {},
 			reusePolicy: diagnostics.reusePolicy || {},
 			prefixIntelligence: diagnostics.prefixIntelligence || {},
 			coloIntelligence: diagnostics.coloIntelligence || {},

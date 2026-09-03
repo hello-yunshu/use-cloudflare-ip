@@ -137,13 +137,13 @@ return view.extend({
 	o.cfgvalue = function() { return status.fallbackReason || (status.intelligence || {}).lastResetReason || _('None'); };
 	o = s.option(form.DummyValue, '_source_policy', _('Source Strategy Loop'));
 	o.cfgvalue = function() {
-		var p = status.sourcePolicy || diagnostics.sourcePolicy || {}, q = status.sourcePolicyQualification || diagnostics.sourcePolicyQualification || {};
-		return _('requested') + ': ' + (p.requested || p.policy || '?') + ', ' + _('executed') + ': ' + (p.executed || p.effective || '?') + ', ' + _('recommended') + ': ' + (p.recommended || '?') + ', ' + _('qualification') + ': ' + (q.qualificationState || q.state || _('learning')) + ', ' + _('attribution') + ': ' + (q.attributionCoverage == null ? '?' : (q.attributionCoverage * 100).toFixed(0) + '%') + ', ' + _('downgrade') + ': ' + (q.downgradeReason || _('none'));
+		var p = status.sourcePolicy || diagnostics.sourcePolicy || {};
+		return _('deterministic') + ': ' + (p.deterministic ? _('yes') : _('no')) + ', ' + _('requested') + ': ' + (p.requested || '?') + ', ' + _('effective') + ': ' + (p.effective || '?');
 	};
 	o = s.option(form.DummyValue, '_reuse_policy', _('Reuse / Full Optimize'));
 	o.cfgvalue = function() {
 		var r = status.reusePolicy || {};
-		return _('actual') + ': ' + (r.actualAction || _('unknown')) + ', ' + _('recommended') + ': ' + (r.recommendedAction || _('unknown')) + ', ' + _('reason') + ': ' + (r.reason || _('none'));
+		return _('Native hard gate') + ': ' + (r.actualPolicy || _('unknown')) + ', ' + _('reason') + ': ' + (r.reason || _('none'));
 	};
 	o = s.option(form.DummyValue, '_efficiency', _('Probe Efficiency'));
 	o.cfgvalue = function() { var e = status.efficiency || status.probeMetrics || {}; return _('probed') + ': ' + (e.candidatesProbed || 0) + ' / ' + (e.candidatesConsidered || 0) + ', ' + _('avoided') + ': ' + (e.avoidedProbes || 0) + ', ' + _('early stop') + ': ' + (e.earlyStopHit ? _('yes') : _('no')); };

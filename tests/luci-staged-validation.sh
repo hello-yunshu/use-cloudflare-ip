@@ -53,7 +53,6 @@ case "${1:-}" in
             cf_ip.rill.safe_top_k) printf '3' ;;
             cf_ip.rill.min_feedback_samples) printf '30' ;;
             cf_ip.rill.delayed_feedback_minutes) printf '10' ;;
-            cf_ip.rill.exploration_cap) printf '0' ;;
             cf_ip.rill.timeout_ms) printf '2000' ;;
             cf_ip.lan.enabled) printf '0' ;;
             *) exit 1 ;;

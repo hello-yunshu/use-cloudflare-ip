@@ -102,7 +102,7 @@ CFST 未安装时，点击「下载 CFST」按钮即可自动下载；已安装�
 
 ### Rill Shadow / Assisted
 
-Rill 默认关闭；`shadow` 只做候选影子观测，不改变 Native 选出的代理配置。Reward v2 将总耗时、TTFB、最差域名丢包、吞吐和延迟稳定性归一化到 `[-1,1]`。延迟反馈会跨重启保存，并在到期时用原候选和域名重新探测；损坏队列会隔离到 quarantine 文件。滚动资格窗口最多保留 50 条，必须满足归因、延迟反馈、Native/Rill 对比和近期错误率门槛，且每次运行时都会检查 Runtime Health/Inspect、模型代数和特征 schema；不满足时自动回到 Shadow/Native 安全路径。
+Rill 默认关闭；Runtime 只运行 Candidate Learner（22D、`candidate` partition）。`shadow` 只做候选影子观测，不改变 Native 选出的代理配置；`assisted` 只有在资格化且健康时才可在 Native safe envelope 内偏好候选。Reward v2、跨重启 delayed feedback、rolling qualification、Health/Inspect、resource-pressure fail-closed 和 Native fallback 均保留。来源策略是确定性的 registry/profile/order/cache/scheduler，不是 Runtime Learner；Reuse 是 Native current-IP validation hard gate，失败或配置变更会强制 full optimize。
 
 ### OpenClash 设置
 
@@ -252,7 +252,7 @@ htdocs/luci-static/resources/
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
 ## 2.0 clean-rebuild 引擎（开发版）
 
-包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；候选 IP 来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Generic Rill source/runtime contracts 由 `hello-yunshu/rill-ml` 负责；OpenWrt package/distribution 由 `hello-yunshu/rill-openwrt-packages` 负责，并以独立的 `rill-runtime-preview` 包锁定资格化 Preview commit。Cloudflare 只保留消费者映射；启用 Rill 时需额外安装同版本 `luci-app-cloudflare-ip-rill`，Runtime 由 package manager 提供。
+包版本 `2.0.0-dev` 从完整的 1.8.3 行为基线重新构建。Overview、Settings、Diagnostics、PassWall、OpenClash、定时任务、CFST、名称后缀、多 IP、备份和升级行为均保留；确定性候选来源、限额调度、目标域名主动探测、Native Rank、事务化应用/回滚、单一 Candidate Learner、Native Reuse hard gate、可选通用 Rill Runtime v3 Preview shadow 和可选 LAN Publisher 为新增能力。Generic Rill runtime contract 由 `hello-yunshu/rill-ml` 负责；OpenWrt package/distribution 由 `hello-yunshu/rill-openwrt-packages` 负责，并以独立的 `rill-runtime-preview` 包锁定资格化 Preview commit。Cloudflare 只保留消费者映射；启用 Rill 时需额外安装同版本 `luci-app-cloudflare-ip-rill`，Runtime 由 package manager 提供。
 
 候选测速数量默认 128，允许 100-512 个唯一候选。历史优质 IP、社区种子和 Cloudflare 官方网段探索约占 1/8、5/8、1/4；官方 CIDR 会先由调度器采样为具体 IP，每个任务只启动一次 CFST。社区源中的 `IP:port` 只贡献 IP，域名候选会被拒绝且不会 DNS 解析。
 

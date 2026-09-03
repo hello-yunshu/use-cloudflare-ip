@@ -94,8 +94,8 @@ function buildStagedCandidate() {
 			'early_stop_enabled', 'source_policy', 'reuse_enabled', 'max_full_optimize_interval',
 			'reuse_validation_timeout', 'reuse_loss_limit', 'reuse_ttfb_limit', 'reuse_total_limit',
 			'github_mirror', 'verbose' ],
-		rill: [ 'enabled', 'mode', 'runtime', 'state_file', 'timeout_ms', 'safe_top_k',
-			'min_feedback_samples', 'delayed_feedback_minutes', 'exploration_cap' ],
+			rill: [ 'enabled', 'mode', 'runtime', 'state_file', 'timeout_ms', 'safe_top_k',
+				'min_feedback_samples', 'delayed_feedback_minutes' ],
 		lan: [ 'enabled', 'bind_address', 'port' ],
 		passwall: [ 'target_domain', 'name_suffix' ],
 		openclash: [ 'config', 'target_domain', 'name_suffix', 'transport_filter', 'backup_count' ]

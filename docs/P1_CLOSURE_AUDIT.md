@@ -1,46 +1,50 @@
-# P1 Closure Audit — Intelligent Loop Completion / Release Gate
+# 2.0 Architecture Consolidation and Closure Audit
 
-审计对象：`cloudflare-ip-2.0-dev`。本文件区分本地代码证据、远端 Actions、Runtime/package qualification、真机证据和 Soak 证据；没有把其中任一层替代另一层。
+审计对象：`cloudflare-ip-2.0-dev`。本文件区分本地代码、远端 CI、Runtime/package qualification、真机和 Soak 证据；任何一层都不能替代另一层。
+
+## Architecture decision
+
+2.0 只保留一个 Runtime Learner：`Candidate Learner`，使用 22D candidate schema、candidate partition、reward/feedback/delayed feedback、rolling qualification、guarded assisted 和 resource-pressure fail-closed。Source Intelligence 是 Cloudflare consumer 内的确定性 registry/profile/order/cache/scheduler；Native Reuse 是独立的 current-IP validation hard gate，不进入 Runtime Learner。
+
+经过消融审计，Source Learner / Reuse Learner 的当前 contextual modeling 无法提供与复杂度匹配的生产决策收益；保留 deterministic Source Intelligence 和 Native Adaptive Reuse 后，用户核心能力不损失。2.0 因此主动收敛为单 Candidate Learner 架构。
 
 ## Gate summary
 
-| Gate | 当前结论 | 证据 / 边界 |
+| Gate | 结论 | 证据边界 |
 |---|---|---|
-| A. Runtime/package/qualification parity | ⚠️ OPEN | Cloudflare 合约当前绑定 Preview `da8389fec7f879b826d8d17cbc6bb98c03ef8462`、package `38f21f02c06a880abd3cd020004814887f3943a5`（`rill-runtime-preview` 1.5.6-r2）、qualification run `33511365899`（PASS）；package PR #3 仍为 `OPEN / BLOCKED / REVIEW_REQUIRED`，package `main` 仍为 `87514ee67a4a6b404f354c99eb66e656555d7f5f`，因此不能声称正式 release branch 已收敛。 |
-| B. P1-1 resource pressure | ✅ CODE CLOSED | `rill.sh` 从 Runtime health 与 inspect 的真实 `resourceProfile/resourceUtilization` 计算 90% pressure，并传递为 `resourcePressure`、`healthHealthy=false` 和 `runtime_resource_pressure` fallback；`tests/resource-pressure-contract.sh` 通过。 |
-| C. P1-2 Source Strategy Learner | ✅ CODE CLOSED | 独立 `source-policy` decide/feedback、6D semantic policy features、source-specific reward、strict decision attribution、bounded guarded exploration 和 rolling qualification ledger 已接入；真实 Runtime 30 样本资格化、正常 generation advance 保留窗口、source-only reset 清理 lineage 已通过；Native 配置仍是执行 authority，Rill 默认 Shadow。 |
-| D. P1-3 reuse/current vs full optimize | ✅ CODE CLOSED | 配置 fingerprint、fresh → full optimize → post-apply validation → reuse-current 生命周期、loss/TTFB/total 硬门槛、atomic state 和 Rill Shadow recommendation 已接入；Native gate 决定是否跳过 CFST/acquisition，且保存真实 `.probes` 数量。 |
-| E. P1-4 multi-IP diversity | ✅ CODE CLOSED | 仅在 Native Safe Envelope 内，按 canonical IPv4 `/24` / IPv6 `/64` prefix、family、source class 做 deterministic selection；Prefix/Colo aggregate history 有 bounded retention、decay 和 diagnostics；相关合同通过。 |
-| F. P1-5 delayed feedback | ✅ CODE CLOSED | queue 带 partition、`expiresAt`、feature schema hash、model/state generation 和 state lineage；正常 restart 可处理，reset/incompatible lineage/partition 会拒绝并计数；相关合同通过。 |
-| G. transaction/UI safety | ✅ CODE CLOSED | explicit sync mode 重算目标并控制 stop/apply/restart；LuCI save/apply 前调用同一 semantic validation RPC；disabled start 清理历史 cron。 |
-| H. remote current-SHA CI | ✅ PASS | 最终代码提交 `61498567c631dc778794c37cb1a2033b28540f21`（tree `f1840ef8da630eb033e44adacaff62efdc3fd308`）的 Actions run `33659680565` 已 terminal success；host/legacy/RPC/workflow、四个 OpenWrt package matrix、same-release Runtime integration、package-release/qualification/evidence guards 全部通过。 |
-| I. OpenWrt package/build evidence | ✅ PASS (CI) | run `33659680565` 的四个 OpenWrt SDK package jobs、package content contracts 和 same-release generic Runtime integration 已通过；历史 Docker 安装运行记录仍只属于旧 SHA，当前 Docker install smoke 未执行。 |
-| J. physical-device / soak | ⚪ SOAK SKIPPED (user-approved) | 72h/7d Soak 按用户批准直接跳过；物理 OpenWrt 设备、指定 proxy/protocol 场景仍未验证，不宣称硬件通过。 |
+| Candidate-only Runtime contract | CODE | Runtime state 仅允许 Cloudflare `candidate` partition；schema width 固定为 22；非候选 partition 的 feedback 被拒绝。 |
+| Deterministic Source Intelligence | CODE | 保留 fixed registry、五种 profile、稳定排序、last-good cache、refresh deadline、source scheduler 和 diagnostics；无 Source Learner decide/feedback/qualification。 |
+| Native Reuse hard gate | CODE | current-IP validation 通过才允许 `REUSE_CURRENT`；配置变更、过期、失败或缺少 baseline 时强制 full optimize；decision authority 为 Native。 |
+| Mature optimizer behavior | CODE | CFST、IPv4/IPv6、PassWall/OpenClash transaction、target-domain probe、prefix/colo/multi-IP/reuse/rollback、LuCI staged validation 保留。 |
+| Candidate feedback and qualification | CODE | 22D reward、attribution、delayed queue、lineage/generation、rolling qualification、guarded assisted、Health/Inspect 和 resource pressure 保留。 |
+| Current-head local regression | PENDING | 由当前提交后的完整 workflow 与 exact-head run 定案。 |
+| Package main convergence | OPEN until proven | package qualification branch 仍需进入 `rill-openwrt-packages/main`，并重新绑定 consumer contract。 |
+| Physical device / soak | NOT RUN | Docker、SDK、IPK/APK 和软件测试不能替代真实 OpenWrt 设备或 72h/7d soak。 |
 
-## Local implementation evidence
+## Consumer boundaries
 
-- Runtime 健康检查不再只依赖字符串 status；当 inspect 的 bounded counter 达到 90% profile 时，consumer 进入 resource pressure fail-closed path。
-- Candidate Learner 使用 `candidate` 22D，Source Strategy 使用 `source-policy` 6D，Reuse 使用 `reuse-policy`；三者在同一 Runtime state 中按 partition 隔离，真实 subprocess restart 后仍保持独立 generation、ledger 和 state。
-- Source Strategy 使用独立 policy action IDs 和 semantic policy feature；source reward 只来自对应来源的 availability/success/stale/failure/yield 统计。
-- Source learner 记录 requested/recommended/executed/decisionId、attribution coverage、native-vs-Rill delta、error rate 和 downgrade reason；探索只在显式 bounded cap 下发生。
-- Reuse branch 先验证当前已发布 IP；fresh/full optimize 成功会同时建立可复用 validation baseline；失败、fingerprint 改变、full optimize 过期、上一次验证失败或 Runtime reset-required 时，Native 强制进入 full optimize。
-- Assisted multi-IP 只接受 Native safe candidates，先保证多样性，再用 deterministic fallback 补足数量；Prefix Intelligence 以 canonical `/24`/`/64` 聚合，Colo 只使用真实观测值。
-- Delayed feedback 的跨进程队列是 bounded、atomic、partition-aware、可过期、可拒绝的；generation/schema/lineage 不匹配不会静默更新模型。
-- Prefix Feature #22 的成功证据和连续失败惩罚都按 freshness 衰减，陈旧失败 streak 回到中性基线；reuse 的 full-optimize → validation → reuse 已由两个独立 Bash 进程验证。
-- `validate-config` 已贯穿 `rpcd → cf-ip-auto-v2 --validate-config → load_config/validate_config`，并在 LuCI `safeApply()` 前执行。
+```text
+deterministic source registry/profile/order/cache/scheduler
+  -> CFST -> Native rank and mandatory target-domain probe
+  -> Native safe envelope -> Candidate Learner shadow/guarded-assisted preference
+  -> transaction -> immediate validation -> delayed candidate feedback
+```
 
-## Required evidence fields
+Native remains authoritative whenever Runtime is absent, unhealthy, stale,
+invalid, resource-pressured, unqualified, timed out or reset-required. Runtime
+cannot access UCI, mutate PassWall/OpenClash, restart services or commit a host
+transaction. Source selection and reuse/full-optimize decisions remain owned by
+the consumer.
 
-每次 release candidate 应保存：
+## Required release evidence
 
-1. Cloudflare commit SHA、Rill Runtime commit SHA、package commit SHA。
-2. package qualification run ID、head SHA、结论和 artifact digest。
-3. 同一 package commit 生成的 IPK/APK 文件名、SHA256、OpenWrt branch/arch。
-4. 真机安装后的 package version、Runtime binary checksum、`cf-ip-auto --status`、`--rill-diagnostics` 和关键日志。
-5. Soak 起止时间、设备、配置 fingerprint、reuse/full-optimize 次数、resource pressure、delayed accepted/expired/rejected、rollback/recovery 记录。
+Each release candidate must record the Cloudflare commit/tree, Rill Runtime
+commit, package commit, package qualification run and artifact digests. A
+physical validation record must additionally include installed package versions,
+Runtime checksum, `cf-ip-auto --status`, `--rill-diagnostics`, proxy readback,
+rollback/recovery, delayed accepted/expired/rejected counters and soak timing.
 
-## Current release conclusion
-
-代码层面的 P1 closure、本地回归和最终 SHA `61498567c631dc778794c37cb1a2033b28540f21`（tree `f1840ef8da630eb033e44adacaff62efdc3fd308`）的远端 CI run `33659680565` 已 terminal success。该 run 同时证明了四个 OpenWrt 包构建、same-release generic Runtime integration、package-release-guard、qualification-guard 和 evidence-manifest。当前 Docker install smoke、物理设备和 Soak 仍分别为 NOT RUN / NOT RUN / 按用户批准跳过。
-
-由于 package PR #3 当前仍为 `OPEN / BLOCKED / REVIEW_REQUIRED`，其 qualified commit `38f21f02c06a880abd3cd020004814887f3943a5` 尚未进入 package `main`，Runtime/package release convergence 仍未关闭。因此本轮结论必须为：**❌ Final Full Closure 未通过**；代码 Closure 已完成，可以在 package main 收敛后继续 RC / Physical Device Validation，但不能提前声称 release convergence 或 Full Closure。
+The final status must remain `CODE COMPLETE` only when all code gates and the
+current-head remote checks pass. It must not be promoted to full release
+closure while package main convergence, physical-device evidence or soak is
+still open.
