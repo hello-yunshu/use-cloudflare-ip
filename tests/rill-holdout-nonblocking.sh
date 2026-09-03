@@ -13,13 +13,9 @@ printf '%s\n' '[{"ip":"104.16.1.1","family":"ipv4"}]' >"$TMP/native.json"
 printf '%s\n' '{"reward":0.8}' >"$TMP/actual.json"
 printf '%s\n' '[{"ip":"104.16.1.2"}]' >"$TMP/selected.json"
 cfip_probe_one() { return 1; }
-set +e
 cfip_rill_holdout "$TMP/decision.json" "$TMP/native.json" "$TMP/actual.json" "$CFIP_TARGET_DOMAINS" 1 "$TMP/holdout.json"
-rc=$?
-set -e
-test "$rc" -ne 0
-jq -cn '{performed:false,reason:"not_due_or_unavailable",feedbackEligible:false}' >"$TMP/fallback.json"
-test "$(jq -r '.performed' "$TMP/fallback.json")" = false
-test "$(jq -r '.feedbackEligible' "$TMP/fallback.json")" = false
+test "$(jq -r '.performed' "$TMP/holdout.json")" = false
+test "$(jq -r '.reason' "$TMP/holdout.json")" = probe_unavailable
+test "$(jq -r '.feedbackEligible' "$TMP/holdout.json")" = false
 test "$(jq -c . "$TMP/selected.json")" = '[{"ip":"104.16.1.2"}]'
 echo 'Holdout failure is best-effort and non-blocking for the production run'

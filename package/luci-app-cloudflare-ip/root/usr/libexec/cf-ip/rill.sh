@@ -25,6 +25,7 @@ CFIP_RILL_EVIDENCE_FILE="${CFIP_RILL_EVIDENCE_FILE:-$CFIP_RILL_BASE_DIR/rill-evi
 CFIP_RILL_EVIDENCE_LIMIT="${CFIP_RILL_EVIDENCE_LIMIT:-64}"
 CFIP_RILL_EVIDENCE_MAX_BYTES="${CFIP_RILL_EVIDENCE_MAX_BYTES:-262144}"
 CFIP_RILL_HOLDOUT_INTERVAL="${CFIP_RILL_HOLDOUT_INTERVAL:-5}"
+CFIP_RILL_HOLDOUT_STATE_FILE="${CFIP_RILL_HOLDOUT_STATE_FILE:-$CFIP_RILL_BASE_DIR/rill-holdout-cadence.json}"
 CFIP_RILL_REWARD_TIE_EPSILON="${CFIP_RILL_REWARD_TIE_EPSILON:-0.02}"
 
 cfip_rill_schema_hash() {
@@ -52,6 +53,15 @@ cfip_rill_lineage_id() {
     printf '%s' "$lineage"
 }
 
+cfip_rill_reset_holdout_cadence() {
+    local fingerprint="${1:-}" lineage="${2:-}"
+    [[ -n "$fingerprint" ]] || fingerprint="$(cfip_rill_context_fingerprint 2>/dev/null || printf '')"
+    [[ -n "$lineage" ]] || lineage="$(cfip_rill_lineage_id 2>/dev/null || printf '')"
+    jq -cn --arg fp "$fingerprint" --arg lineage "$lineage" \
+      '{schemaVersion:1,contextFingerprint:$fp,stateLineage:$lineage,assistedDisagreementCount:0,lastDecisionId:null,updatedAt:(now|floor)}' \
+      | cfip_atomic_write "$CFIP_RILL_HOLDOUT_STATE_FILE"
+}
+
 cfip_rill_rotate_lineage() {
     local reason="${1:-reset}" lineage meta='{}'
     lineage="$(printf '%s:%s:%s' "${CFIP_RILL_STATE:-}" "$(date +%s%N 2>/dev/null || date +%s)" "${RANDOM:-0}" | sha256sum | awk '{print $1}')"
@@ -73,7 +83,7 @@ cfip_rill_context_fingerprint() {
 }
 
 cfip_rill_context_guard() {
-    local context fingerprint meta stored stamp file quarantine pending at
+    local context fingerprint meta stored stamp file quarantine pending at lineage
     context="$(cfip_rill_context_json)" || return 1
     fingerprint="$(printf '%s' "$context" | sha256sum | awk '{print $1}')"
     meta='{}'
@@ -83,7 +93,8 @@ cfip_rill_context_guard() {
     if [[ -z "$stored" ]]; then
         jq --arg fp "$fingerprint" --argjson context "$context" --argjson schema "$CFIP_RILL_CONTEXT_SCHEMA_VERSION" \
           '. + {contextSchemaVersion:$schema,contextFingerprint:$fp,currentContextFingerprint:$fp,contextSummary:$context,contextChanged:false,contextTransitionPending:false}' <<<"$meta" | cfip_atomic_write "$CFIP_RILL_STATE_META_FILE" || return 1
-        cfip_rill_lineage_id >/dev/null
+        lineage="$(cfip_rill_lineage_id)" || return 1
+        cfip_rill_reset_holdout_cadence "$fingerprint" "$lineage"
         return $?
     fi
     if [[ "$stored" == "$fingerprint" ]]; then
@@ -102,6 +113,8 @@ cfip_rill_context_guard() {
         printf '%s\n' "$pending" | cfip_atomic_write "$CFIP_RILL_PENDING_FILE" || return 1
     fi
     cfip_rill_rotate_lineage context_changed || return 1
+    lineage="$(cfip_rill_lineage_id)" || return 1
+    cfip_rill_reset_holdout_cadence "$fingerprint" "$lineage" || return 1
     meta="$(cat "$CFIP_RILL_STATE_META_FILE" 2>/dev/null || printf '{}')"
     at="$(date +%s)"
     jq --arg fp "$fingerprint" --arg previous "$stored" --argjson context "$context" --argjson schema "$CFIP_RILL_CONTEXT_SCHEMA_VERSION" --argjson at "$at" \
@@ -602,13 +615,13 @@ cfip_rill_shadow_observe() {
     reward_json="$(cfip_rill_reward_json "$tmp")"; rill_reward="$(jq -r '.reward' <<<"$reward_json")"
     if [[ -n "$native_outcome" && -s "$native_outcome" ]]; then native_reward="$(cfip_rill_reward_from_outcome "$native_outcome" 2>/dev/null || printf null)"; fi
     [[ "$(jq -r '.observedIp // empty' "$native_outcome" 2>/dev/null || true)" == "$selected" ]] || disagreement=true
-    jq --argjson reward "$reward_json" --argjson native "$native_reward" --argjson disagreement "$disagreement" \
-      '. + {reward:$reward.reward,rewardVersion:$reward.rewardVersion,rewardComponents:$reward.components,worstDomain:$reward.worstDomain,rillShadowReward:$reward.reward,nativeCounterfactualReward:(if ($native|type)=="number" then $native else null end),rewardDelta:(if ($native|type)=="number" then ($reward.reward-$native) else null end),disagreement:$disagreement}' "$tmp" | cfip_atomic_write "$output"
+    jq --argjson reward "$reward_json" --argjson native "$native_reward" --argjson disagreement "$disagreement" --argjson epsilon "${CFIP_RILL_REWARD_TIE_EPSILON:-0.02}" \
+      '. + {reward:$reward.reward,rewardVersion:$reward.rewardVersion,rewardComponents:$reward.components,worstDomain:$reward.worstDomain,rillShadowReward:$reward.reward,nativeCounterfactualReward:(if ($native|type)=="number" then $native else null end),rewardDelta:(if ($native|type)=="number" then ($reward.reward-$native) else null end),comparison:(if ($native|type)!="number" then "unavailable" elif ($reward.reward-$native)>$epsilon then "win" elif ($reward.reward-$native)<(-$epsilon) then "loss" else "tie" end),disagreement:$disagreement}' "$tmp" | cfip_atomic_write "$output"
     rm -f "$tmp"
 }
 
 cfip_rill_holdout_due() {
-    local decision="$1" interval count native authority fingerprint lineage
+    local decision="$1" interval count native authority fingerprint lineage cadence decision_id last_decision
     [[ "$(jq -r '.effectiveMode // empty' "$decision" 2>/dev/null)" == assisted ]] || return 1
     native="$(jq -r '.nativeOrder[0] // empty' "$decision" 2>/dev/null)"
     authority="$(jq -r '.authorityActionId // empty' "$decision" 2>/dev/null)"
@@ -616,26 +629,57 @@ cfip_rill_holdout_due() {
     interval="${CFIP_RILL_HOLDOUT_INTERVAL:-5}"
     [[ "$interval" =~ ^[1-9][0-9]*$ ]] || interval=5
     fingerprint="$(cfip_rill_context_fingerprint 2>/dev/null || printf '')"; lineage="$(cfip_rill_lineage_id 2>/dev/null || printf '')"
-    count="$(cfip_rill_evidence_json | jq --arg fp "$fingerprint" --arg lineage "$lineage" '[.[]|select(.effectiveMode=="assisted" and (.contextFingerprint==$fp or .contextFingerprint==null) and (.stateLineage==$lineage or .stateLineage==null) and .authorityActionId != .nativeTop1)]|length')"
-    (( (count + 1) % interval == 0 ))
+    decision_id="$(jq -r '.decisionId // empty' "$decision" 2>/dev/null || printf '')"
+    [[ -n "$decision_id" ]] || decision_id="$(sha256sum "$decision" | awk '{print $1}')"
+    cadence='{}'
+    [[ -s "$CFIP_RILL_HOLDOUT_STATE_FILE" ]] && cadence="$(jq -c 'if type=="object" then . else {} end' "$CFIP_RILL_HOLDOUT_STATE_FILE" 2>/dev/null || printf '{}')"
+    if [[ "$(jq -r '.contextFingerprint // empty' <<<"$cadence")" != "$fingerprint" || "$(jq -r '.stateLineage // empty' <<<"$cadence")" != "$lineage" ]]; then
+        cadence="$(jq -cn --arg fp "$fingerprint" --arg lineage "$lineage" '{schemaVersion:1,contextFingerprint:$fp,stateLineage:$lineage,assistedDisagreementCount:0,lastDecisionId:null}')"
+    fi
+    count="$(jq -r '.assistedDisagreementCount // 0' <<<"$cadence")"; [[ "$count" =~ ^[0-9]+$ ]] || count=0
+    last_decision="$(jq -r '.lastDecisionId // empty' <<<"$cadence")"
+    if [[ "$last_decision" != "$decision_id" ]]; then
+        count=$((count+1))
+        jq --arg fp "$fingerprint" --arg lineage "$lineage" --arg decisionId "$decision_id" --argjson count "$count" \
+          '. + {schemaVersion:1,contextFingerprint:$fp,stateLineage:$lineage,assistedDisagreementCount:$count,lastDecisionId:$decisionId,updatedAt:(now|floor)}' \
+          <<<"$cadence" | cfip_atomic_write "$CFIP_RILL_HOLDOUT_STATE_FILE" || return 1
+    fi
+    (( count % interval == 0 ))
 }
 
-cfip_rill_holdout() {
+cfip_rill_holdout() (
     local decision="$1" native_json="$2" actual_outcome="$3" domains="$4" timeout_s="$5" output="$6"
-    local native family candidate domain probe probes='[]' all_ok=true reward_json actual_reward native_reward epsilon
+    local native family candidate domain probe probes='[]' all_ok=true reward_json actual_reward native_reward epsilon holdout_timeout holdout_deadline budget_unavailable=false probe_unavailable=false error_class
     cfip_rill_holdout_due "$decision" || return 2
     native="$(jq -r '.nativeOrder[0] // empty' "$decision")"; [[ -n "$native" ]] || return 2
     epsilon="${CFIP_RILL_REWARD_TIE_EPSILON:-0.02}"
     candidate="$(jq -c --arg ip "$native" '.[]|select((.ip|tostring)==$ip)' "$native_json" | head -n1)"; [[ -n "$candidate" ]] || return 2
     family="$(jq -r '.family // "ipv4"' <<<"$candidate")"
+    holdout_timeout="${CFIP_RILL_HOLDOUT_TIMEOUT:-$timeout_s}"
+    [[ "$holdout_timeout" =~ ^[1-9][0-9]*$ ]] || holdout_timeout="$timeout_s"
+    [[ "$holdout_timeout" =~ ^[1-9][0-9]*$ ]] || return 2
+    holdout_deadline=$(( $(cfip_monotonic_seconds 2>/dev/null || date +%s) + holdout_timeout ))
+    CFIP_MEASUREMENT_DEADLINE="$holdout_deadline"
     IFS=',' read -r -a domain_list <<<"$domains"
     for domain in "${domain_list[@]}"; do
         [[ -n "$domain" ]] || continue
-        probe="$(cfip_probe_one "$native" "$domain" "$family" "$timeout_s")" || { all_ok=false; continue; }
+        probe="$(cfip_probe_one "$native" "$domain" "$family" "$holdout_timeout")" || { probe_unavailable=true; continue; }
+        error_class="$(jq -r '.errorClass // empty' <<<"$probe" 2>/dev/null || printf '')"
+        if [[ "$error_class" == measurement_budget || "$error_class" == evaluation_budget_exhausted ]]; then
+            budget_unavailable=true
+            break
+        fi
         probes="$(jq -cn --argjson a "$probes" --argjson p "$probe" --argjson loss "$(jq -r '.lossRate // 1' <<<"$candidate")" --argjson throughput "$(jq -r '.downloadMBps // 0' <<<"$candidate")" '$a+[$p+{lossRate:$loss,downloadMBps:$throughput}]')"
         [[ "$(jq -r '.success' <<<"$probe")" == true ]] || all_ok=false
     done
-    [[ "$(jq 'length' <<<"$probes")" -gt 0 ]] || return 2
+    if [[ "$budget_unavailable" == true ]]; then
+        jq -cn '{performed:false,reason:"budget_unavailable",feedbackEligible:false,holdoutFailure:false,comparison:"unavailable"}' | cfip_atomic_write "$output"
+        return $?
+    fi
+    [[ "$(jq 'length' <<<"$probes")" -gt 0 ]] || {
+        jq -cn --arg reason "$(if [[ "$probe_unavailable" == true ]]; then printf probe_unavailable; else printf no_complete_probe; fi)" '{performed:false,reason:$reason,feedbackEligible:false,holdoutFailure:false,comparison:"unavailable"}' | cfip_atomic_write "$output"
+        return $?
+    }
     local tmp="$(mktemp "${TMPDIR:-/tmp}/cfip-rill-holdout.XXXXXX")" || return 1
     jq -cn --arg runId "${CFIP_RUN_ID:-holdout}" --arg ip "$native" --arg decisionId "$(jq -r '.decisionId // empty' "$decision")" --argjson ok "$all_ok" --argjson probes "$probes" \
       '{schemaVersion:2,runId:$runId,decisionId:$decisionId,validated:$ok,candidateOutcome:(if $ok then "success" else "failure" end),hostOutcome:"success",censored:false,observedIp:$ip,decisionActionId:$ip,probes:$probes,holdout:true}' >"$tmp"
@@ -643,15 +687,16 @@ cfip_rill_holdout() {
     jq -cn --arg native "$native" --argjson performed true --argjson success "$all_ok" --argjson actual "$actual_reward" --argjson holdout "$native_reward" --argjson epsilon "$epsilon" --argjson delta "$(jq -cn --argjson a "$actual_reward" --argjson n "$native_reward" 'if ($a|type)=="number" and ($n|type)=="number" then $a-$n else null end')" \
       '{performed:$performed,evaluationSource:"holdout",nativeTop1:$native,actualCandidateReward:$actual,nativeHoldoutReward:$holdout,rewardDelta:$delta,comparison:(if ($delta|type)!="number" then "unavailable" elif $delta>$epsilon then "win" elif $delta < (-$epsilon) then "loss" else "tie" end),failure:($success|not),holdoutFailure:($success|not),feedbackEligible:false}' | cfip_atomic_write "$output"
     rm -f "$tmp"
-}
+)
 
 cfip_rill_record_evaluation() {
-    local decision="$1" outcome="$2" holdout="${3:-}" current evaluation_window effective source native_reward rill_reward delta result fingerprint lineage decision_id holdout_performed
+    local decision="$1" outcome="$2" holdout="${3:-}" current evaluation_window effective source native_reward rill_reward delta result fingerprint lineage decision_id holdout_performed epsilon
     [[ -s "$decision" && -s "$outcome" ]] || return 1
     [[ -n "$holdout" ]] || holdout='{}'
     [[ -f "$holdout" ]] && holdout="$(cat "$holdout")"
     current="$(cfip_rill_qualification_json)"
     evaluation_window="$(jq -c '.evaluationWindow // []' <<<"$current")"
+    epsilon="${CFIP_RILL_REWARD_TIE_EPSILON:-0.02}"
     effective="$(jq -r '.effectiveMode // "off"' "$decision")"
     holdout_performed="$(jq -r '.performed // false' <<<"$holdout" 2>/dev/null || printf false)"
     source=""
@@ -667,7 +712,7 @@ cfip_rill_record_evaluation() {
         native_reward="$(jq -r '.nativeCounterfactualReward // null' "$outcome")"
         rill_reward="$(jq -r '.rillShadowReward // .reward // null' "$outcome")"
         delta="$(jq -r '.rewardDelta // null' "$outcome")"
-        result="$(jq -r '.comparison // "unavailable"' "$outcome")"
+        result="$(jq -r --argjson epsilon "$epsilon" '.comparison // (if (.rewardDelta|type)!="number" then "unavailable" elif .rewardDelta>$epsilon then "win" elif .rewardDelta < (-$epsilon) then "loss" else "tie" end)' "$outcome")"
     else
         return 0
     fi
