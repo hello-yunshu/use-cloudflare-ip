@@ -17,8 +17,8 @@
 | Native Reuse hard gate | CODE | current-IP validation 通过才允许 `REUSE_CURRENT`；配置变更、过期、失败或缺少 baseline 时强制 full optimize；decision authority 为 Native。 |
 | Mature optimizer behavior | CODE | CFST、IPv4/IPv6、PassWall/OpenClash transaction、target-domain probe、prefix/colo/multi-IP/reuse/rollback、LuCI staged validation 保留。 |
 | Candidate feedback and qualification | CODE | 22D reward、attribution、delayed queue、lineage/generation、rolling qualification、guarded assisted、Health/Inspect 和 resource pressure 保留。 |
-| Current-head local regression | PENDING | 由当前提交后的完整 workflow 与 exact-head run 定案。 |
-| Package main convergence | OPEN until proven | package qualification branch 仍需进入 `rill-openwrt-packages/main`，并重新绑定 consumer contract。 |
+| Current-head remote regression | PASS | Cloudflare `dffeb8f22d92c88cab02b0138326585057c13d1e`、tree `d46e04f67e44d11fe8479093059cc372cab8f08` 的 CI run `33723365283` terminal success；host/legacy/RPC/LuCI/workflow/real CFST、四个 OpenWrt package matrix、same-release integration、qualification/evidence guards 全部通过。 |
+| Package main convergence | OPEN | package qualification branch `38f21f02c06a880abd3cd020004814887f3943a5` 仍需进入 `rill-openwrt-packages/main`；当前 PR #3 为 `BLOCKED / REVIEW_REQUIRED`，package main 仍是 `87514ee67a4a6b404f354c99eb66e656555d7f5f`。 |
 | Physical device / soak | NOT RUN | Docker、SDK、IPK/APK 和软件测试不能替代真实 OpenWrt 设备或 72h/7d soak。 |
 
 ## Consumer boundaries
