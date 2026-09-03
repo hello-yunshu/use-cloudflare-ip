@@ -232,7 +232,7 @@ jobs:
             # APK rejects the source development suffix. Patch only the
             # checked-out package Makefile so dependency PKG_VERSION values
             # remain untouched and the source contract stays exact.
-            sed -i 's/^PKG_VERSION:=2.0.0-dev$/PKG_VERSION:=2.0.0.1/' package/luci-app-cloudflare-ip/Makefile
+            sed -i 's/^PKG_VERSION:=\([0-9][0-9.]*\)-dev$/PKG_VERSION:=\1.1/' package/luci-app-cloudflare-ip/Makefile
             bash "$build_helper" package/luci-app-cloudflare-ip/compile
           else
             bash "$build_helper" package/luci-app-cloudflare-ip/compile
@@ -390,7 +390,7 @@ jobs:
           if [ "$GITHUB_REF" = refs/heads/main ]; then
             [[ "$version" != *-dev ]]
           else
-            test "$version" = 2.0.0-dev
+            [[ "$version" =~ ^2\.1\.0-dev$ ]]
           fi
 
   rpc-luci-contract:
@@ -456,7 +456,7 @@ jobs:
           tmp="$RUNNER_TEMP/release-contract"
           mkdir -p "$tmp"
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
-          touch "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.ipk" "$tmp/luci-app-cloudflare-ip-rill_2.0.0-dev-1.ipk" "$tmp/luci-app-cloudflare-ip_2.0.0-dev-1.apk" "$tmp/luci-app-cloudflare-ip-rill_2.0.0-dev-1.apk"
+          touch "$tmp/luci-app-cloudflare-ip_${version}-1.ipk" "$tmp/luci-app-cloudflare-ip-rill_${version}-1.ipk" "$tmp/luci-app-cloudflare-ip_${version}-1.apk" "$tmp/luci-app-cloudflare-ip-rill_${version}-1.apk"
           (cd "$tmp" && sha256sum luci-app-cloudflare-ip* > sha256sums.txt)
           bash tests/release-asset-contract.sh "$tmp" "$version"
 
