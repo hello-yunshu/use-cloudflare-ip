@@ -41,7 +41,7 @@ new_selected_ip="$(jq -r '.selectedActionId' "$TMP/decision-new-context.json")"
 jq -cn --arg ip "$new_selected_ip" '[{ip:$ip,family:"ipv4"}]' > "$TMP/selected-new-context.json"
 cfip_post_apply_probe "$TMP/selected-new-context.json" two.example 1 "$TMP/outcome-new-context.json"
 cfip_rill_feedback "$TMP/decision-new-context.json" "$TMP/outcome-new-context.json"
-test "$(jq -r '.generation' "$TMP/rill-state.json")" -gt 1
+test "$(cfip_rill_state_generation)" -gt 1
 lineage_after_context="$(jq -r '.lineageId' "$CFIP_RILL_STATE_META_FILE")"
 test "$lineage_after_context" != "$lineage_before_context"
 echo 'Actual packaged Runtime full lifecycle, restart, inspect, delayed feedback, and context isolation passed'
