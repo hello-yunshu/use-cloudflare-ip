@@ -6,7 +6,7 @@ Run `git diff --check`, Bash/ash syntax, ShellCheck where available, `node --che
 
 ## Remote gates
 
-Independent jobs cover host contracts, legacy behavior, RPC/LuCI contracts, same-release generic Rill consumer integration, OpenWrt 24.10.5 IPK, OpenWrt 25.12.0 APK, workflow lint, and real CFST parsing/timeout smoke. The external `rill-openwrt-packages` repository separately qualifies the generic Runtime package on its IPK/APK matrix. SDK Prepare, Build and Inspect use `/builder`. Each qualification record stores commit, run ID, job name, result, and artifact path.
+Independent jobs cover host contracts, legacy behavior, RPC/LuCI contracts, Candidate context/holdout/evidence/qualification/confidence contracts, same-release generic Rill consumer integration, OpenWrt 24.10.5/24.10.8 IPK, OpenWrt 25.12.0/25.12.5 APK, workflow lint, and real CFST parsing/timeout smoke. The external `rill-openwrt-packages` repository separately qualifies the generic Runtime package on its IPK/APK matrix. SDK Prepare, Build and Inspect use `/builder`. Each qualification record stores commit, run ID, job name, result, and artifact path.
 
 ## Device boundary
 

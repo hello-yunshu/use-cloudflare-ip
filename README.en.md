@@ -23,7 +23,21 @@
 - **Connectivity Verification**: Validates each IP after benchmarking, skips unreachable ones
 - **Multi-Domain Support**: Comma-separated target domains
 - **IP History**: View historical optimized IP list
-- **Upgrade Policy**: 2.0 is package-managed; the legacy script self-update key is retained only for migration compatibility
+- **Upgrade Policy**: 2.1 is package-managed; the legacy script self-update key is retained only for migration compatibility
+
+## Current version
+
+The mainline version is Cloudflare IP `2.1.0`. It builds on the deterministic Native
+safety envelope from 2.0 and adds Candidate Intelligence: context fingerprints and
+isolation, non-blocking holdout evaluation, budgeted evidence storage, continuous
+qualification, confidence reasons, and LuCI diagnostics. Runtime still has one
+Candidate Learner; Source Intelligence and Reuse remain deterministic consumer
+logic and a Native current-IP hard gate respectively.
+
+The formal package is promoted only from successful exact-head CI on `main` to
+`v2.1.0-1`. IPK/APK packages, `sha256sums.txt`, and `qualification.json` belong to
+one qualification chain. Live OpenWrt devices, hardware coverage, and soak are
+separate evidence boundaries.
 
 ## Installation
 
@@ -119,7 +133,7 @@ Finds nodes where `server` matches the target domain, generates `[CF-1]`, `[CF-2
 |--------|-------------|---------|
 | Stop Proxy Before Benchmark | Avoid proxy interference with benchmark results | On |
 | Startup Delay | Random delay in seconds, `random` = 0~300s | — |
-| Self-Update | Deprecated; 2.0 is package-managed | Off |
+| Self-Update | Deprecated; 2.1 is package-managed | Off |
 | GitHub Mirror | Mirror URL to accelerate GitHub downloads | — |
 | Download Retries | GitHub download retry count | 3 |
 | Retry Delay | Retry interval in seconds | 5 |
@@ -242,9 +256,9 @@ This project uses GitHub Actions for automated builds:
 ## Acknowledgments
 
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
-## 2.0 clean-rebuild engine (development)
+## 2.1 Candidate Intelligence engine
 
-Package version `2.0.0-dev` is rebuilt from the complete 1.8.3 behavior baseline. Overview, Settings, Diagnostics, PassWall, OpenClash, scheduling, CFST, suffixes, multi-IP variants, backups, and upgrade behavior remain available. Candidate IP Sources, bounded scheduling, target-domain Active Probe, Native Rank, transactional apply/rollback, optional generic Rill Runtime v3 Preview shadow intelligence, and an optional LAN Publisher are additive. The upstream OpenWrt package repository owns distribution and publishes a separately qualified `rill-runtime-preview` package pinned to the exact Preview commit; this repository only provides the optional consumer mapping package.
+Package version `2.1.0` builds on the complete 1.8.3 behavior baseline and the 2.0 closure. Overview, Settings, Diagnostics, PassWall, OpenClash, scheduling, CFST, suffixes, multi-IP variants, backups, and upgrade behavior remain available. Candidate IP Sources, bounded scheduling, target-domain Active Probe, Native Rank, transactional apply/rollback, optional generic Rill Runtime v3 Preview shadow intelligence, and an optional LAN Publisher are additive. The upstream OpenWrt package repository owns distribution and publishes a separately qualified `rill-runtime-preview` package pinned to the exact Preview commit; this repository only provides the optional consumer mapping package.
 
 Candidate Budget defaults to 128 and accepts 100-512 unique candidates. Fresh history, community seeds, and official CIDR exploration receive about 1/8, 5/8, and 1/4; deficits flow between pools. Official CIDRs are sampled into concrete IPs and one CFST process measures the merged input. A community `IP:port` contributes only its IP; domain candidates are rejected without DNS resolution.
 
@@ -252,8 +266,8 @@ The measurement policy is explicit and bounded: `balanced`, `official-heavy`, `h
 
 Before PassWall or OpenClash is changed, every selected IP must pass the configured target-domain probe with the intended SNI/Host. One host transaction captures state before stopping the proxy; the measurement deadline covers measurement, probes, apply and normal restart, while failures enter an independent recovery deadline for rollback, service restore and health confirmation. The transaction invokes a pure transformer, performs block-level intended-mapping readback, restarts, and verifies health. Timeout, failed eligibility, or restart failure rolls back configuration and managed state. Rill errors always fall back to Native Rank. Shadow separately probes a Rill-only candidate, and only candidate-specific non-censored outcomes enter delayed feedback.
 
-Script self-update is deprecated because 2.0 is multi-file and package-managed. `auto_update=0` is the default; upgrade via a validated IPK/APK package. UCI, CFST, source last-good caches, ownership and bounded history persist across upgrades, while run/probe/publisher files are temporary. LAN Publisher is disabled by default, LAN-only, refuses `0.0.0.0`, and serves `/ip.txt`, `/best-ipv4.txt`, `/best-ipv6.txt`, and `/result.json`.
+Script self-update is deprecated because 2.1 is multi-file and package-managed. `auto_update=0` is the default; upgrade via a validated IPK/APK package. UCI, CFST, source last-good caches, ownership and bounded history persist across upgrades, while run/probe/publisher files are temporary. LAN Publisher is disabled by default, LAN-only, refuses `0.0.0.0`, and serves `/ip.txt`, `/best-ipv4.txt`, `/best-ipv6.txt`, and `/result.json`.
 
-Release status: development only. Stable publication requires every legacy item, host/RPC/LuCI, same-release generic Rill consumer integration, OpenWrt 24.10.5 IPK, OpenWrt 25.12.0 APK, rollback gates, and real CFST smoke. Package or Docker checks do not prove live OpenWrt or hardware soak.
+Release gates require every legacy item, host/RPC/LuCI, same-release generic Rill consumer integration, OpenWrt 24.10.8 IPK, 25.12.5 APK, compatibility 24.10.5/25.12.0 builds, rollback gates, and real CFST smoke. The release candidate may use exact `2.1.0`; development branches use `2.1.0-dev`, and formal promotion is triggered only by a successful `main` `workflow_run`. Package or Docker checks do not prove live OpenWrt or hardware soak.
 
 When fewer candidates qualify, the result reports a degraded candidate count and never duplicates the fastest IP. More sources enlarge the seed pool, but all candidates are retested locally; source count does not mean an unbounded number of IPs in one speed test. LAN Publisher is optional, LAN-only, disabled by default, and never replaces direct PassWall/OpenClash updates.
