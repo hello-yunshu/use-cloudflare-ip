@@ -85,6 +85,17 @@ jobs:
           bash tests/rill-context-change-reset.sh
           bash tests/rill-context-pending-feedback-isolation.sh
           bash tests/rill-context-nonmaterial-config-change.sh
+          bash tests/rill-assisted-holdout.sh
+          bash tests/rill-holdout-nonblocking.sh
+          bash tests/rill-holdout-no-feedback-leak.sh
+          bash tests/rill-holdout-budget.sh
+          bash tests/rill-evidence-store.sh
+          bash tests/rill-evidence-corruption.sh
+          bash tests/rill-continuous-qualification.sh
+          bash tests/rill-qualification-context-reset.sh
+          bash tests/rill-decision-confidence.sh
+          bash tests/rill-intelligence-status-contract.sh
+          bash tests/rill-intelligence-luci-contract.sh
           jq empty plans/rill/drift-decision.json
           bash tests/recovery-deadline.sh
           bash tests/transaction-commit-failure.sh

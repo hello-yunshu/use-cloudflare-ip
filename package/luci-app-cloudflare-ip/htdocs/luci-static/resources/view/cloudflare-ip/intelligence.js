@@ -136,12 +136,23 @@ return view.extend({
 	o = s.option(form.DummyValue, '_context', _('Learning Context'));
 	o.cfgvalue = function() {
 		var c = status.learningContext || (status.intelligence || {}).learningContext || {};
-		return (c.contextFingerprint || _('Unknown')) + (status.contextChanged ? ' / ' + _('changed') : '');
+		var changedAt = status.contextChangedAt || (status.intelligence || {}).contextChangedAt || null;
+		return (c.contextFingerprint || _('Unknown')) + (status.contextChanged ? ' / ' + _('changed') : '') + (changedAt ? ' / ' + _('last changed') + ': ' + changedAt : '');
 	};
 	o = s.option(form.DummyValue, '_confidence', _('Decision Confidence'));
 	o.cfgvalue = function() {
 		var d = status.decision || {}, i = status.intelligence || {};
 		return d.confidenceLevel || i.confidenceLevel || _('Unavailable / Native fallback');
+	};
+	o = s.option(form.DummyValue, '_confidence_reasons', _('Confidence Reasons'));
+	o.cfgvalue = function() {
+		var d = status.decision || {}, reasons = d.confidenceReasons || status.confidenceReasons || [];
+		return reasons.length ? reasons.join(', ') : _('Unavailable / Native fallback');
+	};
+	o = s.option(form.DummyValue, '_selection', _('Decision Selection'));
+	o.cfgvalue = function() {
+		var d = status.decision || {}, native = (d.nativeOrder || [])[0] || '?', rill = (d.rillOrder || [])[0] || '?', final = d.authorityActionId || d.selectedActionId || '?';
+		return _('Native top1') + ': ' + native + ', ' + _('Rill top1') + ': ' + rill + ', ' + _('final') + ': ' + final + ', ' + _('agreement') + ': ' + (d.nativeRillTop1Agreement ? _('yes') : _('no'));
 	};
 	o = s.option(form.DummyValue, '_evidence', _('Decision Evidence'));
 	o.cfgvalue = function() {
