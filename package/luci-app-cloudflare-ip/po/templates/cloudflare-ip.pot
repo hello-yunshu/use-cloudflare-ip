@@ -1,820 +1,1611 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: luci-app-cloudflare-ip\n"
-"PO-Revision-Date: 2026-08-28 00:00+0800\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-04 04:08+0800\n"
+"PO-Revision-Date: 2026-09-04 00:00+0800\n"
 "Last-Translator: yunshu\n"
 "Language-Team: English\n"
-"Content-Type: text/plain; charset=UTF-8\n"
-"MIME-Version: 1.0\n"
-"Content-Transfer-Encoding: 8bit\n"
 "Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:16
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:183
 msgid "Cloudflare IP Optimization"
 msgstr ""
 
-msgid "Settings"
-msgstr ""
-
-msgid "Overview"
-msgstr ""
-
-msgid "Service"
-msgstr ""
-
-msgid "Enable Service"
-msgstr ""
-
-msgid "Run the background service to periodically optimize Cloudflare IPs."
-msgstr ""
-
-msgid "Run Schedule"
-msgstr ""
-
-msgid "Select how often the speed test runs. The service computes the next run time automatically."
-msgstr ""
-
-msgid "Every 6 hours (recommended)"
-msgstr ""
-
-msgid "Every hour"
-msgstr ""
-
-msgid "Every 30 minutes"
-msgstr ""
-
-msgid "Every 15 minutes"
-msgstr ""
-
-msgid "Daily at 3:00 AM"
-msgstr ""
-
-msgid "Daily at 3:00 AM & 3:00 PM"
-msgstr ""
-
-msgid "Every 6 hours at :00"
-msgstr ""
-
-msgid "Custom..."
-msgstr ""
-
-msgid "Custom Schedule"
-msgstr ""
-
-msgid "Cron duration (e.g. 6h, 30m) or 5-field crontab expression."
-msgstr ""
-
-msgid "Speed Test"
-msgstr ""
-
-msgid "Mode"
-msgstr ""
-
-msgid "Select which proxy service to update."
-msgstr ""
-
-msgid "None (No proxy service detected)"
-msgstr ""
-
-msgid "PassWall or OpenClash is not installed. Please install one before using this service."
-msgstr ""
-
-msgid "IP Count"
-msgstr ""
-
-msgid "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
-msgstr ""
-
-msgid "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
-msgstr ""
-
-msgid "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
-msgstr ""
-
-msgid "IP Type"
-msgstr ""
-
-msgid "Select which IP addresses to test."
-msgstr ""
-
-msgid "Both"
-msgstr ""
-
-msgid "Speed Test Protocol"
-msgstr ""
-
-msgid "HTTPing supports data center filtering; TCPing does not."
-msgstr ""
-
-msgid "Data Center Filter"
-msgstr ""
-
-msgid "Filter by Cloudflare data center in HTTPing mode. Comma-separated, e.g. HKG,NRT,LAX. Only effective with HTTPing."
-msgstr ""
-
-msgid "Download Test Count"
-msgstr ""
-
-msgid "Number of IPs to test download speed."
-msgstr ""
-
-msgid "Average Latency Floor (ms)"
-msgstr ""
-
-msgid "Skip IPs with average latency below this value."
-msgstr ""
-
-msgid "Average Latency Ceiling (ms)"
-msgstr ""
-
-msgid "Skip IPs with average latency above this value. Leave empty for no upper limit."
-msgstr ""
-
-msgid "Stop Service Before Test"
-msgstr ""
-
-msgid "Stop the proxy service before speed testing to avoid interference, and restart after updating."
-msgstr ""
-
-msgid "Keep CFST Across Upgrades"
-msgstr ""
-
-msgid "Preserve CFST binary during OpenWrt sysupgrade so it survives system upgrades."
-msgstr ""
-
-msgid "Configuration saved and applied."
-msgstr ""
-
-msgid "Configuration saved. Restarting service..."
-msgstr ""
-
-msgid "Configuration applied and service is ready."
-msgstr ""
-
-msgid "Failed to apply configuration: "
-msgstr ""
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:83
 msgid "service action failed"
 msgstr ""
 
-msgid "Speedtest Running"
-msgstr ""
-
-msgid "Service Running"
-msgstr ""
-
-msgid "Service Stopped"
-msgstr ""
-
-msgid "Cloudflare IP speedtest is in progress, please wait..."
-msgstr ""
-
-msgid "Cloudflare IP optimization service is active and running."
-msgstr ""
-
-msgid "Cloudflare IP optimization service is not running. Click Start to begin."
-msgstr ""
-
-msgid "Best IP Count"
-msgstr ""
-
-msgid "Speedtest Protocol"
-msgstr ""
-
-msgid "CFST Version"
-msgstr ""
-
-msgid "Service Control"
-msgstr ""
-
-msgid "Service started."
-msgstr ""
-
-msgid "Failed to start service: "
-msgstr ""
-
-msgid "Start"
-msgstr ""
-
-msgid "Service stopped."
-msgstr ""
-
-msgid "Failed to stop service: "
-msgstr ""
-
-msgid "Stop"
-msgstr ""
-
-msgid "Service restarted."
-msgstr ""
-
-msgid "Failed to restart service: "
-msgstr ""
-
-msgid "Restart"
-msgstr ""
-
-msgid "Running..."
-msgstr ""
-
-msgid "Speedtest failed: %s"
-msgstr ""
-
-msgid "Run Speedtest"
-msgstr ""
-
-msgid "Updating..."
-msgstr ""
-
-msgid "Downloading..."
-msgstr ""
-
-msgid "Updating CFST, please wait..."
-msgstr ""
-
-msgid "Downloading CFST, please wait..."
-msgstr ""
-
-msgid "CFST operation failed: "
-msgstr ""
-
-msgid "CFST updated successfully."
-msgstr ""
-
-msgid "Update CFST"
-msgstr ""
-
-msgid "Download CFST"
-msgstr ""
-
-msgid "Service Information"
-msgstr ""
-
-msgid "Last Run Time"
-msgstr ""
-
-msgid "Last Result"
-msgstr ""
-
-msgid "Best IPs"
-msgstr ""
-
-msgid "Script Version"
-msgstr ""
-
-msgid "GitHub"
-msgstr ""
-
-msgid "Environment Detection"
-msgstr ""
-
-msgid "tar"
-msgstr ""
-
-msgid "jq"
-msgstr ""
-
-msgid "PassWall"
-msgstr ""
-
-msgid "OpenClash"
-msgstr ""
-
-msgid "CFST"
-msgstr ""
-
-msgid "Installed"
-msgstr ""
-
-msgid "Missing"
-msgstr ""
-
-msgid "Installed (Stopped)"
-msgstr ""
-
-msgid "Not Installed"
-msgstr ""
-
-msgid "Missing Dependencies & Fix Commands"
-msgstr ""
-
-msgid "Missing dependencies: "
-msgstr ""
-
-msgid "Checking..."
-msgstr ""
-
-msgid "Environment detection refreshed."
-msgstr ""
-
-msgid "Failed to refresh environment: "
-msgstr ""
-
-msgid "Refresh Env"
-msgstr ""
-
-msgid "Running"
-msgstr ""
-
-msgid "Loading..."
-msgstr ""
-
-msgid "No log output yet."
-msgstr ""
-
-msgid "Failed to get status: "
-msgstr ""
-
-msgid "Speedtest Log"
-msgstr ""
-
-msgid "Status"
-msgstr ""
-
-msgid "Log"
-msgstr ""
-
-msgid "Close"
-msgstr ""
-
-msgid "OpenClash Not Found"
-msgstr ""
-
-msgid "OpenClash is not installed. Please install OpenClash before using this feature."
-msgstr ""
-
-msgid "OpenClash Settings"
-msgstr ""
-
-msgid "Config File Path"
-msgstr ""
-
-msgid "Path to the OpenClash YAML configuration file."
-msgstr ""
-
-msgid "Only OpenClash proxies whose server matches this domain will be updated. Comma-separated for multiple domains."
-msgstr ""
-
-msgid "Proxy Name Suffix"
-msgstr ""
-
-msgid "Suffix appended to the original proxy name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
-msgstr ""
-
-msgid "Transport Filter"
-msgstr ""
-
-msgid "Only update proxies with the specified transport protocol. Comma-separated. Values: ws, grpc, xhttp, h2, http. Leave empty to update all supported proxies."
-msgstr ""
-
-msgid "Backup Count"
-msgstr ""
-
-msgid "Number of OpenClash config backups to keep."
-msgstr ""
-
-msgid "Config Backups"
-msgstr ""
-
-msgid "No backups available. Backups are created automatically when the config is updated."
-msgstr ""
-
-msgid "Backup Time"
-msgstr ""
-
-msgid "Size"
-msgstr ""
-
-msgid "Actions"
-msgstr ""
-
-msgid "Confirm Restore"
-msgstr ""
-
-msgid "Are you sure you want to restore this backup? A backup of the current configuration will be created first."
-msgstr ""
-
-msgid "Cancel"
-msgstr ""
-
-msgid "Restoring..."
-msgstr ""
-
-msgid "Please wait..."
-msgstr ""
-
-msgid "Backup restored successfully."
-msgstr ""
-
-msgid "Restore failed: "
-msgstr ""
-
-msgid "Restore"
-msgstr ""
-
-msgid "Confirm Delete"
-msgstr ""
-
-msgid "Are you sure you want to delete this backup?"
-msgstr ""
-
-msgid "Backup deleted"
-msgstr ""
-
-msgid "Delete"
-msgstr ""
-
-msgid "PassWall Not Found"
-msgstr ""
-
-msgid "PassWall is not installed. Please install PassWall before using this feature."
-msgstr ""
-
-msgid "PassWall Settings"
-msgstr ""
-
-msgid "Target Domain"
-msgstr ""
-
-msgid "Only PassWall nodes whose address equals this domain will be updated. Comma-separated for multiple domains."
-msgstr ""
-
-msgid "Node Name Suffix"
-msgstr ""
-
-msgid "Suffix appended to the original node name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
-msgstr ""
-
-msgid "Advanced"
-msgstr ""
-
-msgid "Self Update"
-msgstr ""
-
-msgid "Auto Update Script"
-msgstr ""
-
-msgid "Auto-check and update script on startup."
-msgstr ""
-
-msgid "Self Update URL"
-msgstr ""
-
-msgid "URL to download the latest script version."
-msgstr ""
-
-msgid "Update Script Now"
-msgstr ""
-
-msgid "Manually check for and install the latest script version."
-msgstr ""
-
-msgid "Update Script"
-msgstr ""
-
-msgid "Checking for script updates, this may take a moment. Please wait..."
-msgstr ""
-
-msgid "Self-update failed: "
-msgstr ""
-
-msgid "Script updated to version %s."
-msgstr ""
-
-msgid "Script is already up to date."
-msgstr ""
-
-msgid "Download"
-msgstr ""
-
-msgid "GitHub Mirror"
-msgstr ""
-
-msgid "GitHub download proxy URL. Leave empty for direct downloads. Must end with /."
-msgstr ""
-
-msgid "Download Retries"
-msgstr ""
-
-msgid "Number of retry attempts for GitHub downloads."
-msgstr ""
-
-msgid "Retry Delay (seconds)"
-msgstr ""
-
-msgid "Seconds to wait between download retries."
-msgstr ""
-
-msgid "Startup"
-msgstr ""
-
-msgid "Startup Delay"
-msgstr ""
-
-msgid "Random delay upper bound (seconds). Empty/random = 0~300s, 0 = no delay."
-msgstr ""
-
-msgid "Verbose Logging"
-msgstr ""
-
-msgid "Output detailed progress logs."
-msgstr ""
-
-msgid "Work Directory"
-msgstr ""
-
-msgid "Leave empty to use the script directory."
-msgstr ""
-
-msgid "Service action completed, but speedtest is still in progress. Refreshing current status."
-msgstr ""
-
-msgid "Logs & Records"
-msgstr ""
-
-msgid "Recent Logs"
-msgstr ""
-
-msgid "Failed to read logs"
-msgstr ""
-
-msgid "No logs found."
-msgstr ""
-
-msgid "Failed to read logs: "
-msgstr ""
-
-msgid "Refresh"
-msgstr ""
-
-msgid "Clear log file?"
-msgstr ""
-
-msgid "Log file cleared."
-msgstr ""
-
-msgid "Failed to clear logs: "
-msgstr ""
-
-msgid "Clear Logs"
-msgstr ""
-
-msgid "Last Error: "
-msgstr ""
-
-msgid "IP History"
-msgstr ""
-
-msgid "(latest 10)"
-msgstr ""
-
-msgid "Failed to load IP history"
-msgstr ""
-
-msgid "No IP history available"
-msgstr ""
-
-msgid "IP Address"
-msgstr ""
-
-msgid "Scheduled"
-msgstr ""
-
-msgid "Success"
-msgstr ""
-
-msgid "Error"
-msgstr ""
-
-msgid "Stopped"
-msgstr ""
-
-msgid "unknown"
-msgstr ""
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:196
 msgid "Project"
 msgstr ""
 
-msgid "Failed to trigger speedtest: %s"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:244
+msgid "Configuration saved and applied."
 msgstr ""
 
-msgid "Status unavailable / Native fallback"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:249
+msgid "Configuration saved. Restarting service..."
 msgstr ""
 
-msgid "Assisted requested → Shadow fallback"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:253
+msgid "Configuration applied and service is ready."
 msgstr ""
 
-msgid "consumer not qualified"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:257
+#, javascript-format
+msgid "Unable to apply configuration: %s"
 msgstr ""
 
-msgid "Available"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:10
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:20
+msgid "Advanced"
 msgstr ""
 
-msgid "version unknown"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:24
+msgid "Script Updates"
 msgstr ""
 
-msgid "Disabled / Native ranking"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:27
+msgid "Auto Update Script"
 msgstr ""
 
-msgid "Unavailable / Native fallback"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:28
+msgid "Deprecated in 2.x. Package upgrades are required to update the engine."
 msgstr ""
 
-msgid "Rill Intelligence"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:33
+msgid "Script Update URL"
 msgstr ""
 
-msgid "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:34
+msgid ""
+"Retained only for migration compatibility; it is not used by the 2.x engine."
 msgstr ""
 
-msgid "Rill Runtime Consumer"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:38
+msgid "Update policy"
 msgstr ""
 
-msgid "Enable Rill Intelligence"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:39
+msgid "Deprecated / package-managed"
 msgstr ""
 
-msgid "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:42
+msgid "Download"
 msgstr ""
 
-msgid "Off"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:45
+msgid "GitHub Mirror"
 msgstr ""
 
-msgid "Shadow"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:46
+msgid ""
+"GitHub download proxy URL. Leave empty for direct downloads. Must end with /."
 msgstr ""
 
-msgid "Assisted (qualification-gated)"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:51
+msgid "Download Retries"
 msgstr ""
 
-msgid "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:52
+msgid "Number of retry attempts for GitHub downloads."
 msgstr ""
 
-msgid "Runtime Timeout (ms)"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:57
+msgid "Retry Delay (seconds)"
 msgstr ""
 
-msgid "Runtime Path"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:58
+msgid "Seconds to wait between download retries."
 msgstr ""
 
-msgid "State File"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:64
+msgid "Startup"
 msgstr ""
 
-msgid "Live State"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:67
+msgid "Startup Delay"
 msgstr ""
 
-msgid "Runtime"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:68
+msgid ""
+"Random delay upper bound (seconds). Empty/random = 0~300s, 0 = no delay."
 msgstr ""
 
-msgid "Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:73
+msgid "Verbose Logging"
 msgstr ""
 
-msgid "Runtime Channel"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:74
+msgid "Output detailed progress logs."
 msgstr ""
 
-msgid "Runtime API"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:77
+msgid "Work Directory"
 msgstr ""
 
-msgid "Feature Schema"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:78
+msgid "Leave empty to use the script directory."
 msgstr ""
 
-msgid "State / Model Generation"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:83
+msgid "Measurement Deadline (seconds)"
 msgstr ""
 
-msgid "Learning"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:84
+msgid ""
+"Measurement deadline for stop, CFST, probes, apply and normal restart. "
+"Recovery has a separate deadline."
 msgstr ""
 
-msgid "Valid feedback"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:89
+msgid "Recovery Deadline (seconds)"
 msgstr ""
 
-msgid "delayed pending"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:90
+msgid ""
+"Independent fail-safe deadline for rollback, restoring service state and "
+"recovery health checks. Allowed: 10-120 seconds."
 msgstr ""
 
-msgid "completed"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:95
+msgid "Probe Top Candidates"
 msgstr ""
 
-msgid "Current Authority"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:96
+msgid ""
+"Number of CFST results to verify against every target domain before ranking."
 msgstr ""
 
-msgid "Guarded Assisted"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:101
+msgid "Probe Concurrency"
 msgstr ""
 
-msgid "Qualification"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:102
+msgid ""
+"Concurrent target-domain probes, bounded to protect the proxy-off window."
 msgstr ""
 
-msgid "Fallback Reason"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:107
+msgid "Probe Timeout (seconds)"
 msgstr ""
 
-msgid "None"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:108
+msgid "Per-domain probe timeout; the global hard limit still wins."
 msgstr ""
 
-msgid "Shadow Self-check"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:40
+msgid "Diagnostics unavailable"
 msgstr ""
 
-msgid "Run now"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:59
+msgid "Logs & Records"
 msgstr ""
 
-msgid "Checking..."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:62
+msgid "Rill Diagnostics"
 msgstr ""
 
-msgid "Rill self-check passed."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:63
+msgid ""
+"This snapshot explains fallback, qualification, delayed feedback, Prefix and "
+"Colo intelligence without exposing the internal model."
 msgstr ""
 
-msgid "Rill self-check fell back to Native."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:79
+msgid "Recent Logs"
 msgstr ""
 
-msgid "Self-check failed: "
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:96
+msgid "Unable to read logs. Check the service status and try again."
 msgstr ""
 
-msgid "Reset Learning State"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:106
+msgid "No logs found."
 msgstr ""
 
-msgid "Reset"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:112
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:114
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:139
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:157
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:203
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:72
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:346
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:363
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:379
+msgid "Loading..."
 msgstr ""
 
-msgid "Resetting..."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:117
+#, javascript-format
+msgid "Unable to read logs: %s"
 msgstr ""
 
-msgid "Reset Rill learning state? Native configuration will not be changed."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:131
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:212
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:130
+msgid "Refresh"
 msgstr ""
 
-msgid "Rill learning state was reset."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:136
+msgid "Clear log file?"
 msgstr ""
 
-msgid "Reset rejected"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:144
+msgid "Log file cleared."
 msgstr ""
 
-msgid "Reset failed: "
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:146
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:149
+#, javascript-format
+msgid "Unable to clear logs: %s"
 msgstr ""
 
-msgid "Measurement Policy"
-msgstr ""
-
-msgid "Source Strategy"
-msgstr ""
-
-msgid "Balanced"
-msgstr ""
-
-msgid "Official-heavy"
-msgstr ""
-
-msgid "History-heavy"
-msgstr ""
-
-msgid "Diversity-heavy"
-msgstr ""
-
-msgid "Community-heavy"
-msgstr ""
-
-msgid "Probe Batch Size"
-msgstr ""
-
-msgid "Maximum Probes"
-msgstr ""
-
-msgid "Deterministic Early Stop"
-msgstr ""
-
-msgid "Runtime Health"
-msgstr ""
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:146
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:103
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:105
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:122
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:135
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:140
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:177
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:186
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:53
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:406
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:438
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
 msgid "Unknown"
 msgstr ""
 
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:154
+msgid "Clear Logs"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:163
+#, javascript-format
+msgid "Last error: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:169
+msgid "(latest 10)"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:169
+msgid "IP History"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:179
+msgid "Unable to load IP history. Refresh and try again."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:185
+msgid "No IP history available"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:220
+msgid "IP Address"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:17
+msgid "Status unavailable / Native fallback"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:24
+msgid "Assisted requested → Shadow fallback"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:24
+msgid "consumer not qualified"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:27
+msgid "Available"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:27
+msgid "version unknown"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:30
+msgid "Disabled / Native ranking"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:32
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:145
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:150
+msgid "Unavailable / Native fallback"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:36
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:51
+msgid "Rill Intelligence"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:52
+msgid ""
+"The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP "
+"owns candidate validation, ranking policy, reward and proxy transactions."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:55
+msgid "Measurement Policy"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:57
+msgid "Source Strategy"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:58
+msgid "Balanced"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:59
+msgid "Official-heavy"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:60
+msgid "History-heavy"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:61
+msgid "Diversity-heavy"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:62
+msgid "Community-heavy"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:64
+msgid "Probe Batch Size"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:67
+msgid "Maximum Probes"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:70
+msgid "Deterministic Early Stop"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:73
+msgid "Rill Runtime Consumer"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:76
+msgid "Enable Rill Intelligence"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:77
+msgid ""
+"Enable the optional Rill consumer. Native ranking remains authoritative when "
+"Rill is disabled or unavailable."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:81
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:459
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:55
+msgid "Mode"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:82
+msgid "Off"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:83
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:132
+msgid "Shadow"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:84
+msgid "Assisted (qualification-gated)"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:85
+msgid ""
+"Assisted is qualification-gated and uses only the Native safe envelope; any "
+"Runtime problem falls back to Native."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:88
+msgid "Runtime Timeout (ms)"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:92
+msgid "Runtime Path"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:95
+msgid "State File"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:98
+msgid "Live State"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:100
+msgid "Runtime"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:102
+msgid "Runtime Channel"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:104
+msgid "Runtime API"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:106
+msgid "Feature Schema"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:111
+msgid "State / Model Generation"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:116
+msgid "Learning"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:119
+msgid "Valid feedback"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:119
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:129
+msgid "completed"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:119
+msgid "delayed pending"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:121
+msgid "Runtime Health"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:122
 msgid "Resource pressure"
 msgstr ""
 
-msgid "Runtime Inspect"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:123
+msgid "Resource Guard"
 msgstr ""
 
-msgid "pending"
-msgstr ""
-
-msgid "last error"
-msgstr ""
-
-msgid "Probe Efficiency"
-msgstr ""
-
-msgid "probed"
-msgstr ""
-
-msgid "avoided"
-msgstr ""
-
-msgid "early stop"
-msgstr ""
-
-msgid "yes"
-msgstr ""
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
 msgid "no"
 msgstr ""
 
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:129
+msgid "pending"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+msgid "pressure"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+msgid "state bytes"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
+msgid "yes"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:128
+msgid "Runtime Inspect"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:129
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:168
+msgid "None"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:129
+msgid "last error"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:130
+msgid "Current Authority"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:132
+msgid "Guarded Assisted"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:132
+msgid "Native"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:134
+msgid "Qualification"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:136
+msgid "Learning Context"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:140
+msgid "changed"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:140
+msgid "last changed"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:142
+msgid "Decision Confidence"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:147
+msgid "Confidence Reasons"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:152
+msgid "Decision Selection"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+msgid "Native top1"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+msgid "Rill top1"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+msgid "agreement"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+msgid "final"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:157
+msgid "Decision Evidence"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:160
+msgid "comparable"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:160
+msgid "losses"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:160
+msgid "ties"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:160
+msgid "wins"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:162
+msgid "Native Holdout"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:165
+msgid "failures"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:165
+msgid "non-blocking"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:165
+msgid "performed"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:167
+msgid "Fallback Reason"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:169
+msgid "Source Strategy Loop"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+msgid "deterministic"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+msgid "effective"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+msgid "requested"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:174
+msgid "Reuse / Full Optimize"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:177
+msgid "Native hard gate"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:177
+msgid "none"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:177
+msgid "reason"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:179
+msgid "Probe Efficiency"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
+msgid "avoided"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
+msgid "early stop"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
+msgid "probed"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:181
 msgid "Native vs Rill"
 msgstr ""
 
-msgid "native"
-msgstr ""
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:182
 msgid "Rill"
 msgstr ""
 
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:182
+msgid "native"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:182
 msgid "regret"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:183
+msgid "Prefix Intelligence"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:184
+msgid "high quality"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:184
+msgid "low quality"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:184
+msgid "tracked"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:185
+msgid "Colo Intelligence"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:186
+msgid "latest"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:186
+msgid "observed"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:188
+msgid "Shadow Self-check"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:189
+msgid "Run self-check"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:193
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:567
+msgid "Checking..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:196
+msgid "Rill self-check passed."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:198
+msgid "Rill self-check fell back to Native."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:200
+#, javascript-format
+msgid "Unable to complete self-check: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:203
+msgid "Reset Learning State"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:204
+msgid "Reset learning state"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:207
+msgid "Reset Rill learning state? Native configuration will not be changed."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:211
+msgid "Resetting..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:214
+msgid "Reset rejected"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:215
+msgid "Rill learning state was reset."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:217
+#, javascript-format
+msgid "Unable to reset learning state: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:21
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:46
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:526
+msgid "OpenClash"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:38
+msgid "OpenClash Not Found"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:39
+msgid ""
+"OpenClash is not installed. Please install OpenClash before using this "
+"feature."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:48
+msgid "OpenClash Settings"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:53
+msgid "Config File Path"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:54
+msgid "Path to the OpenClash YAML configuration file."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:59
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:39
+msgid "Target Domain"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:60
+msgid ""
+"Only OpenClash proxies whose server matches this domain will be updated. "
+"Comma-separated for multiple domains."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:65
+msgid "Proxy Name Suffix"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:66
+msgid ""
+"Suffix appended to the original proxy name. Placeholders: {n} = sequence "
+"number, {ip} = IP address. Leave empty to keep original names."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:70
+msgid "Transport Filter"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:71
+msgid ""
+"Only update proxies with the specified transport protocol. Comma-separated. "
+"Values: ws, grpc, xhttp, h2, http. Leave empty to update all supported "
+"proxies."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:76
+msgid "Backup Count"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:77
+msgid "Number of OpenClash config backups to keep."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:87
+msgid "Config Backups"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:94
+msgid ""
+"No backups available. Backups are created automatically when the config is "
+"updated."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:96
+msgid "Actions"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:96
+msgid "Backup Time"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:96
+msgid "Size"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:118
+msgid "Confirm Restore"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:120
+msgid ""
+"Are you sure you want to restore this backup? A backup of the current "
+"configuration will be created first."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:122
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:153
+msgid "Cancel"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:127
+msgid "Please wait..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:127
+msgid "Restoring..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:131
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:138
+#, javascript-format
+msgid "Unable to restore backup: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:133
+msgid "Backup restored successfully."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:141
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:145
+msgid "Restore"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:150
+msgid "Confirm Delete"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:151
+msgid "Are you sure you want to delete this backup?"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:160
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:166
+#, javascript-format
+msgid "Unable to delete backup: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:162
+msgid "Backup deleted"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:169
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:173
+msgid "Delete"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:48
+msgid "Scheduled"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:49
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:67
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:162
+msgid "Running"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:50
+msgid "Success"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:51
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:68
+msgid "Error"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:52
+msgid "Stopped"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:106
+msgid "No log output yet."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:116
+#, javascript-format
+msgid "Unable to load status: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:120
+msgid "Speed Test Log"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:122
+msgid "Status"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:126
+msgid "Log"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:137
+msgid "Close"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:147
+msgid ""
+"Service action completed, but the speed test is still in progress. "
+"Refreshing current status."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:155
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:542
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:582
+msgid "Installed"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:157
+msgid "Missing"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:164
+msgid "Installed (Stopped)"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:166
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:544
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:584
+msgid "Not Installed"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:174
+msgid "Missing Dependencies & Fix Commands"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:179
+msgid "Missing dependencies: "
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:269
+msgid "Overview"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:283
+msgid "Service Running"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:283
+msgid "Service Stopped"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:283
+msgid "Speed Test Running"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:285
+msgid "Cloudflare IP speed test is in progress. Please wait."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:287
+msgid "Cloudflare IP optimization service is active and running."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:288
+msgid ""
+"Cloudflare IP optimization service is not running. Click Start to begin."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:316
+msgid "Best IP Count"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:321
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:74
+msgid "IP Type"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:326
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:82
+msgid "Speed Test Protocol"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:331
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:499
+msgid "CFST Version"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:337
+msgid "Service Control"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:348
+msgid "Service started."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:351
+#, javascript-format
+msgid "Unable to start service: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:355
+msgid "Start"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:365
+msgid "Service stopped."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:368
+#, javascript-format
+msgid "Unable to stop service: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:372
+msgid "Stop"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:381
+msgid "Service restarted."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:384
+#, javascript-format
+msgid "Unable to restart service: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:388
+msgid "Restart"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:400
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:419
+msgid "Running..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:406
+#, javascript-format
+msgid "Unable to start speed test: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:414
+#, javascript-format
+msgid "Speed test failed: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:419
+msgid "Run Speed Test"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:431
+msgid "Downloading..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:431
+msgid "Updating..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:433
+msgid "Updating CFST, please wait..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:434
+msgid "Downloading CFST, please wait..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:438
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:444
+#, javascript-format
+msgid "Unable to update CFST: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:440
+msgid "CFST updated successfully."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:449
+msgid "Download CFST"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:449
+msgid "Update CFST"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:454
+msgid "Service Information"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:464
+msgid "Last Run Time"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:483
+msgid "Last Result"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:489
+msgid "Best IPs"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:494
+msgid "Script Version"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:504
+msgid "GitHub"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:518
+msgid "Environment Detection"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:523
+msgid "tar"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:524
+msgid "jq"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:525
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:9
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:32
+msgid "PassWall"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:527
+msgid "CFST"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:608
+msgid "Environment detection refreshed."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:610
+#, javascript-format
+msgid "Unable to refresh environment: %s"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:614
+msgid "Refresh Environment"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:24
+msgid "PassWall Not Found"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:25
+msgid ""
+"PassWall is not installed. Please install PassWall before using this feature."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:34
+msgid "PassWall Settings"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:40
+msgid ""
+"Only PassWall nodes whose address equals this domain will be updated. Comma-"
+"separated for multiple domains."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:45
+msgid "Node Name Suffix"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:46
+msgid ""
+"Suffix appended to the original node name. Placeholders: {n} = sequence "
+"number, {ip} = IP address. Leave empty to keep original names."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:24
+msgid "Settings"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:26
+msgid "Service"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:29
+msgid "Enable Service"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:30
+msgid "Run the background service to periodically optimize Cloudflare IPs."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:34
+msgid "Run Schedule"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:35
+msgid ""
+"Select how often the speed test runs. The service computes the next run time "
+"automatically."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:36
+msgid "Every 6 hours (recommended)"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:37
+msgid "Every hour"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:38
+msgid "Every 30 minutes"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:39
+msgid "Every 15 minutes"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:40
+msgid "Daily at 3:00 AM"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:41
+msgid "Daily at 3:00 AM & 3:00 PM"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:42
+msgid "Every 6 hours at :00"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:43
+msgid "Custom..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:47
+msgid "Custom Schedule"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:48
+msgid "Cron duration (e.g. 6h, 30m) or 5-field crontab expression."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:52
+msgid "Speed Test"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:56
+msgid "Select which proxy service to update."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:62
+msgid "None (No proxy service detected)"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:63
+msgid ""
+"PassWall or OpenClash is not installed. Please install one before using this "
+"service."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:68
+msgid "IP Count"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:69
+msgid ""
+"Number of best IPs to keep. If fewer IPs qualify, the result reports "
+"degraded candidate count and never duplicates an IP."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:75
+msgid "Select which IP addresses to test."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:78
+msgid "Both"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:83
+msgid "HTTPing supports data center filtering; TCPing does not."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:89
+msgid "Data Center Filter"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:90
+msgid ""
+"Filter by Cloudflare data center in HTTPing mode. Comma-separated, e.g. "
+"HKG,NRT,LAX. Only effective with HTTPing."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:94
+msgid "Download Test Count"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:95
+msgid "Number of IPs to test download speed."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:100
+msgid "Download Seconds per IP"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:101
+msgid "Seconds spent on the download measurement for each shortlisted IP."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:106
+msgid "Speed Test Threads"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:107
+msgid ""
+"CFST measurement concurrency. This controls load, not the candidate budget."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:112
+msgid "Ping Count"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:113
+msgid "Number of latency samples per candidate."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:118
+msgid "Average Latency Floor (ms)"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:119
+msgid "Skip IPs with average latency below this value."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:124
+msgid "Average Latency Ceiling (ms)"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:125
+msgid ""
+"Skip IPs with average latency above this value. Leave empty for no upper "
+"limit."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:130
+msgid "Stop Service Before Test"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:131
+msgid ""
+"Stop the proxy service before speed testing to avoid interference, and "
+"restart after updating."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:135
+msgid "Keep CFST Across Upgrades"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:136
+msgid ""
+"Preserve CFST binary during OpenWrt sysupgrade so it survives system "
+"upgrades."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:21
+msgid "Candidate Sources"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:22
+msgid "Candidate Budget"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:24
+msgid "CFST Candidate IP Count"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:24
+msgid ""
+"Maximum unique IPs supplied to one CFST run. Allocation is automatic: a "
+"small local-history share, a majority community share, and the remainder "
+"official-range exploration; unused quota flows to the other pools."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:26
+msgid "Built-in Sources"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:26
+msgid ""
+"Official sources are authoritative ranges. Community sources are untrusted "
+"seed IPs and are always re-tested locally."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:28
+msgid "Carrier-specific"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:28
+msgid "Measured Seeds"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:28
+msgid "Official"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:28
+msgid "Recommended Community"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:33
+msgid "Custom Sources"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:33
+msgid ""
+"Custom sources accept HTTPS text lists containing IP, IP:port, IPv6, "
+"bracketed IPv6:port, or CIDR. Only the IP/CIDR is retained; domains are "
+"rejected."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:35
+msgid "Enabled"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:36
+msgid "Name"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:37
+msgid "HTTPS URL"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:37
+msgid "Kind"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:37
+msgid "Manual IP list"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:38
+msgid "URL"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:39
+msgid "Manual IP / CIDR"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:40
+msgid "Auto"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:40
+msgid "Family"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:42
+msgid "LAN Result Publisher"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:42
+msgid ""
+"Optional compatibility output for other LAN tools. PassWall/OpenClash still "
+"use direct modification and do not need this."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:44
+msgid "Enable LAN Publisher"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:45
+msgid "Bind IPv4"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:45
+msgid "LAN auto-detect"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:45
+msgid ""
+"Leave empty to use the current LAN IPv4 automatically. Public or 0.0.0.0 "
+"bindings are refused."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:46
+msgid "HTTP Port"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:47
+msgid "Published Paths"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:50
+msgid "Runtime Source Status"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:51
+msgid ""
+"Each run allocates roughly 1/8 to fresh history champions, 5/8 to community "
+"seeds, and 1/4 to Cloudflare official range exploration. Missing pools flow "
+"to other sources. All candidates are deduplicated and measured locally in "
+"one CFST run; community ports are never reused."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:54
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:63
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:69
+msgid "Source"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:55
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:64
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:70
+msgid "State"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:56
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:65
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:71
+msgid "Candidates"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:57
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:66
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:72
+msgid "Last Error"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:62
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:68
+msgid "Cached / stale"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:62
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:68
+msgid "Fresh"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:62
+msgid "Not fetched"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
+msgid "Refresh Sources"
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
+msgid "Refreshing..."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
+msgid "Sources refreshed; candidate pool prepared."
+msgstr ""
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
+#, javascript-format
+msgid "Unable to refresh sources: %s"
 msgstr ""

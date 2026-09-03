@@ -254,7 +254,7 @@ function createHandleSaveApply(m) {
 				reloadSoon(300);
 			});
 		}).catch(function(e) {
-			ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
+			ui.addNotification(null, E('p', _('Unable to apply configuration: %s').format(e.message)), 'error');
 		});
 	};
 }

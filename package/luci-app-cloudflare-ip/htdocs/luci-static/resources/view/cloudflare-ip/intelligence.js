@@ -174,7 +174,7 @@ return view.extend({
 	o = s.option(form.DummyValue, '_reuse_policy', _('Reuse / Full Optimize'));
 	o.cfgvalue = function() {
 		var r = status.reusePolicy || {};
-		return _('Native hard gate') + ': ' + (r.actualPolicy || _('unknown')) + ', ' + _('reason') + ': ' + (r.reason || _('none'));
+		return _('Native hard gate') + ': ' + (r.actualPolicy || _('Unknown')) + ', ' + _('reason') + ': ' + (r.reason || _('none'));
 	};
 	o = s.option(form.DummyValue, '_efficiency', _('Probe Efficiency'));
 	o.cfgvalue = function() { var e = status.efficiency || status.probeMetrics || {}; return _('probed') + ': ' + (e.candidatesProbed || 0) + ' / ' + (e.candidatesConsidered || 0) + ', ' + _('avoided') + ': ' + (e.avoidedProbes || 0) + ', ' + _('early stop') + ': ' + (e.earlyStopHit ? _('yes') : _('no')); };
@@ -183,10 +183,10 @@ return view.extend({
 	o = s.option(form.DummyValue, '_prefix', _('Prefix Intelligence'));
 	o.cfgvalue = function() { var p = diagnostics.prefixIntelligence || {}; return _('tracked') + ': ' + (p.trackedPrefixes || 0) + ', ' + _('high quality') + ': ' + ((p.recentHighQuality || []).length) + ', ' + _('low quality') + ': ' + ((p.recentLowQuality || []).length); };
 	o = s.option(form.DummyValue, '_colo', _('Colo Intelligence'));
-	o.cfgvalue = function() { var c = diagnostics.coloIntelligence || {}; return _('observed') + ': ' + (c.observedColoCount || 0) + ', ' + _('latest') + ': ' + (c.latestObservedColo || _('unknown')) + ', ' + _('unknown') + ': ' + (c.unknownCount || 0); };
+	o.cfgvalue = function() { var c = diagnostics.coloIntelligence || {}; return _('observed') + ': ' + (c.observedColoCount || 0) + ', ' + _('latest') + ': ' + (c.latestObservedColo || _('Unknown')) + ', ' + _('Unknown') + ': ' + (c.unknownCount || 0); };
 
 	o = s.option(form.Button, '_self_check', _('Shadow Self-check'));
-	o.inputtitle = _('Run now');
+	o.inputtitle = _('Run self-check');
 	o.inputstyle = 'apply';
 	o.onclick = function() {
 		var button = this;
@@ -197,11 +197,11 @@ return view.extend({
 			else
 				ui.addNotification(null, E('p', _('Rill self-check fell back to Native.')), 'warning');
 		}).catch(function(error) {
-			ui.addNotification(null, E('p', _('Self-check failed: ') + (error.message || error)), 'error');
+			ui.addNotification(null, E('p', _('Unable to complete self-check: %s').format(error.message || error)), 'error');
 		}).finally(function() { utils.resetBusy(button); });
 	};
 	o = s.option(form.Button, '_reset', _('Reset Learning State'));
-	o.inputtitle = _('Reset');
+	o.inputtitle = _('Reset learning state');
 	o.inputstyle = 'reset';
 	o.onclick = function() {
 		if (!confirm(_('Reset Rill learning state? Native configuration will not be changed.')))
@@ -214,7 +214,7 @@ return view.extend({
 				throw new Error((result && result.error) || _('Reset rejected'));
 			ui.addNotification(null, E('p', _('Rill learning state was reset.')), 'info');
 		}).catch(function(error) {
-			ui.addNotification(null, E('p', _('Reset failed: ') + (error.message || error)), 'error');
+			ui.addNotification(null, E('p', _('Unable to reset learning state: %s').format(error.message || error)), 'error');
 		}).finally(function() { utils.resetBusy(button); });
 	};
 
