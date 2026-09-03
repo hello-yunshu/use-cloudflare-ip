@@ -11,3 +11,15 @@ Independent jobs cover host contracts, legacy behavior, RPC/LuCI contracts, Cand
 ## Device boundary
 
 Real LuCI rendering, rpcd/ubus dispatch on OpenWrt, actual PassWall/OpenClash service recovery, and hardware/network soak are not claimed by host tests. They remain `BLOCKED` or `NOT_EVALUATED` until device evidence exists.
+
+## 2.2 Adaptive Measurement gates
+
+Host contracts cover the pre-probe field whitelist, deterministic ordering,
+Shadow no-influence behavior, baseline/CFST/Adaptive comparison, K25/K40/K60
+audit metrics, bounded evidence and corruption quarantine, promotion/negative/
+stale qualification, requested-Guarded fallback, anchors/family coverage,
+expansion, full fallback, audit cadence, and a 512-candidate complexity sanity
+case. Synthetic promotion proves only the state machine; it is not online
+performance evidence. Physical OpenWrt rendering/ubus, hardware behavior, and
+soak remain separate evidence states and are never inferred from host or Docker
+results.

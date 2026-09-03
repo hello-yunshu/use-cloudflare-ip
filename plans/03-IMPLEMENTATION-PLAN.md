@@ -9,3 +9,17 @@
 7. Apply only after all selected candidates pass target-domain probes; commit pending managed state only after restart and post-apply validation.
 8. Keep the legacy UI and add Candidate Sources and Intelligence pages. Self-update is package-managed and visibly deprecated.
 9. Run independent CI jobs with `fail-fast: false`; qualification guard consumes every result.
+
+## 2.2 implementation additions
+
+10. Normalize a versioned pre-probe feature contract and generate deterministic
+    baseline, CFST-only, and Adaptive orders without current-run target-domain
+    measurements.
+11. Keep Adaptive defaulted to Shadow; persist bounded audit evidence separately
+    from Candidate Rill state, and expose requested/effective mode plus fallback
+    diagnostics through RPC, status JSON, and LuCI.
+12. Permit Guarded subset probing only after the configured fresh qualification
+    window is satisfied. Preserve minimum IP/family/source anchors, deterministic
+    exploration, bounded expansion, and full Native fallback.
+13. Run periodic full audits independent of evidence eviction and downgrade
+    stale, incompatible, negative, corrupt, or insufficient state to Shadow.
