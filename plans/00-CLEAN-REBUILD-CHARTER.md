@@ -1,5 +1,8 @@
 # Cloudflare IP 2.0 clean-rebuild charter
 
+🔄 superseded by Candidate-only architecture for the 2.1 mainline. This file
+remains as the historical 2.0 safety and evidence charter.
+
 ## Fixed baseline and scope
 
 The sole behavior baseline is `main` at `77a65a86a84b5fdf4cd0a854edc83a9c5c7d7fb1`, package `1.8.3`. The active development branch is project-scoped and neutral: `cloudflare-ip-2.0-dev`.

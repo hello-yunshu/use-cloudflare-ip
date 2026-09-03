@@ -2,7 +2,7 @@
 
 ## Self-update: DEPRECATE
 
-2.0 is a multi-file package, so replacing only one shell script is unsafe. The old UCI keys remain readable and the RPC compatibility method returns a structured `deprecated` response. The LuCI page says `Deprecated / package-managed` and does not expose an “Update Script Now” action. Users migrate through IPK/APK package upgrades. `auto_update` defaults to `0`.
+2.1 is a multi-file package, so replacing only one shell script is unsafe. The old UCI keys remain readable and the RPC compatibility method returns a structured `deprecated` response. The LuCI page says `Deprecated / package-managed` and does not expose an “Update Script Now” action. Users migrate through IPK/APK package upgrades. `auto_update` defaults to `0`.
 
 ## No other 1.8.3 feature is removed
 
