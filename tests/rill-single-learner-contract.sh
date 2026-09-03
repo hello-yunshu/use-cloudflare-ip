@@ -6,6 +6,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 RILL="$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/rill.sh"
+command -v rg >/dev/null 2>&1 || { echo 'ripgrep is required for negative contract checks' >&2; exit 1; }
 ! rg -n 'CFIP_RILL_SOURCE_PARTITION_KEY|CFIP_RILL_REUSE_PARTITION_KEY|cfip_rill_policy_(decide|feedback)|partition_for_kind|state_generation_for_partition' "$RILL" >/dev/null
 
 export CFIP_STATUS_DIR="$TMP" CFIP_RILL_STATE="$TMP/rill-state.json"

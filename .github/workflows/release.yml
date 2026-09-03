@@ -101,10 +101,29 @@ jobs:
     needs: [check-qualification, collect]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.check-qualification.outputs.commit }}
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           name: release-bundle
           path: release/
+      - name: Guard immutable release tag before asset upload
+        env:
+          EXPECTED_SHA: ${{ needs.check-qualification.outputs.commit }}
+          VERSION: ${{ needs.check-qualification.outputs.version }}
+          RELEASE: ${{ needs.check-qualification.outputs.release }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+          tag="v${VERSION}-${RELEASE}"
+          ref="refs/tags/${tag}"
+          if git show-ref --verify --quiet "$ref"; then
+            tag_sha="$(git rev-parse "${ref}^{commit}")"
+            test "$tag_sha" = "$EXPECTED_SHA" || { echo "immutable tag collision: $tag points to $tag_sha, expected $EXPECTED_SHA" >&2; exit 1; }
+          fi
       - name: Publish exact qualified release
         uses: softprops/action-gh-release@v3
         with:
@@ -123,3 +142,13 @@ jobs:
             release/*.apk
             release/sha256sums.txt
             release/qualification.json
+      - name: Verify published tag identity
+        env:
+          EXPECTED_SHA: ${{ needs.check-qualification.outputs.commit }}
+          VERSION: ${{ needs.check-qualification.outputs.version }}
+          RELEASE: ${{ needs.check-qualification.outputs.release }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+          test "$(git rev-parse "refs/tags/v${VERSION}-${RELEASE}^{commit}")" = "$EXPECTED_SHA"

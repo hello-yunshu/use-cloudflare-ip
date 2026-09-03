@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install host tools
-        run: sudo apt-get update && sudo apt-get install -y jq shellcheck
+        run: sudo apt-get update && sudo apt-get install -y jq ripgrep shellcheck
       - name: Shell syntax and lint
         shell: bash
         run: |
@@ -98,6 +98,10 @@ jobs:
           bash tests/rill-holdout-cadence-over-cap.sh
           bash tests/rill-holdout-budget-censor.sh
           bash tests/rill-holdout-post-commit.sh
+          bash tests/holdout-multidomain-complete.sh
+          bash tests/shadow-observation-failure-no-feedback.sh
+          bash tests/evaluation-freshness.sh
+          bash tests/release-tag-immutability.sh
           bash tests/rill-evidence-store.sh
           bash tests/rill-evidence-byte-cap.sh
           bash tests/rill-evidence-corruption.sh
