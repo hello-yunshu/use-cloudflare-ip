@@ -1,15 +1,18 @@
 # Rill qualification
 
-## 2.1 Candidate Intelligence qualification
+## 2.1.1 Candidate Intelligence qualification
 
-2.1 adds lifecycle and evidence controls around the existing Candidate-only
+2.1.1 adds lifecycle and evidence controls around the existing Candidate-only
 Runtime contract. Context fingerprints isolate candidate history and pending
 feedback across material changes; holdout is bounded, non-blocking, and cannot
 feed its outcomes back into the decision under evaluation. The evidence store
 rejects malformed or over-budget records, while continuous qualification
 re-evaluates Native-vs-Rill value and downgrades to Native/shadow when evidence
-is lost. Diagnostics expose confidence reasons, Native/Rill top choices, final
-authority, and the last context change.
+is lost. Training feedback and evaluation evidence are stored separately:
+Shadow comparisons and Assisted Native Holdouts can qualify evaluation, while
+holdout outcomes never call Runtime feedback. Diagnostics expose confidence
+reasons, Native/Rill top choices, final authority, lineage, and the last context
+change.
 
 The production boundary remains unchanged: only Candidate Learner may learn in
 Runtime. Source Learner and Reuse Learner are retired; Source Intelligence is
@@ -86,11 +89,13 @@ worst-domain loss, throughput, and delayed stability. Delayed entries carry
 the candidate/domain context, generation and queue time; due entries are
 re-observed before feedback, while malformed queues are quarantined.
 
-The rolling qualification window is capped at 50 observations. It requires
-complete attribution, at least 80% delayed completion, Native/Rill disagreement
-evidence, recent error and severe-regression limits, and no negative rolling
-regret. A previously qualified consumer is downgraded to `shadow` as soon as
-the rolling gate is lost. Runtime status must come from the real Health and
+The rolling training window is capped at 50 observations and the evaluation
+window is separately capped. Qualification requires healthy training and at
+least ten comparable evaluation observations, with recent error and severe
+regression limits. A previously qualified consumer is downgraded to `shadow` as
+soon as the rolling gate is lost. Material context changes rotate lineage and
+quarantine incompatible delayed feedback and evidence; qualification must be
+re-earned in the new context. Runtime status must come from the real Health and
 Inspect protocol; resource pressure is never a hardcoded healthy value.
 
 Qualification is intentionally conservative: it requires complete attribution,

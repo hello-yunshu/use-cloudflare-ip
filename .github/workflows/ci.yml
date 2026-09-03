@@ -85,15 +85,23 @@ jobs:
           bash tests/rill-context-change-reset.sh
           bash tests/rill-context-pending-feedback-isolation.sh
           bash tests/rill-context-nonmaterial-config-change.sh
+          bash tests/rill-context-requalification-lifecycle.sh
+          bash tests/rill-context-lineage-rotation.sh
           bash tests/rill-assisted-holdout.sh
+          bash tests/rill-assisted-continuous-qualification.sh
+          bash tests/rill-assisted-regression-downgrade.sh
           bash tests/rill-holdout-nonblocking.sh
           bash tests/rill-holdout-no-feedback-leak.sh
+          bash tests/rill-holdout-evaluation-no-feedback.sh
+          bash tests/rill-holdout-global-cadence.sh
           bash tests/rill-holdout-budget.sh
           bash tests/rill-evidence-store.sh
+          bash tests/rill-evidence-byte-cap.sh
           bash tests/rill-evidence-corruption.sh
           bash tests/rill-continuous-qualification.sh
           bash tests/rill-qualification-context-reset.sh
           bash tests/rill-decision-confidence.sh
+          bash tests/rill-confidence-single-source.sh
           bash tests/rill-intelligence-status-contract.sh
           bash tests/rill-intelligence-luci-contract.sh
           jq empty plans/rill/drift-decision.json
@@ -388,11 +396,11 @@ jobs:
           set -euo pipefail
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
           if [[ "$GITHUB_REF" == refs/heads/main ||
-            "$GITHUB_REF" == refs/heads/release/2.1.0 ||
+            "$GITHUB_REF" == refs/heads/release/2.1.1 ||
             ( "$GITHUB_EVENT_NAME" == pull_request && "$GITHUB_BASE_REF" == main ) ]]; then
             [[ "$version" != *-dev ]]
           else
-            [[ "$version" =~ ^2\.1\.0-dev$ ]]
+            [[ "$version" =~ ^2\.1\.1-dev$ ]]
           fi
 
   rpc-luci-contract:

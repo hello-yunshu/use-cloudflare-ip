@@ -36,4 +36,10 @@ test "$(jq -r '.delayedRejected' "$CFIP_RILL_QUALIFICATION_FILE")" = 1
 CFIP_RUN_ID=full-lifecycle-3 cfip_rill_rank_shadow "$TMP/native.json" "$TMP/decision-new-context.json"
 test "$(jq -r .generation "$TMP/decision-new-context.json")" = 1
 test "$(jq -r .contextChanged "$CFIP_RILL_STATE_META_FILE")" = true
+new_selected_ip="$(jq -r '.selectedActionId' "$TMP/decision-new-context.json")"
+jq -cn --arg ip "$new_selected_ip" '[{ip:$ip,family:"ipv4"}]' > "$TMP/selected-new-context.json"
+cfip_post_apply_probe "$TMP/selected-new-context.json" two.example 1 "$TMP/outcome-new-context.json"
+cfip_rill_feedback "$TMP/decision-new-context.json" "$TMP/outcome-new-context.json"
+test "$(jq -r '.generation' "$TMP/rill-state.json")" -gt 1
+test "$(jq -r '.stateLineage' "$TMP/decision-new-context.json")" != "$(jq -r '.stateLineage' "$TMP/decision-2.json")"
 echo 'Actual packaged Runtime full lifecycle, restart, inspect, delayed feedback, and context isolation passed'
