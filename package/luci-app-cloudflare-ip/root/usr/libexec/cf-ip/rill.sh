@@ -825,7 +825,7 @@ cfip_rill_feedback() (
 
 cfip_rill_queue_feedback() {
     local decision="$1" outcome="$2" domains="${3:-}" queued="$(date +%s)" due="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_SECONDS:-600}))" expires="$(($(date +%s)+${CFIP_RILL_DELAYED_FEEDBACK_EXPIRY_SECONDS:-86400}))" current schema lineage partition context context_fp
-    if [[ "$(jq -r '.feedbackEligible // true' "$outcome" 2>/dev/null || printf true)" != true ]]; then
+    if [[ "$(jq -r 'if has("feedbackEligible") then .feedbackEligible else true end' "$outcome" 2>/dev/null || printf true)" != true ]]; then
         cfip_log "Rill feedback suppressed: outcome is not feedback-eligible"
         return 0
     fi
