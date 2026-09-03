@@ -387,7 +387,9 @@ jobs:
         run: |
           set -euo pipefail
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
-          if [ "$GITHUB_REF" = refs/heads/main ] || [ "$GITHUB_REF" = refs/heads/release/2.1.0 ]; then
+          if [[ "$GITHUB_REF" == refs/heads/main ||
+            "$GITHUB_REF" == refs/heads/release/2.1.0 ||
+            ( "$GITHUB_EVENT_NAME" == pull_request && "$GITHUB_BASE_REF" == main ) ]]; then
             [[ "$version" != *-dev ]]
           else
             [[ "$version" =~ ^2\.1\.0-dev$ ]]
