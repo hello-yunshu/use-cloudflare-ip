@@ -12,11 +12,11 @@
 
 | Gate | 结论 | 证据边界 |
 |---|---|---|
-| Candidate-only Runtime contract | CODE | Runtime state 仅允许 Cloudflare `candidate` partition；schema width 固定为 22；非候选 partition 的 feedback 被拒绝。 |
-| Deterministic Source Intelligence | CODE | 保留 fixed registry、五种 profile、稳定排序、last-good cache、refresh deadline、source scheduler 和 diagnostics；无 Source Learner decide/feedback/qualification。 |
-| Native Reuse hard gate | CODE | current-IP validation 通过才允许 `REUSE_CURRENT`；配置变更、过期、失败或缺少 baseline 时强制 full optimize；decision authority 为 Native。 |
-| Mature optimizer behavior | CODE | CFST、IPv4/IPv6、PassWall/OpenClash transaction、target-domain probe、prefix/colo/multi-IP/reuse/rollback、LuCI staged validation 保留。 |
-| Candidate feedback and qualification | CODE | 22D reward、attribution、delayed queue、lineage/generation、rolling qualification、guarded assisted、Health/Inspect 和 resource pressure 保留。 |
+| Candidate-only Runtime contract | PASS | Runtime state 仅允许 Cloudflare `candidate` partition；schema width 固定为 22；非候选 partition 的 feedback 被拒绝。 |
+| Deterministic Source Intelligence | PASS | 保留 fixed registry、五种 profile、稳定排序、last-good cache、refresh deadline、source scheduler 和 diagnostics；无 Source Learner decide/feedback/qualification。 |
+| Native Reuse hard gate | PASS | current-IP validation 通过才允许 `REUSE_CURRENT`；配置变更、过期、失败或缺少 baseline 时强制 full optimize；decision authority 为 Native。 |
+| Mature optimizer behavior | PASS | CFST、IPv4/IPv6、PassWall/OpenClash transaction、target-domain probe、prefix/colo/multi-IP/reuse/rollback、LuCI staged validation 保留。 |
+| Candidate feedback and qualification | PASS | 22D reward、attribution、delayed queue、lineage/generation、rolling qualification、guarded assisted、Health/Inspect 和 resource pressure 保留。 |
 | 2.0 Final Closure A1-A6 | PASS | Cloudflare closure exact branch `a01d3167a119a1ee15681b48f2d912625cf987f7`；A6 package-main convergence and exact package qualification completed at package main `64ee22f978ed8f8ed19bb675700678f57eec19e3`, qualification run `33735123909`. |
 | 2.1 development exact-head regression | PASS | `cloudflare-ip-2.1-dev` exact head `cbffb586f0a7bb04238da4c45b78d631a95d3830`, CI run `33738665315`; all host/legacy/RPC/LuCI, real CFST, four SDK targets, packaged Runtime, release asset, qualification and evidence gates passed. |
 | Release candidate exact-head regression | PASS | `release/2.1.0` final RC head `f459f8b3d095a6967066aa7b524d028a4a1f8e8d`, PR CI run `33745358580`; all required jobs passed. |
@@ -50,3 +50,17 @@ The final status may be promoted only after the merged `main` exact-head CI and
 the release workflow validate the same SHA and generated qualification manifest.
 Physical-device matrix and soak remain the two explicitly approved evidence
 boundaries; they are not represented as automated PASS.
+
+## Final semantic closure record
+
+| Gate | Status | Evidence boundary |
+|---|---|---|
+| Production requested-assisted to effective-shadow decision | PASS | Main merge `ea04038f988a1a94637904fffd16f064129843f3`; the production path reads immutable decision `.effectiveMode` and attributes Shadow observation to the selected Rill candidate. |
+| Delayed feedback attribution | PASS | Rill observed candidate is the selected action; Native result is retained only as counterfactual comparison. |
+| Production-equivalent requalification lifecycle | PASS | `tests/rill-context-requalification-lifecycle.sh` runs the real `run_v2` lifecycle, including context reset, post-apply observation, delayed queue processing and recovery. |
+| Holdout cadence, budget censoring and post-commit ordering | PASS | Cadence uses an independent context/lineage counter; 64+/130+ regression, budget-unavailable censoring and post-commit tests are in the host contract. |
+| Main exact-head CI | PASS | Main `ea04038f` / tree `27e812ad4d2154e1cd58e7d9580256ae89d2a6cb`, CI run `33794085390`; all jobs completed successfully. |
+| Same-release packaged Runtime integration | PASS | CI run `33794085390` passed the package-built generic Runtime feedback and full lifecycle integration. |
+| Runtime/package provenance | PASS | Preview commit `da8389fec7f879b826d8d17cbc6bb98c03ef8462`; package main `64ee22f978ed8f8ed19bb675700678f57eec19e3`; qualification run `33735123909` is PASS. |
+| Physical OpenWrt device matrix | USER-APPROVED SKIP | Hardware metrics are not a release blocker per user instruction; Docker/package validation is recorded separately above. |
+| 24-hour Soak | USER-APPROVED SKIP | Explicitly skipped by user approval; no soak PASS is claimed. |
