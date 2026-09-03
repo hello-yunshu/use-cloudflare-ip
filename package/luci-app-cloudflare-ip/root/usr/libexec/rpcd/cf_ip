@@ -95,6 +95,7 @@ case "$1" in
 	"source-registry": {},
 	"source-refresh": {},
 	"publisher-status": {},
+	"adaptive-status": {},
 	"rill-self-check": {},
 	"rill-diagnostics": {},
 	"rill-reset": { "expectedGeneration": "expectedGeneration" },
@@ -167,6 +168,10 @@ EOF
 			source-status|source-registry|source-refresh|publisher-status)
 				_flag="--$method"
 				_out="$($CF_IP_AUTO_BIN "$_flag" 2>/dev/null)" || true
+				[ -n "$_out" ] && printf '%s\n' "$_out" || printf '%s\n' '{"success":false,"error":"no output from cf-ip-auto"}'
+				;;
+			adaptive-status)
+				_out="$("$CF_IP_AUTO_BIN" --adaptive-status 2>/dev/null)" || true
 				[ -n "$_out" ] && printf '%s\n' "$_out" || printf '%s\n' '{"success":false,"error":"no output from cf-ip-auto"}'
 				;;
 			rill-self-check|rill-diagnostics)

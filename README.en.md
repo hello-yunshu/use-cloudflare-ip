@@ -39,6 +39,13 @@ The formal package is promoted only from successful exact-head CI on `main` to
 one qualification chain. Live OpenWrt devices, hardware coverage, and soak are
 separate evidence boundaries.
 
+2.2 development adds Adaptive Measurement as an independent Native pre-probe
+scheduler, defaulting to Shadow. It accepts only CFST/source/history/prefix/Colo
+and previous-winner fields, never creates a second Rill learner or partition, and
+enables Guarded only after complete, compatible, fresh audit evidence meets the
+recall, safety, and savings thresholds. Invalid state or probe failure returns
+the next run to the full Native baseline. See docs/2.2_ADAPTIVE_MEASUREMENT.md.
+
 ## Installation
 
 ### Prerequisites

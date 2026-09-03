@@ -9,6 +9,7 @@
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
 var callSelfCheck = rpc.declare({ object: 'cf_ip', method: 'rill-self-check', expect: { '': {} } });
 var callDiagnostics = rpc.declare({ object: 'cf_ip', method: 'rill-diagnostics', expect: { '': {} } });
+var callAdaptiveStatus = rpc.declare({ object: 'cf_ip', method: 'adaptive-status', expect: { '': {} } });
 var callReset = rpc.declare({ object: 'cf_ip', method: 'rill-reset', params: [ 'expectedGeneration' ], expect: { '': {} } });
 
 function runtimeSummary(status) {
@@ -39,7 +40,8 @@ return view.extend({
 		return Promise.all([
 			uci.load('cf_ip'),
 			callStatus().catch(function() { return { _statusError: true }; }),
-			callDiagnostics().catch(function() { return {}; })
+			callDiagnostics().catch(function() { return {}; }),
+			callAdaptiveStatus().catch(function() { return {}; })
 		]);
 	},
 
@@ -48,6 +50,8 @@ return view.extend({
 		data = data || [];
 		var status = data[1] || {};
 		var diagnostics = data[2] || {};
+		var adaptiveResponse = data[3] || {};
+		var adaptive = adaptiveResponse.adaptiveMeasurement || status.adaptiveMeasurement || {};
 		var m = new form.Map('cf_ip', _('Rill Intelligence'),
 			_('The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions.'));
 		var s, o;
@@ -69,6 +73,25 @@ return view.extend({
 		o.default = '8';
 		o = s.option(form.Flag, 'early_stop_enabled', _('Deterministic Early Stop'));
 		o.default = '1';
+
+		s = m.section(form.TypedSection, 'main', _('Adaptive Measurement'));
+		s.anonymous = true;
+		o = s.option(form.Flag, 'adaptive_measurement_enabled', _('Enable Adaptive Measurement'));
+		o.default = '1';
+		o = s.option(form.ListValue, 'adaptive_measurement_mode', _('Mode'));
+		o.value('off', _('Off'));
+		o.value('shadow', _('Shadow'));
+		o.value('guarded', _('Guarded (qualified only)'));
+		o.default = 'shadow';
+		o.description = _('Shadow records counterfactual evidence without changing production probe order. Guarded is enabled only after fresh, complete, real audit evidence.');
+		o = s.option(form.DummyValue, '_adaptive_state', _('Current State'));
+		o.cfgvalue = function() { return (adaptive.qualificationState || _('insufficient')) + ' / ' + (adaptive.effectiveMode || _('shadow')); };
+		o = s.option(form.DummyValue, '_adaptive_evidence', _('Audit Evidence'));
+		o.cfgvalue = function() { return (adaptive.evidenceCount || 0) + ' / ' + _('fresh at') + ': ' + (adaptive.freshAt || _('never')); };
+		o = s.option(form.DummyValue, '_adaptive_scheduler', _('Scheduler Contract'));
+		o.cfgvalue = function() { return 'v' + (adaptive.schedulerVersion || '?') + ' / ' + _('feature contract') + ' v' + (adaptive.featureContractVersion || '?'); };
+		o = s.option(form.DummyValue, '_adaptive_selection', _('Selection'));
+		o.cfgvalue = function() { return _('K') + ': ' + (adaptive.selectedK || 0) + ', ' + _('last fallback') + ': ' + (adaptive.lastFallbackReason || _('none')); };
 
 		s = m.section(form.TypedSection, 'rill', _('Rill Runtime Consumer'));
 		s.anonymous = true;

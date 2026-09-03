@@ -130,6 +130,7 @@ jobs:
           bash tests/no-delay-contract.sh
           bash tests/service-state-preservation.sh
           bash tests/semantic-config-validation.sh
+          bash tests/adaptive-measurement.sh
 
   legacy-contract:
     runs-on: ubuntu-latest
