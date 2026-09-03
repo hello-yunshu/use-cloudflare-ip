@@ -1,0 +1,15 @@
+{
+  "schema": "cloudflare-ip.rill.v1",
+  "semanticVersion": 1,
+  "features": [
+    {"name":"avgLatencyMs","source":"avgLatencyMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"downloadMBps","source":"downloadMBps","type":"number","unit":"megabytes_per_second","missing":0,"clamp":[0,10000],"scale":0.01},
+    {"name":"lossRate","source":"lossRate","type":"number","unit":"ratio_0_1","missing":1,"clamp":[0,1],"scale":1},
+    {"name":"connectMs","source":"probeSummary.connectMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"tlsMs","source":"probeSummary.tlsMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"ttfbMs","source":"probeSummary.ttfbMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"totalMs","source":"probeSummary.totalMs","type":"number","unit":"milliseconds","missing":10000,"clamp":[0,10000],"scale":0.001},
+    {"name":"nativeRank","source":"nativeRank","type":"number","unit":"ordinal","missing":128,"clamp":[1,128],"scale":0.0078125}
+  ],
+  "action": {"id":"candidate.ip","features":"ordered finite normalized float vector"}
+}

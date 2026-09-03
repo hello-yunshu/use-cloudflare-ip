@@ -81,8 +81,14 @@ msgstr "未安装 PassWall 或 OpenClash，请先安装其中之一再使用此�
 msgid "IP Count"
 msgstr "IP 数量"
 
-msgid "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
-msgstr "保留的优选 IP 数量。如果测速结果不足，会用最快的 IP 自动补齐。"
+msgid "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
+msgstr "保留的优选 IP 数量。如果合格 IP 不足，会报告降级候选数量，绝不复制同一 IP。"
+
+msgid "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
+msgstr "停止服务、CFST、探测、应用和正常重启使用的测量 deadline；恢复使用独立 deadline。"
+
+msgid "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
+msgstr "回滚、恢复服务状态和恢复健康确认使用的独立保护 deadline，允许 10-120 秒。"
 
 msgid "IP Type"
 msgstr "IP 类型"
@@ -590,3 +596,222 @@ msgstr "项目"
 
 msgid "Failed to trigger speedtest: %s"
 msgstr "触发测速失败：%s"
+
+msgid "Status unavailable / Native fallback"
+msgstr "状态不可用 / Native 回退"
+
+msgid "Assisted requested → Shadow fallback"
+msgstr "已请求 Assisted → 回退到 Shadow"
+
+msgid "consumer not qualified"
+msgstr "消费者尚未通过资格验证"
+
+msgid "Available"
+msgstr "可用"
+
+msgid "version unknown"
+msgstr "版本未知"
+
+msgid "Disabled / Native ranking"
+msgstr "已禁用 / Native 排名"
+
+msgid "Unavailable / Native fallback"
+msgstr "不可用 / Native 回退"
+
+msgid "Rill Intelligence"
+msgstr "Rill 智能"
+
+msgid "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
+msgstr "通用 Rill Runtime 由 OpenWrt 软件包提供。Cloudflare IP 负责候选验证、排名策略、奖励和代理事务。"
+
+msgid "Rill Runtime Consumer"
+msgstr "Rill Runtime 消费者"
+
+msgid "Enable Rill Intelligence"
+msgstr "启用 Rill 智能"
+
+msgid "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
+msgstr "启用可选的 Rill 消费者。Rill 被禁用或不可用时，Native 排名仍为权威结果。"
+
+msgid "Off"
+msgstr "关闭"
+
+msgid "Shadow"
+msgstr "Shadow"
+
+msgid "Assisted (qualification-gated)"
+msgstr "Assisted（需通过资格验证）"
+
+msgid "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
+msgstr "Assisted 当前受资格验证限制，未通过时会回退到 Shadow；Native 排名仍为权威结果。"
+
+msgid "Runtime Timeout (ms)"
+msgstr "Runtime 超时（毫秒）"
+
+msgid "Runtime Path"
+msgstr "Runtime 路径"
+
+msgid "State File"
+msgstr "状态文件"
+
+msgid "Live State"
+msgstr "实时状态"
+
+msgid "Runtime"
+msgstr "Runtime"
+
+msgid "Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native."
+msgstr "Assisted 受资格验证限制，仅能在 Native 安全集合内选择；Runtime 出现任何问题都会回退到 Native。"
+
+msgid "Runtime Channel"
+msgstr "Runtime 通道"
+
+msgid "Runtime API"
+msgstr "Runtime API"
+
+msgid "Feature Schema"
+msgstr "特征 Schema"
+
+msgid "State / Model Generation"
+msgstr "状态 / 模型代际"
+
+msgid "Learning"
+msgstr "学习状态"
+
+msgid "Valid feedback"
+msgstr "有效反馈"
+
+msgid "delayed pending"
+msgstr "待处理延迟反馈"
+
+msgid "completed"
+msgstr "已完成"
+
+msgid "Current Authority"
+msgstr "当前决策权"
+
+msgid "Guarded Assisted"
+msgstr "受保护 Assisted"
+
+msgid "Qualification"
+msgstr "资格状态"
+
+msgid "Fallback Reason"
+msgstr "回退原因"
+
+msgid "None"
+msgstr "无"
+
+msgid "Shadow Self-check"
+msgstr "Shadow 自检"
+
+msgid "Run now"
+msgstr "立即运行"
+
+msgid "Rill self-check passed."
+msgstr "Rill 自检通过。"
+
+msgid "Rill self-check fell back to Native."
+msgstr "Rill 自检未通过，已回退到 Native。"
+
+msgid "Self-check failed: "
+msgstr "自检失败："
+
+msgid "Reset Learning State"
+msgstr "重置学习状态"
+
+msgid "Reset"
+msgstr "重置"
+
+msgid "Resetting..."
+msgstr "重置中..."
+
+msgid "Reset Rill learning state? Native configuration will not be changed."
+msgstr "确定重置 Rill 学习状态吗？Native 配置不会改变。"
+
+msgid "Rill learning state was reset."
+msgstr "Rill 学习状态已重置。"
+
+msgid "Reset rejected"
+msgstr "重置请求被拒绝"
+
+msgid "Reset failed: "
+msgstr "重置失败："
+
+msgid "Measurement Policy"
+msgstr "测量策略"
+
+msgid "Source Strategy"
+msgstr "来源策略"
+
+msgid "Balanced"
+msgstr "均衡"
+
+msgid "Official-heavy"
+msgstr "官方优先"
+
+msgid "History-heavy"
+msgstr "历史优先"
+
+msgid "Diversity-heavy"
+msgstr "多样性优先"
+
+msgid "Community-heavy"
+msgstr "社区优先"
+
+msgid "Probe Batch Size"
+msgstr "探测批次大小"
+
+msgid "Maximum Probes"
+msgstr "最大探测数"
+
+msgid "Deterministic Early Stop"
+msgstr "确定性提前停止"
+
+msgid "Runtime Health"
+msgstr "运行时健康"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Resource pressure"
+msgstr "资源压力"
+
+msgid "Runtime Inspect"
+msgstr "运行时检查"
+
+msgid "pending"
+msgstr "待处理"
+
+msgid "last error"
+msgstr "最近错误"
+
+msgid "Probe Efficiency"
+msgstr "探测效率"
+
+msgid "probed"
+msgstr "已探测"
+
+msgid "avoided"
+msgstr "已避免"
+
+msgid "early stop"
+msgstr "提前停止"
+
+msgid "yes"
+msgstr "是"
+
+msgid "no"
+msgstr "否"
+
+msgid "Native vs Rill"
+msgstr "Native 与 Rill"
+
+msgid "native"
+msgstr "Native"
+
+msgid "Rill"
+msgstr "Rill"
+
+msgid "regret"
+msgstr "遗憾值"

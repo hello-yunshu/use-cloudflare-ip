@@ -37,14 +37,22 @@ cf_ip_cron_remove() {
 }
 
 start_service() {
-	local enabled cfst_persist cron_interval cron_custom startup_delay
+	local enabled cfst_persist cron_interval cron_custom startup_delay work_dir cfst_path sysupgrade_tmp
 	config_load cf_ip
 	config_get_bool enabled main enabled 0
 
-	[ "$enabled" -eq 0 ] && return 0
+	if [ "$enabled" -eq 0 ]; then
+		# Disabled must remove entries left by older package versions.
+		cf_ip_cron_remove
+		return 0
+	fi
 
 	if ! validate_cf_ip 2>/dev/null; then
 		logger -t cf_ip -p daemon.err "Configuration validation failed, refusing to start"
+		return 1
+	fi
+	if ! cf-ip-auto --validate-config >/dev/null 2>&1; then
+		logger -t cf_ip -p daemon.err "Semantic configuration validation failed, refusing to schedule"
 		return 1
 	fi
 
@@ -52,10 +60,17 @@ start_service() {
 
 	# Handle CFST sysupgrade persistence
 	config_get_bool cfst_persist main cfst_persist 1
+	config_get work_dir main work_dir "/usr/bin"
+	[ -n "$work_dir" ] || work_dir="/usr/bin"
+	cfst_path="${work_dir%/}/cfst/cfst"
 	if [ "$cfst_persist" -eq 1 ]; then
-		grep -qxF '/usr/bin/cfst' /etc/sysupgrade.conf 2>/dev/null || echo '/usr/bin/cfst' >> /etc/sysupgrade.conf
+		mkdir -p "${cfst_path%/*}" 2>/dev/null || true
+		grep -qxF "$cfst_path" /etc/sysupgrade.conf 2>/dev/null || echo "$cfst_path" >> /etc/sysupgrade.conf
 	else
-		sed -i '\|^/usr/bin/cfst$|d' /etc/sysupgrade.conf 2>/dev/null || true
+		if [ -f /etc/sysupgrade.conf ]; then
+			sysupgrade_tmp="/etc/sysupgrade.conf.cfip.$$"
+			grep -Fvx "$cfst_path" /etc/sysupgrade.conf >"$sysupgrade_tmp" 2>/dev/null && mv "$sysupgrade_tmp" /etc/sysupgrade.conf || rm -f "$sysupgrade_tmp"
+		fi
 	fi
 
 	# Pre-download/update CFST in background
@@ -116,13 +131,20 @@ validate_cf_ip() {
 		'enabled:bool' 'mode:string' 'ip_count:uinteger' \
 		'ip_type:string' 'speedtest_protocol:string' \
 		'speedtest_cfcolo:string' 'speedtest_dn:uinteger' \
+		'speedtest_dt:uinteger' 'speedtest_threads:uinteger' \
+		'speedtest_ping_count:uinteger' \
 		'speedtest_tll:uinteger' 'speedtest_tl:uinteger' 'stop_service:bool' \
 		'startup_delay:string' 'auto_update:bool' \
 		'self_update_url:string' 'download_retries:uinteger' \
 		'download_retry_delay:uinteger' 'github_mirror:string' \
 		'verbose:bool' 'work_dir:string' 'cron_interval:string' \
 		'cron_custom:string' \
-		'cfst_persist:bool'
+		'cfst_persist:bool' 'candidate_budget:uinteger' \
+		'probe_top_count:uinteger' 'probe_concurrency:uinteger' \
+		'probe_timeout:uinteger' 'measurement_timeout:uinteger' 'recovery_timeout:uinteger' \
+		'reuse_enabled:bool' 'max_full_optimize_interval:uinteger' \
+		'reuse_validation_timeout:uinteger' 'reuse_loss_limit:string' \
+		'reuse_ttfb_limit:uinteger' 'reuse_total_limit:uinteger'
 
 	uci_validate_section cf_ip passwall passwall \
 		'target_domain:string' 'name_suffix:string'
@@ -131,4 +153,11 @@ validate_cf_ip() {
 		'config:string' 'target_domain:string' \
 		'name_suffix:string' 'transport_filter:string' \
 		'backup_count:uinteger'
+
+	uci_validate_section cf_ip rill rill \
+		'enabled:bool' 'mode:string' 'runtime:string' \
+		'state_file:string' 'timeout_ms:uinteger'
+
+	uci_validate_section cf_ip lan lan \
+		'enabled:bool' 'bind_address:string' 'port:port'
 }

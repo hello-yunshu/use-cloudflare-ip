@@ -35,6 +35,16 @@
 			"path": "cloudflare-ip/advanced"
 		}
 	},
+	"admin/services/cf_ip/sources": {
+		"title": "Candidate IP Sources",
+		"order": 35,
+		"action": { "type": "view", "path": "cloudflare-ip/sources" }
+	},
+	"admin/services/cf_ip/intelligence": {
+		"title": "Intelligence",
+		"order": 45,
+		"action": { "type": "view", "path": "cloudflare-ip/intelligence" }
+	},
 	"admin/services/cf_ip/logs": {
 		"title": "Logs & Records",
 		"order": 60,

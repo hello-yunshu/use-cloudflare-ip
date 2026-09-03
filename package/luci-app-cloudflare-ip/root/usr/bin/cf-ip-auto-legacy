@@ -1,0 +1,2250 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+SCRIPT_VERSION="@PKG_VERSION@"
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_PATH="${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")"
+
+# Status and log files
+STATUS_DIR="/etc/cf_ip"
+STATUS_FILE="/etc/cf_ip/status.json"
+LOG_FILE="/tmp/cf_ip/cf-ip-auto.log"
+ENV_CACHE_FILE="/etc/cf_ip/env_cache.json"
+LOCK_FILE="/tmp/cf_ip/cf-ip-auto.lock"
+
+# Default variables (overridden by UCI config)
+MODE="passwall"
+WORK_DIR="$SCRIPT_DIR"
+CFST_DIR=""
+IP_COUNT="4"
+IP_TYPE="ipv4"
+RESULT_FILE=""
+IP_HISTORY_FILE=""
+FAST_IPS=()
+SPEEDTEST_DN="10"
+SPEEDTEST_TLL="40"
+SPEEDTEST_TL=""
+SPEEDTEST_PROTOCOL="tcp"
+SPEEDTEST_CFCOLO=""
+PASSWALL_TARGET_DOMAIN=""
+PASSWALL_NAME_SUFFIX=" [CF-{n}]"
+OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"
+OPENCLASH_TARGET_DOMAIN=""
+OPENCLASH_NAME_SUFFIX=" [CF-{n}]"
+OPENCLASH_TRANSPORT_FILTER=""
+OPENCLASH_BACKUP_COUNT="3"
+AUTO_UPDATE="true"
+SELF_UPDATE_URL="https://raw.githubusercontent.com/hello-yunshu/luci-app-cloudflare-ip/main/package/luci-app-cloudflare-ip/root/usr/bin/cf-ip-auto"
+DOWNLOAD_RETRIES="3"
+DOWNLOAD_RETRY_DELAY="5"
+VERBOSE="false"
+CLI_VERBOSE="false"
+GITHUB_MIRROR=""
+STOP_SERVICE_BEFORE_SPEEDTEST="true"
+STARTUP_DELAY=""
+SKIP_STARTUP_DELAY="false"
+CRON_INTERVAL="6h"
+ENABLED="false"
+_STOPPED_SERVICE=""
+_OPENCLASH_ENABLE_SAVED=""
+PURE_APPLY="false"
+
+# Mode flags
+JSON_MODE="false"
+DAEMON_MODE="false"
+
+OPENCLASH_TEMPLATE_DOMAINS=()
+OPENCLASH_TEMPLATE_TEXT=()
+OPENCLASH_TEMPLATE_BASE_NAME=()
+OPENCLASH_SEEN=()
+OPENCLASH_MATCHED_DOMAIN=""
+
+RELEASE_API="${RELEASE_API:-https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest}"
+RELEASE_DOWNLOAD_BASE="${RELEASE_DOWNLOAD_BASE:-https://github.com/XIU2/CloudflareSpeedTest/releases/download}"
+BINARY_NAME="cfst"
+GITHUB_USER_AGENT="cf-ip-auto/${SCRIPT_VERSION}"
+
+# ========== JSON Output Helpers ==========
+
+json_result() {
+	printf '{"success":true'
+	local key value
+	while (($# >= 2)); do
+		key="$1"
+		value="$2"
+		shift 2
+		if [[ "$value" =~ ^-?[0-9]+$ ]] || [[ "$value" == "true" ]] || [[ "$value" == "false" ]] || [[ "$value" == "null" ]] || [[ "$value" == "["* ]] || [[ "$value" == "{"* ]]; then
+			printf ',"%s":%s' "$key" "$value"
+		else
+			local escaped="${value//\\/\\\\}"
+			escaped="${escaped//\"/\\\"}"
+			escaped="${escaped//$'\n'/\\n}"
+			printf ',"%s":"%s"' "$key" "$escaped"
+		fi
+	done
+	printf '}\n'
+}
+
+json_error() {
+	local msg="$1"
+	msg="${msg//\\/\\\\}"
+	msg="${msg//\"/\\\"}"
+	msg="${msg//$'\n'/\\n}"
+	msg="${msg//$'\r'/}"
+	printf '{"success":false,"error":"%s"}\n' "$msg"
+}
+
+# ========== Log Helpers ==========
+
+log_to_file() {
+	[[ -w "${LOG_FILE%/*}" ]] || mkdir -p "${LOG_FILE%/*}" 2>/dev/null || return 0
+	local timestamp
+	timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+	printf '[%s] %s\n' "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null
+	rotate_history_file "$LOG_FILE" 500
+}
+
+log() {
+	log_to_file "$*"
+	[[ "$VERBOSE" == "true" ]] || return 0
+	printf '[cloudflare-ip] %s\n' "$*" >&2
+}
+
+die() {
+	log_to_file "ERROR: $*"
+	if [[ "$JSON_MODE" == "true" ]]; then
+		json_error "$*"
+		exit 1
+	fi
+	printf '[cloudflare-ip] ERROR: %s\n' "$*" >&2
+	exit 1
+}
+
+# ========== UCI Config ==========
+
+load_uci_config() {
+	command -v uci >/dev/null 2>&1 || die "uci command not found"
+
+	local val
+
+	# Service section (cf_ip.main.*)
+	val="$(uci -q get cf_ip.main.enabled)" && ENABLED="$val"
+	val="$(uci -q get cf_ip.main.mode)" && MODE="$val"
+	val="$(uci -q get cf_ip.main.ip_count)" && IP_COUNT="$val"
+	val="$(uci -q get cf_ip.main.ip_type)" && IP_TYPE="$val"
+	val="$(uci -q get cf_ip.main.speedtest_protocol)" && SPEEDTEST_PROTOCOL="$val"
+	val="$(uci -q get cf_ip.main.speedtest_cfcolo)" && SPEEDTEST_CFCOLO="$val"
+	val="$(uci -q get cf_ip.main.speedtest_dn)" && SPEEDTEST_DN="$val"
+	val="$(uci -q get cf_ip.main.speedtest_tll)" && SPEEDTEST_TLL="$val"
+	val="$(uci -q get cf_ip.main.speedtest_tl)" && SPEEDTEST_TL="$val"
+	val="$(uci -q get cf_ip.main.stop_service)" && STOP_SERVICE_BEFORE_SPEEDTEST="$val"
+	val="$(uci -q get cf_ip.main.startup_delay)" && STARTUP_DELAY="$val"
+	val="$(uci -q get cf_ip.main.auto_update)" && AUTO_UPDATE="$val"
+	val="$(uci -q get cf_ip.main.self_update_url)" && SELF_UPDATE_URL="$val"
+	val="$(uci -q get cf_ip.main.download_retries)" && DOWNLOAD_RETRIES="$val"
+	val="$(uci -q get cf_ip.main.download_retry_delay)" && DOWNLOAD_RETRY_DELAY="$val"
+	val="$(uci -q get cf_ip.main.github_mirror)" && GITHUB_MIRROR="$val"
+	val="$(uci -q get cf_ip.main.verbose)" && VERBOSE="$val"
+	val="$(uci -q get cf_ip.main.work_dir)" && WORK_DIR="$val"
+	val="$(uci -q get cf_ip.main.cron_interval)" && CRON_INTERVAL="$val"
+	val="$(uci -q get cf_ip.main.cron_custom)" && CRON_CUSTOM="$val"
+
+	# Convert UCI bool values (0/1) to true/false
+	case "$ENABLED" in 1|on|true|enabled) ENABLED="true" ;; *) ENABLED="false" ;; esac
+	case "$STOP_SERVICE_BEFORE_SPEEDTEST" in 1|on|true|enabled) STOP_SERVICE_BEFORE_SPEEDTEST="true" ;; *) STOP_SERVICE_BEFORE_SPEEDTEST="false" ;; esac
+	case "$AUTO_UPDATE" in 1|on|true|enabled) AUTO_UPDATE="true" ;; *) AUTO_UPDATE="false" ;; esac
+	case "$VERBOSE" in 1|on|true|enabled) VERBOSE="true" ;; *) VERBOSE="false" ;; esac
+
+	# If cron_interval is "custom", use cron_custom instead
+	if [ "$CRON_INTERVAL" = "custom" ]; then
+		CRON_INTERVAL="${CRON_CUSTOM:-6h}"
+	fi
+	CRON_CUSTOM=""
+
+	# Passwall section (cf_ip.passwall.*)
+	val="$(uci -q get cf_ip.passwall.target_domain)" && PASSWALL_TARGET_DOMAIN="$val"
+	val="$(uci -q get cf_ip.passwall.name_suffix)" && PASSWALL_NAME_SUFFIX="$val"
+
+	# OpenClash section (cf_ip.openclash.*)
+	val="$(uci -q get cf_ip.openclash.config)" && OPENCLASH_CONFIG="$val"
+	val="$(uci -q get cf_ip.openclash.target_domain)" && OPENCLASH_TARGET_DOMAIN="$val"
+	val="$(uci -q get cf_ip.openclash.name_suffix)" && OPENCLASH_NAME_SUFFIX="$val"
+	val="$(uci -q get cf_ip.openclash.transport_filter)" && OPENCLASH_TRANSPORT_FILTER="$val"
+	val="$(uci -q get cf_ip.openclash.backup_count)" && OPENCLASH_BACKUP_COUNT="$val"
+}
+
+load_uci_config_if_available() {
+	command -v uci >/dev/null 2>&1 || return 1
+	load_uci_config
+}
+
+# ========== Status File ==========
+
+build_ips_json() {
+	local json="["
+	local i
+	for i in "${!FAST_IPS[@]}"; do
+		((i > 0)) && json+=","
+		json+="\"${FAST_IPS[$i]}\""
+	done
+	json+="]"
+	printf '%s' "$json"
+}
+
+write_status() {
+	local running="${1:-true}"
+	local last_result="${2:-success}"
+	local error="${3:-}"
+	local best_ips_json
+
+	mkdir -p "$STATUS_DIR"
+
+	if [[ ${#FAST_IPS[@]} -gt 0 ]]; then
+		best_ips_json="$(build_ips_json)"
+	else
+		# Preserve previous best_ips when writing intermediate status (e.g. "running")
+		best_ips_json="$(jq -c '.best_ips // []' "$STATUS_FILE" 2>/dev/null)" || best_ips_json="[]"
+	fi
+
+	local cfst_ver=""
+	[[ -f "${CFST_DIR}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${CFST_DIR}/${BINARY_NAME}_version.txt")"
+
+	# Escape error for JSON
+	error="${error//\\/\\\\}"
+	error="${error//\"/\\\"}"
+	error="${error//$'\n'/\\n}"
+
+	cat > "$STATUS_FILE" <<EOF
+{
+  "running": ${running},
+  "last_run": "$(date '+%Y-%m-%d %H:%M:%S')",
+  "last_result": "${last_result}",
+  "mode": "${MODE}",
+  "ip_type": "${IP_TYPE}",
+  "ip_count": ${IP_COUNT},
+  "speedtest_protocol": "${SPEEDTEST_PROTOCOL}",
+  "best_ips": ${best_ips_json},
+  "cfst_version": "${cfst_ver}",
+  "script_version": "${SCRIPT_VERSION}",
+  "error": "${error}"
+}
+EOF
+}
+
+# ========== Lock File ==========
+
+acquire_lock() {
+	mkdir -p "$STATUS_DIR"
+	local max_wait="${1:-0}" waited=0
+	while true; do
+		if mkdir "$LOCK_FILE" 2>/dev/null; then
+			printf '%s\n' "$$" > "$LOCK_FILE/pid"
+			return 0
+		fi
+		# Check for stale lock (process no longer alive)
+		local lock_pid=""
+		[[ -f "$LOCK_FILE/pid" ]] && lock_pid="$(<"$LOCK_FILE/pid")"
+		if [[ -n "$lock_pid" ]] && ! kill -0 "$lock_pid" 2>/dev/null; then
+			log "removing stale lock (pid=$lock_pid no longer alive)"
+			rm -rf "$LOCK_FILE"
+			continue
+		fi
+		if [[ "$max_wait" -gt 0 ]]; then
+			((waited >= max_wait)) && return 1
+			sleep 5
+			waited=$((waited + 5))
+		else
+			return 1
+		fi
+	done
+}
+
+release_lock() {
+	rm -rf "$LOCK_FILE" 2>/dev/null || true
+}
+
+# Combined exit handler: releases lock + restarts stopped service
+_on_exit() {
+	cleanup_stopped_service
+	release_lock
+	# Abnormal exit: update status to error (normal exit removes this trap first)
+	if [ -f "$STATUS_FILE" ] && grep -q '"running"[[:space:]]*:[[:space:]]*true' "$STATUS_FILE" 2>/dev/null; then
+		write_status false "error" "script exited unexpectedly"
+	fi
+}
+
+# ========== Core Utility Functions ==========
+
+curl_fetch() {
+	local output="$1" url="$2" attempt
+
+	for ((attempt = 1; attempt <= DOWNLOAD_RETRIES; attempt++)); do
+		if curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 30 --max-time 600 -A "$GITHUB_USER_AGENT" -o "$output" "$url"; then
+			return 0
+		fi
+		((attempt < DOWNLOAD_RETRIES)) || break
+		log "download failed, retrying in ${DOWNLOAD_RETRY_DELAY}s (${attempt}/${DOWNLOAD_RETRIES}): $url"
+		sleep "$DOWNLOAD_RETRY_DELAY"
+	done
+
+	return 1
+}
+
+mirror_url() {
+	if [[ -n "$GITHUB_MIRROR" && "$1" == https://*github.com/* ]]; then
+		printf '%s%s\n' "$GITHUB_MIRROR" "$1"
+	else
+		printf '%s\n' "$1"
+	fi
+}
+
+need_cmd() {
+	command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
+}
+
+extract_script_version() {
+	local file="$1"
+
+	sed -n 's/^SCRIPT_VERSION="\([^"]*\)".*/\1/p' "$file" | head -n 1
+}
+
+version_gt() {
+	local newer="$1" current="$2" i max newer_part current_part
+	local newer_parts=() current_parts=()
+
+	IFS='.' read -r -a newer_parts <<<"$newer"
+	IFS='.' read -r -a current_parts <<<"$current"
+
+	max="${#newer_parts[@]}"
+	((${#current_parts[@]} > max)) && max="${#current_parts[@]}"
+
+	for ((i = 0; i < max; i++)); do
+		newer_part="${newer_parts[$i]:-0}"
+		current_part="${current_parts[$i]:-0}"
+		[[ "$newer_part" =~ ^[0-9]+$ && "$current_part" =~ ^[0-9]+$ ]] || return 1
+		if ((10#$newer_part > 10#$current_part)); then
+			return 0
+		elif ((10#$newer_part < 10#$current_part)); then
+			return 1
+		fi
+	done
+
+	return 1
+}
+
+valid_version() {
+	[[ "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]
+}
+
+self_update() {
+	local tmp remote_version
+
+	[[ "$AUTO_UPDATE" == "true" ]] || return 0
+	[[ -n "$SELF_UPDATE_URL" ]] || return 0
+	command -v curl >/dev/null 2>&1 || {
+		log "skip self update: curl not found"
+		return 0
+	}
+
+	tmp="$(mktemp "${TMPDIR:-/tmp}/cf-ip-auto.XXXXXX")" || return 0
+	log "checking script update: $SELF_UPDATE_URL"
+	if ! curl_fetch "$tmp" "$(mirror_url "$SELF_UPDATE_URL")"; then
+		rm -f "$tmp"
+		log "skip self update: failed to fetch $SELF_UPDATE_URL"
+		return 0
+	fi
+
+	remote_version="$(extract_script_version "$tmp")"
+	if [[ -z "$remote_version" ]]; then
+		rm -f "$tmp"
+		log "skip self update: remote script has no version"
+		return 0
+	fi
+
+	if ! version_gt "$remote_version" "$SCRIPT_VERSION"; then
+		rm -f "$tmp"
+		return 0
+	fi
+
+	if ! bash -n "$tmp"; then
+		rm -f "$tmp"
+		die "downloaded update has invalid shell syntax"
+	fi
+
+	chmod +x "$tmp"
+	if ! mv "$tmp" "$SCRIPT_PATH"; then
+		rm -f "$tmp"
+		die "failed to replace script with version $remote_version"
+	fi
+
+	log "updated script from $SCRIPT_VERSION to $remote_version"
+
+	# In JSON mode or daemon mode, don't exec - just return
+	if [[ "$JSON_MODE" == "true" || "$DAEMON_MODE" == "true" ]]; then
+		return 0
+	fi
+
+	if [[ "$CLI_VERBOSE" == "true" ]]; then
+		exec "$SCRIPT_PATH" --verbose
+	fi
+	exec "$SCRIPT_PATH"
+}
+
+ensure_jq() {
+	if command -v jq >/dev/null 2>&1; then
+		return
+	fi
+
+	if command -v apk >/dev/null 2>&1; then
+		log "jq not found, installing it with apk"
+		apk add jq >/dev/null
+	elif command -v opkg >/dev/null 2>&1; then
+		log "jq not found, installing it with opkg"
+		opkg install jq >/dev/null
+	else
+		die "jq not found and no supported package manager (apk or opkg) available"
+	fi
+	need_cmd jq
+}
+
+is_valid_ip() {
+	local ip="$1"
+	if [[ "$ip" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+		local i
+		for i in 1 2 3 4; do
+			((10#${BASH_REMATCH[$i]} <= 255)) || return 1
+		done
+		return 0
+	fi
+	if [[ "$ip" =~ ^[0-9a-fA-F:]+$ ]] && [[ "$ip" == *:* ]]; then
+		return 0
+	fi
+	return 1
+}
+
+verify_ip() {
+	local ip="$1" domain="$2" curl_proto=()
+	local resolve_ip="$ip"
+	[[ -n "$domain" ]] || return 0
+	[[ "$ip" == *:* ]] && resolve_ip="[${ip}]"
+	case "$IP_TYPE" in
+		ipv4) curl_proto=("-4") ;;
+		ipv6) curl_proto=("-6") ;;
+	esac
+	curl -s "${curl_proto[@]}" --max-time 3 --resolve "${domain}:443:${resolve_ip}" "https://${domain}" -o /dev/null 2>/dev/null
+}
+
+rotate_history_file() {
+	local file="$1" max_lines="${2:-1000}"
+	[[ -f "$file" ]] || return 0
+	local lines
+	lines="$(wc -l < "$file")" || return 0
+	((lines > max_lines)) || return 0
+	local tmp
+	tmp="$(mktemp "${file}.XXXXXX")" || return 0
+	tail -n "$max_lines" "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
+rotate_openclash_backups() {
+	local config="$1" keep="$2"
+	local config_dir config_base i=0 file
+	config_dir="$(dirname "$config")"
+	config_base="$(basename "$config")"
+
+	while IFS= read -r file; do
+		[[ -f "$file" ]] || continue
+		i=$((i + 1))
+		((i > keep)) && rm -f "$file"
+	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+	return 0
+}
+
+normalize_mode() {
+	case "${1:-$MODE}" in
+		passwall|openclash)
+			MODE="$1"
+			;;
+		*)
+			die "unsupported mode: ${1:-$MODE}; use passwall or openclash"
+			;;
+	esac
+}
+
+detect_arch_tag() {
+	local arch
+
+	arch="$(uname -m)"
+	case "$arch" in
+		x86_64|amd64)
+			printf 'amd64'
+			;;
+		i386|i686)
+			printf '386'
+			;;
+		aarch64|arm64)
+			printf 'arm64'
+			;;
+		armv7l|armv7*)
+			printf 'armv7'
+			;;
+		armv6l|armv6*)
+			printf 'armv6'
+			;;
+		armv5*|arm)
+			printf 'armv5'
+			;;
+		mips64el|mips64le)
+			printf 'mips64le'
+			;;
+		mips64)
+			printf 'mips64'
+			;;
+		mipsel|mipsle)
+			printf 'mipsle'
+			;;
+		mips)
+			printf 'mips'
+			;;
+		*)
+			die "unsupported architecture: $arch"
+			;;
+	esac
+}
+
+prepare_work_dir() {
+	mkdir -p "$WORK_DIR"
+	mkdir -p "$CFST_DIR"
+	cd "$WORK_DIR" || die "failed to enter work directory: $WORK_DIR"
+}
+
+install_speedtest_archive() {
+	local archive="$1" version="${2:-}"
+
+	log "using local CloudflareSpeedTest archive: $archive"
+	if ! tar -tzf "$archive" >/dev/null 2>&1; then
+		die "local CloudflareSpeedTest archive is not a valid tar.gz: $archive"
+	fi
+	tar -xzf "$archive" -C "$CFST_DIR" || die "failed to extract CloudflareSpeedTest archive: $archive"
+	[[ -f "${CFST_DIR}/${BINARY_NAME}" ]] || die "archive did not contain $BINARY_NAME"
+	chmod +x "${CFST_DIR}/${BINARY_NAME}"
+	if [[ -n "$version" ]]; then
+		printf '%s\n' "$version" >"${CFST_DIR}/${BINARY_NAME}_version.txt"
+	fi
+}
+
+download_speedtest() {
+	local tag version old_version asset archive url download_url tmp_archive release_json release_tmp file_size expected_digest actual_digest
+
+	need_cmd curl
+	need_cmd tar
+	ensure_jq
+
+	tag="$(detect_arch_tag)"
+	asset="${BINARY_NAME}_linux_${tag}.tar.gz"
+	archive="${CFST_DIR}/${BINARY_NAME}_linux_${tag}.tar.gz"
+	log "detected architecture tag: $tag"
+	log "checking CloudflareSpeedTest release: $RELEASE_API"
+	release_tmp="$(mktemp "${TMPDIR:-/tmp}/${BINARY_NAME}_release.XXXXXX")" || die "failed to create temporary release metadata file"
+	if ! curl_fetch "$release_tmp" "$RELEASE_API"; then
+		rm -f "$release_tmp"
+		if [[ -f "$archive" ]]; then
+			log "release metadata unavailable, falling back to local archive"
+			install_speedtest_archive "$archive"
+			return
+		fi
+		if [[ -x "${CFST_DIR}/${BINARY_NAME}" ]]; then
+			log "release metadata unavailable, using existing $BINARY_NAME"
+			return
+		fi
+		die "failed to fetch CloudflareSpeedTest release metadata: $RELEASE_API"
+	fi
+	release_json="$(<"$release_tmp")"
+	rm -f "$release_tmp"
+	version="$(printf '%s\n' "$release_json" | jq -r '.tag_name // empty')"
+	[[ -n "$version" && "$version" != "null" ]] || die "failed to get latest CloudflareSpeedTest version"
+
+	old_version=""
+	[[ -f "${CFST_DIR}/${BINARY_NAME}_version.txt" ]] && old_version="$(<"${CFST_DIR}/${BINARY_NAME}_version.txt")"
+
+	url="$(printf '%s\n' "$release_json" | jq -r --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url // empty' | head -n 1)"
+	if [[ -z "$url" || "$url" == "null" ]]; then
+		url="${RELEASE_DOWNLOAD_BASE}/${version}/${asset}"
+	fi
+	download_url="$(mirror_url "$url")"
+	expected_digest="$(printf '%s\n' "$release_json" | jq -r --arg name "$asset" '.assets[] | select(.name == $name) | .digest // empty' | head -n 1 | sed 's/^sha256://')"
+
+	if [[ ! -x "${CFST_DIR}/${BINARY_NAME}" || "$version" != "$old_version" ]]; then
+		log "downloading CloudflareSpeedTest $version for $tag"
+		tmp_archive="$(mktemp "${archive}.XXXXXX")" || die "failed to create temporary archive"
+		if ! curl_fetch "$tmp_archive" "$download_url"; then
+			rm -f "$tmp_archive"
+			if [[ -f "$archive" ]]; then
+				log "download failed, falling back to local archive"
+				install_speedtest_archive "$archive" "$version"
+				return
+			fi
+			if [[ -x "${CFST_DIR}/${BINARY_NAME}" ]]; then
+				log "download failed, using existing $BINARY_NAME"
+				return
+			fi
+			die "failed to download CloudflareSpeedTest asset: $url"
+		fi
+		if ! tar -tzf "$tmp_archive" >/dev/null 2>&1; then
+			file_size="$(wc -c < "$tmp_archive" 2>/dev/null || printf 'unknown')"
+			local invalid_download_error="downloaded CloudflareSpeedTest asset is not a valid tar.gz (size=${file_size} bytes): $url"
+			if head -c 512 "$tmp_archive" 2>/dev/null | grep -qi '<!doctype\|<html'; then
+				invalid_download_error="downloaded file is HTML instead of tar.gz (likely network interception or proxy); size=${file_size} bytes; url=$url"
+			fi
+			rm -f "$tmp_archive"
+			if [[ -f "$archive" ]]; then
+				log "downloaded archive is invalid, falling back to local archive"
+				install_speedtest_archive "$archive" "$version"
+				return
+			fi
+			if [[ -x "${CFST_DIR}/${BINARY_NAME}" ]]; then
+				log "downloaded archive is invalid, using existing $BINARY_NAME"
+				return
+			fi
+			die "$invalid_download_error"
+		fi
+		[[ "$expected_digest" =~ ^[0-9a-fA-F]{64}$ ]] || { rm -f "$tmp_archive"; die "release metadata has no SHA256 digest for $asset"; }
+		actual_digest="$(sha256sum "$tmp_archive" | awk '{print $1}')"
+		[[ "${actual_digest,,}" == "${expected_digest,,}" ]] || { rm -f "$tmp_archive"; die "CloudflareSpeedTest SHA256 digest mismatch for $asset"; }
+		mv "$tmp_archive" "$archive" || {
+			rm -f "$tmp_archive"
+			die "failed to save CloudflareSpeedTest archive: $archive"
+		}
+		install_speedtest_archive "$archive" "$version"
+		log "CloudflareSpeedTest $version installed successfully"
+	else
+		log "CloudflareSpeedTest $version already exists"
+	fi
+}
+
+run_speedtest() {
+	local ip all_ips=() verified_ips=() ips=() cfst_files=() result_files=()
+	local cfst_proto_args=()
+
+	case "$SPEEDTEST_PROTOCOL" in
+		http)
+			cfst_proto_args+=("-httping")
+			[[ -n "$SPEEDTEST_CFCOLO" ]] && cfst_proto_args+=("-cfcolo" "$SPEEDTEST_CFCOLO")
+			;;
+	esac
+
+	case "$IP_TYPE" in
+		ipv4) cfst_files=("${CFST_DIR}/ip.txt") ;;
+		ipv6) cfst_files=("${CFST_DIR}/ipv6.txt") ;;
+		both) cfst_files=("${CFST_DIR}/ip.txt" "${CFST_DIR}/ipv6.txt") ;;
+	esac
+
+	rm -f "$RESULT_FILE"
+	for cfst_file in "${cfst_files[@]}"; do
+		local partial_result
+		partial_result="$(mktemp "${RESULT_FILE}.XXXXXX")"
+		log "running speedtest with $cfst_file"
+		local cfst_args=(-f "$cfst_file" -dn "$SPEEDTEST_DN" -tll "$SPEEDTEST_TLL")
+		[[ -n "$SPEEDTEST_TL" ]] && cfst_args+=(-tl "$SPEEDTEST_TL")
+		cfst_args+=("${cfst_proto_args[@]}" -o "$partial_result")
+		"${CFST_DIR}/${BINARY_NAME}" "${cfst_args[@]}" >/dev/null || true
+		result_files+=("$partial_result")
+	done
+
+	if ((${#result_files[@]} > 0)); then
+		cat "${result_files[@]}" > "$RESULT_FILE"
+	fi
+
+	for rf in "${result_files[@]}"; do
+		while IFS= read -r ip; do
+			[[ -n "$ip" ]] || continue
+			if ! is_valid_ip "$ip"; then
+				log "skip invalid IP format: $ip"
+				continue
+			fi
+			if [[ "$IP_TYPE" == "ipv4" && "$ip" == *:* ]]; then
+				continue
+			fi
+			if [[ "$IP_TYPE" == "ipv6" && "$ip" != *:* ]]; then
+				continue
+			fi
+			all_ips+=("$ip")
+		done < <(awk -F ',' 'NR > 1 && $1 != "" { print $1 }' "$rf")
+		rm -f "$rf"
+	done
+
+	((${#all_ips[@]} > 0)) || die "no valid IPs found in speedtest results"
+
+	local target_domains=()
+	case "$MODE" in
+		passwall) IFS=',' read -r -a target_domains <<< "$PASSWALL_TARGET_DOMAIN" ;;
+		openclash) IFS=',' read -r -a target_domains <<< "$OPENCLASH_TARGET_DOMAIN" ;;
+	esac
+
+	if ((${#target_domains[@]} > 0)); then
+		log "verifying selected IPs against ${target_domains[*]}"
+		for ip in "${all_ips[@]}"; do
+			((${#verified_ips[@]} >= IP_COUNT)) && break
+			local all_pass=true domain
+			for domain in "${target_domains[@]}"; do
+				if ! verify_ip "$ip" "$domain"; then
+					all_pass=false
+					break
+				fi
+			done
+			if $all_pass; then
+				verified_ips+=("$ip")
+			else
+				log "skip unreachable IP: $ip"
+			fi
+		done
+	fi
+
+	if ((${#verified_ips[@]} > 0)); then
+		ips=("${verified_ips[@]}")
+	else
+		if ((${#target_domains[@]} > 0)); then
+			log "warning: connectivity check failed for all IPs, using speedtest results directly"
+		fi
+		ips=("${all_ips[@]:0:IP_COUNT}")
+	fi
+
+	if ((${#ips[@]} < IP_COUNT)); then
+		log "warning: only ${#ips[@]} usable IP(s) found, filling with first IP to reach $IP_COUNT"
+		while ((${#ips[@]} < IP_COUNT)); do
+			ips+=("${ips[0]}")
+		done
+	fi
+
+	rotate_history_file "$IP_HISTORY_FILE"
+	printf '%s\n' "${ips[@]:0:IP_COUNT}" >>"$IP_HISTORY_FILE"
+	FAST_IPS=("${ips[@]:0:IP_COUNT}")
+	log "selected IPs: ${FAST_IPS[*]}"
+}
+
+restart_service() {
+	local service="$1"
+
+	[[ -x "/etc/init.d/${service}" ]] || die "service init script not found: $service"
+	if [[ "$service" == "openclash" && -n "$_OPENCLASH_ENABLE_SAVED" ]]; then
+		uci -q set "openclash.config.enable=$_OPENCLASH_ENABLE_SAVED"
+		uci -q commit openclash
+	fi
+	log "restarting service: $service"
+	"/etc/init.d/${service}" restart >/dev/null || die "failed to restart $service"
+	if [[ "$service" == "openclash" ]]; then
+		local i
+		for i in $(seq 1 30); do
+			pidof clash >/dev/null 2>&1 && break
+			sleep 1
+		done
+		if ! pidof clash >/dev/null 2>&1; then
+			log "warning: openclash core not running after restart (start_fail may have been triggered)"
+		fi
+	fi
+}
+
+stop_service() {
+	local service="$1"
+
+	[[ -x "/etc/init.d/${service}" ]] || return 0
+	if [[ "$service" == "openclash" ]]; then
+		_OPENCLASH_ENABLE_SAVED="$(uci -q get openclash.config.enable || echo "1")"
+		uci -q set openclash.config.enable=0
+		uci -q commit openclash
+	fi
+	log "stopping service for speedtest: $service"
+	"/etc/init.d/${service}" stop >/dev/null 2>&1 || die "failed to stop $service"
+	if [[ "$service" == "openclash" ]]; then
+		local i clash_pids
+		for i in $(seq 1 15); do
+			clash_pids="$(pidof clash 2>/dev/null)" || clash_pids=""
+			[[ -z "$clash_pids" ]] && break
+			sleep 1
+		done
+		clash_pids="$(pidof clash 2>/dev/null)" || clash_pids=""
+		if [[ -n "$clash_pids" ]]; then
+			log "openclash core still running after stop, force killing"
+			# shellcheck disable=SC2086
+			kill -9 $clash_pids 2>/dev/null || true
+		fi
+	fi
+	_STOPPED_SERVICE="$service"
+}
+
+cleanup_stopped_service() {
+	if [[ -n "$_STOPPED_SERVICE" ]]; then
+		log "restarting stopped service on exit: $_STOPPED_SERVICE"
+		if [[ "$_STOPPED_SERVICE" == "openclash" && -n "$_OPENCLASH_ENABLE_SAVED" ]]; then
+			uci -q set "openclash.config.enable=$_OPENCLASH_ENABLE_SAVED"
+			uci -q commit openclash
+		fi
+		"/etc/init.d/${_STOPPED_SERVICE}" restart >/dev/null 2>&1 || true
+		_STOPPED_SERVICE=""
+		_OPENCLASH_ENABLE_SAVED=""
+	fi
+}
+
+# ========== PassWall Functions ==========
+
+passwall_base_name() {
+	local name="$1"
+
+	while [[ "$name" =~ ^(.*)[[:space:]]\[CF-[0-9]+\][^[:space:]]*$ ]]; do
+		name="${BASH_REMATCH[1]}"
+	done
+	printf '%s' "$name"
+}
+
+update_passwall() {
+	local sections=() section idx ip old_remarks new_remarks base_name
+
+	need_cmd uci
+	while IFS= read -r section; do
+		sections+=("$section")
+	done < <(find_passwall_sections)
+	((${#sections[@]} > 0)) || die "no PassWall nodes matched address: $PASSWALL_TARGET_DOMAIN"
+	log "matched PassWall node count: ${#sections[@]}"
+
+	idx=0
+	for section in "${sections[@]}"; do
+		ip="${FAST_IPS[$((idx % IP_COUNT))]}"
+		uci set "passwall.${section}.address=${ip}" >/dev/null || die "failed to update passwall.${section}.address"
+		if [[ -n "$PASSWALL_NAME_SUFFIX" ]]; then
+			old_remarks="$(uci_unquote "$(uci get "passwall.${section}.remarks" 2>/dev/null || printf '')")"
+			if [[ -n "$old_remarks" ]]; then
+				base_name="$(passwall_base_name "$old_remarks")"
+				new_remarks="${base_name}$(expand_suffix "$PASSWALL_NAME_SUFFIX" "$((idx + 1))" "$ip")"
+				uci set "passwall.${section}.remarks=${new_remarks}" >/dev/null || die "failed to update passwall.${section}.remarks"
+				log "PassWall ${section}.remarks '${old_remarks}' -> '${new_remarks}'; address -> ${ip}"
+			else
+				log "PassWall ${section}.address -> ${ip}"
+			fi
+		else
+			log "PassWall ${section}.address -> ${ip}"
+		fi
+		idx=$((idx + 1))
+	done
+
+	uci commit passwall >/dev/null || die "failed to commit passwall"
+	[[ "$PURE_APPLY" == "true" ]] || restart_service passwall
+}
+
+uci_unquote() {
+	local value="$1"
+
+	if [[ "$value" == \'*\' && "$value" == *\' ]]; then
+		value="${value:1:${#value}-2}"
+	elif [[ "$value" == \"*\" && "$value" == *\" ]]; then
+		value="${value:1:${#value}-2}"
+	fi
+	printf '%s' "$value"
+}
+
+find_passwall_sections() {
+	local line key value section domain _domains=()
+
+	IFS=',' read -r -a _domains <<< "$PASSWALL_TARGET_DOMAIN"
+	while IFS= read -r line; do
+		[[ "$line" == passwall.*.address=* ]] || continue
+		key="${line%%=*}"
+		value="$(uci_unquote "${line#*=}")"
+		for domain in "${_domains[@]}"; do
+			[[ "$value" == "$domain" ]] || continue
+			section="${key#passwall.}"
+			section="${section%.address}"
+			[[ -n "$section" ]] && printf '%s\n' "$section"
+			break
+		done
+	done < <(uci show passwall)
+}
+
+# ========== OpenClash Functions ==========
+
+trim_scalar() {
+	local value="$1"
+
+	value="${value%%#*}"
+	value="${value%$'\r'}"
+	value="${value#"${value%%[![:space:]]*}"}"
+	value="${value%"${value##*[![:space:]]}"}"
+	if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+		value="${value:1:${#value}-2}"
+	elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+		value="${value:1:${#value}-2}"
+	fi
+	printf '%s' "$value"
+}
+
+lower() {
+	# shellcheck disable=SC2018,SC2019
+	printf '%s' "$1" | tr 'A-Z' 'a-z'
+}
+
+openclash_network_supported() {
+	case "$(lower "$1")" in
+		ws|xhttp|grpc|h2|http)
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+openclash_protocol_supported() {
+	local type="$1" tls="$2" network="$3"
+
+	type="$(lower "$type")"
+	tls="$(lower "$tls")"
+
+	case "$type" in
+		vless|vmess|trojan)
+			;;
+		*)
+			return 1
+			;;
+	esac
+
+	case "$tls" in
+		"true")
+			return 0
+			;;
+	esac
+
+	openclash_network_supported "$network"
+}
+
+line_indent() {
+	local line="$1"
+	printf '%s' "${line%%[![:space:]]*}"
+}
+
+write_openclash_line() {
+	local line="$1"
+
+	printf '%s\n' "$line" >>"$TMP_CONFIG"
+	if [[ "$line" =~ ^[[:space:]]*$ ]]; then
+		OPENCLASH_LAST_LINE_BLANK=true
+	else
+		OPENCLASH_LAST_LINE_BLANK=false
+	fi
+}
+
+write_openclash_proxy_separator() {
+	if [[ "${OPENCLASH_WROTE_PROXY:-false}" == "true" && "${OPENCLASH_LAST_LINE_BLANK:-false}" != "true" ]]; then
+		printf '\n' >>"$TMP_CONFIG"
+		OPENCLASH_LAST_LINE_BLANK=true
+	fi
+}
+
+write_block_original() {
+	local line
+	local is_proxy=false
+
+	for line in "${BLOCK_LINES[@]}"; do
+		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*.+$ ]]; then
+			is_proxy=true
+			break
+		fi
+	done
+
+	[[ "$is_proxy" == "true" ]] && write_openclash_proxy_separator
+
+	for line in "${BLOCK_LINES[@]}"; do
+		write_openclash_line "$line"
+	done
+	if [[ "$is_proxy" == "true" ]]; then
+		OPENCLASH_WROTE_PROXY=true
+	fi
+}
+
+expand_suffix() {
+	local suffix="$1" seq="$2" ip_addr="$3"
+	suffix="${suffix//\{n\}/${seq}}"
+	suffix="${suffix//\{ip\}/${ip_addr}}"
+	printf '%s' "$suffix"
+}
+
+openclash_variant_count() {
+	if [[ -n "$OPENCLASH_NAME_SUFFIX" ]]; then
+		printf '%s' "$IP_COUNT"
+	else
+		printf '1'
+	fi
+}
+
+openclash_generated_index() {
+	local proxy_name="$1"
+
+	if [[ "$proxy_name" =~ [[:space:]]\[CF-([0-9]+)\][^[:space:]]*$ ]]; then
+		printf '%s' "${BASH_REMATCH[1]}"
+		return 0
+	fi
+	return 1
+}
+
+openclash_base_name() {
+	local proxy_name="$1"
+
+	while [[ "$proxy_name" =~ ^(.*)[[:space:]]\[CF-[0-9]+\][^[:space:]]*$ ]]; do
+		proxy_name="${BASH_REMATCH[1]}"
+	done
+	printf '%s' "$proxy_name"
+}
+
+openclash_domain_matches() {
+	local server="$1" servername="$2" host="$3" domain _domains=()
+
+	IFS=',' read -r -a _domains <<< "$OPENCLASH_TARGET_DOMAIN"
+	for domain in "${_domains[@]}"; do
+		if [[ "$server" == "$domain" || "$servername" == "$domain" || "$host" == "$domain" ]]; then
+			OPENCLASH_MATCHED_DOMAIN="$domain"
+			return 0
+		fi
+	done
+	return 1
+}
+
+openclash_template_index() {
+	local domain="$1" idx
+
+	for idx in "${!OPENCLASH_TEMPLATE_DOMAINS[@]}"; do
+		[[ "${OPENCLASH_TEMPLATE_DOMAINS[$idx]}" == "$domain" ]] || continue
+		printf '%s\n' "$idx"
+		return 0
+	done
+	return 1
+}
+
+openclash_seen_has() {
+	local key="$1" seen
+
+	((${#OPENCLASH_SEEN[@]} > 0)) || return 1
+	for seen in "${OPENCLASH_SEEN[@]}"; do
+		[[ "$seen" == "$key" ]] && return 0
+	done
+	return 1
+}
+
+openclash_seen_add() {
+	local key="$1"
+
+	openclash_seen_has "$key" || OPENCLASH_SEEN+=("$key")
+}
+
+remember_openclash_template() {
+	local base_name="$1" domain="$2"
+
+	openclash_template_index "$domain" >/dev/null && return 0
+	OPENCLASH_TEMPLATE_DOMAINS+=("$domain")
+	OPENCLASH_TEMPLATE_TEXT+=("$(printf '%s\n' "${BLOCK_LINES[@]}")")
+	OPENCLASH_TEMPLATE_BASE_NAME+=("$base_name")
+}
+
+restore_openclash_template() {
+	local domain="$1" line idx
+
+	idx="$(openclash_template_index "$domain")" || return 1
+
+	BLOCK_LINES=()
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		BLOCK_LINES+=("$line")
+	done <<<"${OPENCLASH_TEMPLATE_TEXT[$idx]}"
+}
+
+emit_openclash_variant() {
+	local seq="$1" ip="$2" base_name="$3" domain="$4"
+	local line idx
+	local name="" tls="" network=""
+	local name_idx=-1 server_idx=-1 tls_idx=-1 network_idx=-1 servername_idx=-1 ws_opts_idx=-1 xhttp_opts_idx=-1 headers_idx=-1 host_idx=-1
+	local prop_indent="" new_name
+	local normalized_network opts_idx opt_key
+	local updated=false
+
+	for idx in "${!BLOCK_LINES[@]}"; do
+		line="${BLOCK_LINES[$idx]}"
+		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*(.+)$ ]]; then
+			name="$(trim_scalar "${BASH_REMATCH[1]}")"
+			name_idx="$idx"
+		elif [[ "$line" =~ ^[[:space:]]*server:[[:space:]]*(.+)$ ]]; then
+			server_idx="$idx"
+			[[ -n "$prop_indent" ]] || prop_indent="$(line_indent "$line")"
+		elif [[ "$line" =~ ^[[:space:]]*tls:[[:space:]]*(.+)$ ]]; then
+			tls="$(trim_scalar "${BASH_REMATCH[1]}")"
+			tls_idx="$idx"
+			[[ -n "$prop_indent" ]] || prop_indent="$(line_indent "$line")"
+		elif [[ "$line" =~ ^[[:space:]]*network:[[:space:]]*(.+)$ ]]; then
+			network="$(trim_scalar "${BASH_REMATCH[1]}")"
+			network_idx="$idx"
+			[[ -n "$prop_indent" ]] || prop_indent="$(line_indent "$line")"
+		elif [[ "$line" =~ ^[[:space:]]*servername:[[:space:]]*(.*)$ ]]; then
+			servername_idx="$idx"
+			[[ -n "$prop_indent" ]] || prop_indent="$(line_indent "$line")"
+		elif [[ "$line" =~ ^[[:space:]]*ws-opts:[[:space:]]*$ ]]; then
+			ws_opts_idx="$idx"
+		elif [[ "$line" =~ ^[[:space:]]*xhttp-opts:[[:space:]]*$ ]]; then
+			xhttp_opts_idx="$idx"
+		elif [[ "$line" =~ ^[[:space:]]*headers:[[:space:]]*$ ]]; then
+			headers_idx="$idx"
+		elif [[ "$line" =~ ^[[:space:]]*Host:[[:space:]]*(.*)$ ]]; then
+			host_idx="$idx"
+		fi
+	done
+
+	if [[ -n "$OPENCLASH_NAME_SUFFIX" && -n "$base_name" ]]; then
+		new_name="${base_name}$(expand_suffix "$OPENCLASH_NAME_SUFFIX" "$seq" "$ip")"
+	else
+		new_name="$base_name"
+	fi
+
+	write_openclash_proxy_separator
+
+	for idx in "${!BLOCK_LINES[@]}"; do
+		line="${BLOCK_LINES[$idx]}"
+		if ((idx == name_idx)) && [[ "$new_name" != "$name" ]]; then
+			write_openclash_line "$(printf '%s- name: %s' "$(line_indent "$line")" "$new_name")"
+		elif ((idx == server_idx)); then
+			write_openclash_line "$(printf '%sserver: %s' "$prop_indent" "$ip")"
+			updated=true
+		elif ((idx == servername_idx)); then
+			write_openclash_line "$(printf '%sservername: %s' "$prop_indent" "$domain")"
+		elif ((idx == host_idx)); then
+			write_openclash_line "$(printf '%sHost: %s' "$(line_indent "$line")" "$domain")"
+		else
+			write_openclash_line "$line"
+		fi
+
+		if ((idx == tls_idx && servername_idx < 0)) && [[ "$(lower "$tls")" == "true" ]]; then
+			write_openclash_line "$(printf '%sservername: %s' "$prop_indent" "$domain")"
+		fi
+
+		normalized_network="$(lower "$network")"
+		if [[ "$normalized_network" == "ws" || "$normalized_network" == "xhttp" ]]; then
+			if [[ "$normalized_network" == "xhttp" ]]; then
+				opts_idx="$xhttp_opts_idx"
+				opt_key="xhttp-opts"
+			else
+				opts_idx="$ws_opts_idx"
+				opt_key="ws-opts"
+			fi
+
+			if ((idx == headers_idx && host_idx < 0)); then
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$domain")"
+			elif ((idx == opts_idx && headers_idx < 0)); then
+				write_openclash_line "$(printf '%sheaders:' "${prop_indent}  ")"
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$domain")"
+			elif ((idx == network_idx && opts_idx < 0)); then
+				write_openclash_line "$(printf '%s%s:' "$prop_indent" "$opt_key")"
+				write_openclash_line "$(printf '%sheaders:' "${prop_indent}  ")"
+				write_openclash_line "$(printf '%sHost: %s' "${prop_indent}    " "$domain")"
+			fi
+		fi
+	done
+
+	OPENCLASH_WROTE_PROXY=true
+	OPENCLASH_UPDATED=$((OPENCLASH_UPDATED + 1))
+	openclash_seen_add "${domain}:${seq}"
+	if [[ "$updated" == "true" ]]; then
+		if [[ "$new_name" != "$name" ]]; then
+			log "OpenClash proxy '${name:-unknown}' -> '${new_name}'; server -> ${ip}; domain kept as ${domain}"
+		else
+			log "OpenClash proxy '${name:-unknown}' server -> ${ip}; domain kept as ${domain}"
+		fi
+	fi
+}
+
+append_missing_openclash_variants() {
+	local domain seq ip variant_count _domains=() idx base_name
+
+	IFS=',' read -r -a _domains <<< "$OPENCLASH_TARGET_DOMAIN"
+	for domain in "${_domains[@]}"; do
+		idx="$(openclash_template_index "$domain")" || continue
+		base_name="${OPENCLASH_TEMPLATE_BASE_NAME[$idx]}"
+		variant_count="$(openclash_variant_count)"
+		for ((seq = 1; seq <= variant_count; seq++)); do
+			openclash_seen_has "${domain}:${seq}" && continue
+			restore_openclash_template "$domain"
+			ip="${FAST_IPS[$(((seq - 1) % IP_COUNT))]}"
+			emit_openclash_variant "$seq" "$ip" "$base_name" "$domain"
+		done
+	done
+}
+
+process_openclash_block() {
+	local line idx
+	local name="" type="" server="" tls="" network="" servername="" host=""
+	local generated_seq="" base_name variant_count
+
+	((${#BLOCK_LINES[@]} > 0)) || return
+
+	for idx in "${!BLOCK_LINES[@]}"; do
+		line="${BLOCK_LINES[$idx]}"
+		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*(.+)$ ]]; then
+			name="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]]; then
+			type="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*server:[[:space:]]*(.+)$ ]]; then
+			server="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*tls:[[:space:]]*(.+)$ ]]; then
+			tls="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*network:[[:space:]]*(.+)$ ]]; then
+			network="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*servername:[[:space:]]*(.*)$ ]]; then
+			servername="$(trim_scalar "${BASH_REMATCH[1]}")"
+		elif [[ "$line" =~ ^[[:space:]]*Host:[[:space:]]*(.*)$ ]]; then
+			host="$(trim_scalar "${BASH_REMATCH[1]}")"
+		fi
+	done
+
+	if [[ -z "$name" ]]; then
+		write_block_original
+		return
+	fi
+
+	if ! openclash_domain_matches "$server" "$servername" "$host"; then
+		write_block_original
+		return
+	fi
+
+	local matched_domain="$OPENCLASH_MATCHED_DOMAIN"
+
+	if ! openclash_protocol_supported "$type" "$tls" "$network"; then
+		log "skip OpenClash proxy '${name:-unknown}': type=${type:-unknown}, tls=${tls:-false}, network=${network:-unknown} is not supported"
+		write_block_original
+		return
+	fi
+
+	if [[ -n "$OPENCLASH_TRANSPORT_FILTER" ]]; then
+		local normalized_filter_net
+		normalized_filter_net="$(lower "${network:-}")"
+		if [[ -z "$normalized_filter_net" || ",${OPENCLASH_TRANSPORT_FILTER}," != *",${normalized_filter_net},"* ]]; then
+			log "skip OpenClash proxy '${name:-unknown}': network=${network:-unknown} not in OPENCLASH_TRANSPORT_FILTER (${OPENCLASH_TRANSPORT_FILTER})"
+			write_block_original
+			return
+		fi
+	fi
+
+	base_name="$(openclash_base_name "$name")"
+	remember_openclash_template "$base_name" "$matched_domain"
+	if generated_seq="$(openclash_generated_index "$name")"; then
+		if ((generated_seq < 1)); then
+			write_block_original
+			return
+		fi
+		emit_openclash_variant "$generated_seq" "${FAST_IPS[$(((generated_seq - 1) % IP_COUNT))]}" "$base_name" "$matched_domain"
+	else
+		variant_count="$(openclash_variant_count)"
+		log "OpenClash proxy '${name:-unknown}' selected as template for ${matched_domain}; generating ${variant_count} marked variant(s)"
+	fi
+}
+
+update_openclash() {
+	local line backup backup_ts backup_seq=0
+
+	[[ -f "$OPENCLASH_CONFIG" ]] || die "OpenClash config not found: $OPENCLASH_CONFIG"
+	[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || die "OPENCLASH_TARGET_DOMAIN is empty"
+	log "updating OpenClash config: $OPENCLASH_CONFIG"
+
+	TMP_CONFIG="$(mktemp "${OPENCLASH_CONFIG}.tmp.XXXXXX")"
+	OPENCLASH_UPDATED=0
+	OPENCLASH_TEMPLATE_DOMAINS=()
+	OPENCLASH_TEMPLATE_TEXT=()
+	OPENCLASH_TEMPLATE_BASE_NAME=()
+	OPENCLASH_SEEN=()
+	OPENCLASH_WROTE_PROXY=false
+	OPENCLASH_LAST_LINE_BLANK=true
+	BLOCK_LINES=()
+
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		line="${line%$'\r'}"
+		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+name:[[:space:]]*.+$ && ${#BLOCK_LINES[@]} -gt 0 ]]; then
+			process_openclash_block
+			BLOCK_LINES=("$line")
+		else
+			BLOCK_LINES+=("$line")
+		fi
+	done <"$OPENCLASH_CONFIG"
+	process_openclash_block
+	append_missing_openclash_variants
+
+	((OPENCLASH_UPDATED > 0)) || {
+		rm -f "$TMP_CONFIG"
+		die "no supported OpenClash proxy matched server: $OPENCLASH_TARGET_DOMAIN"
+	}
+
+	backup_ts="$(date +%Y%m%d%H%M%S)"
+	backup="${OPENCLASH_CONFIG}.bak.${backup_ts}"
+	while [[ -e "$backup" ]]; do
+		backup_seq=$((backup_seq + 1))
+		backup="${OPENCLASH_CONFIG}.bak.${backup_ts}.${backup_seq}"
+	done
+	cp "$OPENCLASH_CONFIG" "$backup"
+	rotate_openclash_backups "$OPENCLASH_CONFIG" "$OPENCLASH_BACKUP_COUNT"
+	mv "$TMP_CONFIG" "$OPENCLASH_CONFIG"
+	log "OpenClash config updated, backup saved to $backup"
+
+	[[ "$PURE_APPLY" == "true" ]] || restart_service openclash
+}
+
+# ========== Config Validation ==========
+
+validate_config() {
+	[[ -n "$WORK_DIR" ]] || WORK_DIR="$SCRIPT_DIR"
+	[[ "$MODE" == "passwall" || "$MODE" == "openclash" ]] || die "unsupported mode: $MODE; use passwall or openclash"
+	[[ "$IP_COUNT" =~ ^[1-9][0-9]*$ ]] || die "IP_COUNT must be a positive integer"
+	[[ "$IP_TYPE" == "ipv4" || "$IP_TYPE" == "ipv6" || "$IP_TYPE" == "both" ]] || die "IP_TYPE must be ipv4, ipv6, or both"
+	[[ "$SPEEDTEST_PROTOCOL" == "tcp" || "$SPEEDTEST_PROTOCOL" == "http" ]] || die "SPEEDTEST_PROTOCOL must be tcp or http"
+	[[ "$AUTO_UPDATE" == "true" || "$AUTO_UPDATE" == "false" ]] || die "AUTO_UPDATE must be true or false"
+	[[ "$DOWNLOAD_RETRIES" =~ ^[1-9][0-9]*$ ]] || die "DOWNLOAD_RETRIES must be a positive integer"
+	[[ "$DOWNLOAD_RETRY_DELAY" =~ ^[0-9]+$ ]] || die "DOWNLOAD_RETRY_DELAY must be a non-negative integer"
+	[[ -n "$CRON_INTERVAL" ]] || die "cron_interval: must not be empty"
+	[[ "$VERBOSE" == "true" || "$VERBOSE" == "false" ]] || die "VERBOSE must be true or false"
+	[[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" || "$STOP_SERVICE_BEFORE_SPEEDTEST" == "false" ]] || die "STOP_SERVICE_BEFORE_SPEEDTEST must be true or false"
+	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
+		[[ "$STARTUP_DELAY" =~ ^[0-9]+$ ]] || die "STARTUP_DELAY must be a non-negative integer or random"
+	fi
+	if [[ -n "$SPEEDTEST_TL" ]]; then
+		[[ "$SPEEDTEST_TL" =~ ^[0-9]+$ ]] || die "SPEEDTEST_TL must be a non-negative integer"
+	fi
+	if [[ -n "$GITHUB_MIRROR" ]]; then
+		[[ "$GITHUB_MIRROR" == https://* ]] || die "GITHUB_MIRROR must use https://"
+		[[ "$GITHUB_MIRROR" == */ ]] || die "GITHUB_MIRROR must end with /"
+	fi
+
+	case "$MODE" in
+		passwall)
+			[[ -n "$PASSWALL_TARGET_DOMAIN" ]] || die "PASSWALL_TARGET_DOMAIN is empty"
+			local _domain _domains=()
+			IFS=',' read -r -a _domains <<< "$PASSWALL_TARGET_DOMAIN"
+			for _domain in "${_domains[@]}"; do
+				[[ "$_domain" == *.* ]] || die "PASSWALL_TARGET_DOMAIN contains invalid domain: $_domain"
+			done
+			;;
+		openclash)
+			[[ -n "$OPENCLASH_CONFIG" ]] || die "OPENCLASH_CONFIG is empty"
+			[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || die "OPENCLASH_TARGET_DOMAIN is empty"
+			[[ -f "$OPENCLASH_CONFIG" ]] || die "OpenClash config not found: $OPENCLASH_CONFIG"
+			[[ "$OPENCLASH_BACKUP_COUNT" =~ ^[1-9][0-9]*$ ]] || die "OPENCLASH_BACKUP_COUNT must be a positive integer"
+			local _domain _domains=()
+			IFS=',' read -r -a _domains <<< "$OPENCLASH_TARGET_DOMAIN"
+			for _domain in "${_domains[@]}"; do
+				[[ "$_domain" == *.* ]] || die "OPENCLASH_TARGET_DOMAIN contains invalid domain: $_domain"
+			done
+			if [[ -n "$OPENCLASH_TRANSPORT_FILTER" ]]; then
+				local _item _items
+				IFS=',' read -r -a _items <<<"$OPENCLASH_TRANSPORT_FILTER"
+				for _item in "${_items[@]}"; do
+					[[ "$_item" == "ws" || "$_item" == "grpc" || "$_item" == "xhttp" || "$_item" == "h2" || "$_item" == "http" ]] || die "OPENCLASH_TRANSPORT_FILTER contains invalid value: $_item; allowed: ws, grpc, xhttp, h2, http"
+				done
+			fi
+			;;
+	esac
+}
+
+# ========== Main Flow ==========
+
+apply_startup_delay() {
+	local _max_delay=300
+	if [[ -n "$STARTUP_DELAY" && "$STARTUP_DELAY" != "random" ]]; then
+		_max_delay="$STARTUP_DELAY"
+	fi
+	if ((_max_delay > 0)) && [[ "$CLI_VERBOSE" != "true" ]]; then
+		STARTUP_DELAY=$((RANDOM % (_max_delay + 1)))
+		log "startup delay (0~${_max_delay}s): ${STARTUP_DELAY}s"
+		sleep "$STARTUP_DELAY"
+	fi
+}
+
+run_main_flow() {
+	normalize_mode "$MODE"
+	validate_config
+
+	CFST_DIR="${WORK_DIR}/cfst"
+	[[ -z "$RESULT_FILE" ]] && RESULT_FILE="${CFST_DIR}/cf_result.txt"
+	[[ -z "$IP_HISTORY_FILE" ]] && IP_HISTORY_FILE="${CFST_DIR}/ip-all.txt"
+	log "starting cf-ip-auto $SCRIPT_VERSION"
+	log "mode=$MODE ip_type=$IP_TYPE ip_count=$IP_COUNT protocol=$SPEEDTEST_PROTOCOL"
+	self_update
+	need_cmd awk
+	need_cmd sed
+	need_cmd tr
+	log "using work directory: $WORK_DIR"
+	prepare_work_dir
+	download_speedtest
+
+	if [[ "$STOP_SERVICE_BEFORE_SPEEDTEST" == "true" ]]; then
+		case "$MODE" in
+			passwall) stop_service passwall ;;
+			openclash) stop_service openclash ;;
+		esac
+		# Ensure EXIT trap includes service cleanup (caller may have set _on_exit already)
+		trap _on_exit EXIT
+	fi
+
+	run_speedtest
+
+	case "$MODE" in
+		passwall)
+			update_passwall
+			;;
+		openclash)
+			update_openclash
+			;;
+	esac
+
+	_STOPPED_SERVICE=""
+
+	log "done"
+}
+
+# ========== CLI Commands ==========
+
+cmd_status() {
+	JSON_MODE=true
+	local status_data=""
+
+	if [[ -f "$STATUS_FILE" ]]; then
+		status_data="$(cat "$STATUS_FILE")"
+	else
+		status_data="$(printf '{"running":false,"last_run":"","last_result":"unknown","mode":"","ip_type":"","ip_count":0,"speedtest_protocol":"","best_ips":[],"cfst_version":"","script_version":"%s","error":""}\n' "$SCRIPT_VERSION")"
+	fi
+
+	# Merge env cache into status. Build it once if /tmp was cleared.
+	if [[ ! -s "$ENV_CACHE_FILE" ]]; then
+		cmd_refresh_env >/dev/null 2>&1 || true
+	fi
+	local env_data=""
+	if [[ -f "$ENV_CACHE_FILE" ]]; then
+		env_data="$(cat "$ENV_CACHE_FILE")"
+	fi
+
+	if [[ -n "$env_data" ]]; then
+		# Use jq to merge if available, otherwise append env fields
+		if command -v jq >/dev/null 2>&1; then
+			printf '%s\n' "$status_data" | jq -c --argjson env "$env_data" '. + $env' 2>/dev/null && return 0
+		fi
+	fi
+
+	# Fallback: just output status without env
+	printf '%s\n' "$status_data"
+}
+
+cmd_run() {
+	JSON_MODE=true
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	# Acquire lock to prevent concurrent execution with plugin sync
+	if ! acquire_lock 0; then
+		local lock_pid=""
+		[[ -f "$LOCK_FILE/pid" ]] && lock_pid="$(<"$LOCK_FILE/pid")"
+		json_error "another instance is running (pid=$lock_pid)"
+		return 1
+	fi
+	trap _on_exit EXIT
+
+	# Write running status immediately so frontend can detect it
+	write_status true "running"
+
+	[[ "$SKIP_STARTUP_DELAY" != "true" ]] && apply_startup_delay
+
+	run_main_flow
+
+	local best_ips_json
+	best_ips_json="$(build_ips_json)"
+	write_status true "success"
+	release_lock
+	trap - EXIT
+	json_result "mode" "$MODE" "ip_type" "$IP_TYPE" "ip_count" "$IP_COUNT" "best_ips" "$best_ips_json"
+}
+
+cmd_check_env() {
+	JSON_MODE=true
+	# Real-time detection without writing cache (like upnp-bridge-relay's do_check_env)
+	local deps="" missing_deps="" missing_arr=()
+	local cmd_name pkg_name
+	for cmd_name in bash curl tar jq; do
+		if command -v "$cmd_name" >/dev/null 2>&1; then
+			[[ -n "$deps" ]] && deps+=","
+			deps+="\"${cmd_name}\":true"
+		else
+			[[ -n "$deps" ]] && deps+=","
+			deps+="\"${cmd_name}\":false"
+			pkg_name="$cmd_name"
+			missing_arr+=("$pkg_name")
+		fi
+	done
+
+	# Build missing_deps JSON array
+	local i
+	for i in "${!missing_arr[@]}"; do
+		[[ -n "$missing_deps" ]] && missing_deps+=","
+		missing_deps+="\"${missing_arr[$i]}\""
+	done
+	missing_deps="[${missing_deps}]"
+
+	# Detect package manager
+	local package_manager="unknown"
+	if command -v apk >/dev/null 2>&1; then
+		package_manager="apk"
+	elif command -v opkg >/dev/null 2>&1; then
+		package_manager="opkg"
+	fi
+
+	local passwall_installed=false
+	local passwall_running=false
+	[[ -x /etc/init.d/passwall ]] && passwall_installed=true
+	$passwall_installed && /etc/init.d/passwall running >/dev/null 2>&1 && passwall_running=true
+
+	local openclash_installed=false
+	local openclash_running=false
+	[[ -x /etc/init.d/openclash ]] && openclash_installed=true
+	$openclash_installed && /etc/init.d/openclash running >/dev/null 2>&1 && openclash_running=true
+
+	local cfst_installed=false
+		load_uci_config_if_available 2>/dev/null || true
+	local cfst_dir="${WORK_DIR}/cfst"
+	if [[ -x "${cfst_dir}/${BINARY_NAME}" ]]; then
+		cfst_installed=true
+	fi
+
+	printf '{"success":true,%s,"missing_deps":%s,"package_manager":"%s","passwall_installed":%s,"passwall_running":%s,"openclash_installed":%s,"openclash_running":%s,"cfst_installed":%s}\n' \
+		"$deps" "$missing_deps" "$package_manager" "$passwall_installed" "$passwall_running" "$openclash_installed" "$openclash_running" "$cfst_installed"
+}
+
+cmd_refresh_env() {
+	JSON_MODE=true
+	local deps="" missing_deps="" missing_arr=()
+	local cmd_name pkg_name
+	for cmd_name in bash curl tar jq; do
+		if command -v "$cmd_name" >/dev/null 2>&1; then
+			[[ -n "$deps" ]] && deps+=","
+			deps+="\"${cmd_name}\":true"
+		else
+			[[ -n "$deps" ]] && deps+=","
+			deps+="\"${cmd_name}\":false"
+			pkg_name="$cmd_name"
+			missing_arr+=("$pkg_name")
+		fi
+	done
+
+	# Build missing_deps JSON array
+	local i
+	for i in "${!missing_arr[@]}"; do
+		[[ -n "$missing_deps" ]] && missing_deps+=","
+		missing_deps+="\"${missing_arr[$i]}\""
+	done
+	missing_deps="[${missing_deps}]"
+
+	# Detect package manager
+	local package_manager="unknown"
+	if command -v apk >/dev/null 2>&1; then
+		package_manager="apk"
+	elif command -v opkg >/dev/null 2>&1; then
+		package_manager="opkg"
+	fi
+
+	local arch=""
+	arch="$(detect_arch_tag 2>/dev/null)" || arch=""
+
+	local passwall_installed=false
+	local passwall_running=false
+	[[ -x /etc/init.d/passwall ]] && passwall_installed=true
+	$passwall_installed && /etc/init.d/passwall running >/dev/null 2>&1 && passwall_running=true
+
+	local openclash_installed=false
+	local openclash_running=false
+	[[ -x /etc/init.d/openclash ]] && openclash_installed=true
+	$openclash_installed && /etc/init.d/openclash running >/dev/null 2>&1 && openclash_running=true
+
+	local cfst_installed=false
+	local cfst_ver=""
+		load_uci_config_if_available 2>/dev/null || true
+	local cfst_dir="${WORK_DIR}/cfst"
+	if [[ -x "${cfst_dir}/${BINARY_NAME}" ]]; then
+		cfst_installed=true
+		[[ -f "${cfst_dir}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${cfst_dir}/${BINARY_NAME}_version.txt")"
+	fi
+
+	local updated_at
+	updated_at="$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo '')"
+
+	local result
+	printf -v result '{"success":true,%s,"missing_deps":%s,"package_manager":"%s","arch":"%s","passwall_installed":%s,"passwall_running":%s,"openclash_installed":%s,"openclash_running":%s,"cfst_installed":%s,"cfst_version":"%s","updated_at":"%s"}\n' \
+		"$deps" "$missing_deps" "$package_manager" "$arch" "$passwall_installed" "$passwall_running" "$openclash_installed" "$openclash_running" "$cfst_installed" "$cfst_ver" "$updated_at"
+
+	# Write to cache
+	mkdir -p "$STATUS_DIR"
+	printf '%s\n' "$result" > "$ENV_CACHE_FILE"
+
+	printf '%s\n' "$result"
+}
+
+cmd_version() {
+	JSON_MODE=true
+	local cfst_ver=""
+	# Try to load UCI config for WORK_DIR
+		load_uci_config_if_available 2>/dev/null || true
+	local cfst_dir="${WORK_DIR}/cfst"
+	[[ -f "${cfst_dir}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${cfst_dir}/${BINARY_NAME}_version.txt")"
+
+	json_result "script_version" "$SCRIPT_VERSION" "cfst_version" "$cfst_ver"
+}
+
+cmd_read_log() {
+	JSON_MODE=true
+	if [[ -f "$LOG_FILE" ]]; then
+		local content
+		content="$(tail -n 500 "$LOG_FILE")"
+		content="${content//\\/\\\\}"
+		content="${content//\"/\\\"}"
+		content="${content//$'\n'/\\n}"
+		content="${content//$'\r'/}"
+		printf '{"success":true,"logs":"%s"}\n' "$content"
+	else
+		printf '{"success":true,"logs":""}\n'
+	fi
+}
+
+cmd_clear_log() {
+	JSON_MODE=true
+	if [[ -f "$LOG_FILE" ]]; then
+		if : > "$LOG_FILE"; then
+			json_result "cleared" "true"
+		else
+			json_error "failed to clear log file"
+		fi
+	else
+		json_result "cleared" "true"
+	fi
+}
+
+cmd_ip_history() {
+	JSON_MODE=true
+	# Try to load UCI config for WORK_DIR
+		load_uci_config_if_available 2>/dev/null || true
+	CFST_DIR="${WORK_DIR}/cfst"
+	local history_file="${CFST_DIR}/ip-all.txt"
+	[[ -n "$IP_HISTORY_FILE" ]] && history_file="$IP_HISTORY_FILE"
+
+	if [[ -f "$history_file" ]]; then
+		local ips_json="[" first=true
+		local lines
+		lines="$(tail -n 10 "$history_file")" || lines=""
+		local reversed
+		reversed="$(printf '%s\n' "$lines" | awk '{a[NR]=$0} END{for(i=NR;i>=1;i--) print a[i]}')" || reversed="$lines"
+		while IFS= read -r ip; do
+			[[ -n "$ip" ]] || continue
+			$first || ips_json+=","
+			first=false
+			ips_json+="\"${ip}\""
+		done <<< "$reversed"
+		ips_json+="]"
+		json_result "ips" "$ips_json"
+	else
+		json_result "ips" "[]"
+	fi
+}
+
+cmd_download_cfst() {
+	JSON_MODE=true
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	CFST_DIR="${WORK_DIR}/cfst"
+	mkdir -p "$CFST_DIR"
+	download_speedtest
+
+	local cfst_ver=""
+	[[ -f "${CFST_DIR}/${BINARY_NAME}_version.txt" ]] && cfst_ver="$(<"${CFST_DIR}/${BINARY_NAME}_version.txt")"
+	json_result "success" "true" "cfst_version" "$cfst_ver"
+}
+
+cmd_self_update() {
+	JSON_MODE=true
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	local tmp remote_version
+
+	[[ "$AUTO_UPDATE" == "true" ]] || { json_result "updated" "false" "reason" "auto_update disabled"; return 0; }
+	[[ -n "$SELF_UPDATE_URL" ]] || { json_result "updated" "false" "reason" "no update url"; return 0; }
+	command -v curl >/dev/null 2>&1 || { json_error "curl not found"; return 1; }
+
+	tmp="$(mktemp "${TMPDIR:-/tmp}/cf-ip-auto.XXXXXX")" || { json_error "failed to create temp file"; return 1; }
+	log "checking script update: $SELF_UPDATE_URL"
+	if ! curl_fetch "$tmp" "$(mirror_url "$SELF_UPDATE_URL")"; then
+		rm -f "$tmp"
+		json_error "failed to fetch update"
+		return 1
+	fi
+
+	remote_version="$(extract_script_version "$tmp")"
+	if [[ -z "$remote_version" ]]; then
+		rm -f "$tmp"
+		json_result "updated" "false" "reason" "remote script has no version"
+		return 0
+	fi
+
+	if ! version_gt "$remote_version" "$SCRIPT_VERSION"; then
+		rm -f "$tmp"
+		json_result "updated" "false" "current_version" "$SCRIPT_VERSION" "remote_version" "$remote_version"
+		return 0
+	fi
+
+	if ! bash -n "$tmp"; then
+		rm -f "$tmp"
+		json_error "downloaded update has invalid shell syntax"
+		return 1
+	fi
+
+	chmod +x "$tmp"
+	if ! mv "$tmp" "$SCRIPT_PATH"; then
+		rm -f "$tmp"
+		json_error "failed to replace script"
+		return 1
+	fi
+
+	json_result "updated" "true" "old_version" "$SCRIPT_VERSION" "new_version" "$remote_version"
+}
+
+cron_interval_seconds() {
+	local input="$1" h=0 m=0 s=0
+	input="${input// /}"
+
+	# Detect cron format: 5 space/whitespace-separated numeric/wildcard fields
+	# Original input (before space removal) had spaces
+	local original="$1"
+	if [[ "$original" =~ ^[0-9\*/,]+[[:space:]][0-9\*/,]+[[:space:]][0-9\*/,]+[[:space:]][0-9\*/,]+[[:space:]][0-9\*/,]+$ ]]; then
+		_parse_cron_seconds "$original"
+		return $?
+	fi
+
+	# Bare number = seconds
+	if [[ "$input" =~ ^[0-9]+$ ]]; then
+		printf '%s\n' "$input"
+		return 0
+	fi
+
+	# Duration format: Nh Nm Ns
+	[[ "$input" =~ ([0-9]+)h ]] && h="${BASH_REMATCH[1]}"
+	[[ "$input" =~ ([0-9]+)m ]] && m="${BASH_REMATCH[1]}"
+	[[ "$input" =~ ([0-9]+)s ]] && s="${BASH_REMATCH[1]}"
+
+	local total=$((h * 3600 + m * 60 + s))
+	[[ "$total" -gt 0 ]] || die "cron_interval: invalid format '$1'; use e.g. 6h, 30m, 1h30m, or 0 */6 * * *"
+	printf '%s\n' "$total"
+}
+
+# Parse crontab expression (5 fields: m h dom mon dow) and return seconds until next match
+_parse_cron_seconds() {
+	local min="${1%% *}" rest="${1#* }"
+	local hour="${rest%% *}" rest="${rest#* }"
+	local dom="${rest%% *}" rest="${rest#* }"
+	local mon="${rest%% *}"
+	local dow="${rest##* }"
+
+	# Pattern: */N * * * *  — every N minutes
+	if [[ "$min" == \*/[1-9]* && "$hour" == "*" && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
+		local n="${min#*/}"
+		local now_min now_sec
+		now_min=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		now_sec=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local elapsed=$((now_min % n))
+		if [ "$elapsed" -eq 0 ] && [ "$now_sec" -lt 5 ]; then
+			printf '%s\n' $((n * 60))
+		elif [ "$elapsed" -eq 0 ]; then
+			printf '%s\n' $((n * 60 - now_sec + 5))
+		else
+			printf '%s\n' $(((n - elapsed) * 60 - now_sec))
+		fi
+		return 0
+	fi
+
+	# Pattern: M */N * * *  — every N hours at minute M
+	if [[ "$min" =~ ^[0-9]+$ && "$hour" == \*/[1-9]* && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
+		local n="${hour#*/}"
+		local now_h now_m now_s
+		now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
+		now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local now_secs=$((now_h * 3600 + now_m * 60 + now_s))
+		local elapsed=$((now_h / n))
+		local next_h=$(((elapsed + 1) * n))
+		if [ "$next_h" -ge 24 ]; then
+			next_h=0
+		fi
+		local target_secs=$((next_h * 3600 + min * 60))
+		if [ "$target_secs" -le "$now_secs" ]; then
+			target_secs=$((target_secs + 86400))
+		fi
+		printf '%s\n' $((target_secs - now_secs))
+		return 0
+	fi
+
+	# Pattern: M H * * *  — daily at HH:MM (supports comma-separated lists)
+	# Also handles: M1,M2 H * * *  or  M H1,H2 * * *  or  M1,M2 H1,H2 * * *
+	if [[ "$min" =~ ^[0-9,]+$ && "$hour" =~ ^[0-9,]+$ && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
+		_next_comma_times "$min" "$hour"
+		return 0
+	fi
+
+	# Pattern: * */N * * *  — every N hours
+	if [[ "$min" == "*" && "$hour" == \*/[1-9]* && "$dom" == "*" && "$mon" == "*" && "$dow" == "*" ]]; then
+		local n="${hour#*/}"
+		local now_h now_m now_s
+		now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
+		now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+		now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+		local now_secs=$((now_h * 3600 + now_m * 60 + now_s))
+		local next_interval=$((((now_h / n) + 1) * n))
+		local target_secs
+		if [ "$next_interval" -ge 24 ]; then
+			target_secs=$((0 * 3600))
+			printf '%s\n' $((86400 - now_secs))
+		else
+			target_secs=$((next_interval * 3600))
+			printf '%s\n' $((target_secs - now_secs))
+		fi
+		return 0
+	fi
+
+	die "cron_interval: unsupported cron expression '$1'; supported: */N * * * *, M */N * * *, M H * * * (comma-separated lists supported)"
+}
+
+# Convert cron_interval (duration or cron expression) to a standard cron expression
+# suitable for use with /etc/crontabs/root. Returns 0 and prints the expression on success.
+to_cron_expression() {
+	local input="$1"
+
+	# Already a cron expression (contains whitespace → 5-field format)
+	if [[ "$input" =~ [[:space:]] ]]; then
+		printf '%s\n' "$input"
+		return 0
+	fi
+
+	# Duration format: compute seconds, then convert to cron
+	local seconds mins
+	seconds="$(cron_interval_seconds "$input")" 2>/dev/null || return 1
+	mins=$((seconds / 60))
+
+	# Sub-hour intervals: if minutes evenly divides 60
+	if [[ $((60 % mins)) -eq 0 && "$mins" -le 60 && "$mins" -gt 0 ]]; then
+		printf '*/%d * * * *\n' "$mins"
+		return 0
+	fi
+
+	# Hourly intervals: if seconds is a multiple of 3600
+	if [[ $((seconds % 3600)) -eq 0 ]]; then
+		local hours=$((seconds / 3600))
+		printf '0 */%d * * *\n' "$hours"
+		return 0
+	fi
+
+	# Unrepresentable (e.g. 1h30m = 5400s → 90min → doesn't divide 60 or 3600 evenly)
+	return 1
+}
+
+# Given comma-separated minutes and hours (M H * * *),
+# return seconds until the next matching time today or tomorrow
+_next_comma_times() {
+	local mins="$1" hours="$2" IFS=','
+	local now_h now_m now_s now_secs best=-1 candidate
+
+	now_h=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
+	now_m=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
+	now_s=$(date +%-S 2>/dev/null || date +%S | sed 's/^0//')
+	now_secs=$((now_h * 3600 + now_m * 60 + now_s))
+
+	for h in $hours; do
+		[[ "$h" =~ ^[0-9]+$ ]] || continue
+		for m in $mins; do
+			[[ "$m" =~ ^[0-9]+$ ]] || continue
+			candidate=$((h * 3600 + m * 60))
+			# Today's candidate
+			if [ "$candidate" -gt "$now_secs" ]; then
+				if [ "$best" -eq -1 ] || [ "$candidate" -lt "$best" ]; then
+					best=$candidate
+				fi
+			fi
+		done
+	done
+
+	if [ "$best" -ne -1 ]; then
+		printf '%s\n' $((best - now_secs))
+		return 0
+	fi
+
+	# No time left today — use tomorrow's earliest
+	best=-1
+	for h in $hours; do
+		[[ "$h" =~ ^[0-9]+$ ]] || continue
+		for m in $mins; do
+			[[ "$m" =~ ^[0-9]+$ ]] || continue
+			candidate=$((h * 3600 + m * 60))
+			if [ "$best" -eq -1 ] || [ "$candidate" -lt "$best" ]; then
+				best=$candidate
+			fi
+		done
+	done
+
+	printf '%s\n' $((86400 - now_secs + best))
+}
+
+cmd_daemon() {
+	DAEMON_MODE=true
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	mkdir -p "$STATUS_DIR"
+
+	# Trap signals for graceful exit
+	trap 'log "received signal, exiting"; write_status false "stopped"; exit 0' TERM INT
+
+	local sleep_seconds
+	sleep_seconds="$(cron_interval_seconds "$CRON_INTERVAL")"
+	log "starting daemon mode, interval=${CRON_INTERVAL} (${sleep_seconds}s)"
+	write_status true "running"
+
+	# Apply startup delay once at daemon start
+	apply_startup_delay
+
+	local _daemon_ips_file="${STATUS_DIR}/.daemon_ips"
+	while true; do
+		FAST_IPS=()
+		if (
+			run_main_flow
+			printf '%s\n' "${FAST_IPS[@]}" > "$_daemon_ips_file"
+		); then
+			FAST_IPS=()
+			while IFS= read -r _ip || [[ -n "$_ip" ]]; do
+				[[ -n "$_ip" ]] && FAST_IPS+=("$_ip")
+			done < "$_daemon_ips_file"
+			write_status true "success"
+			log "daemon: run completed successfully"
+		else
+			write_status true "error" "speedtest run failed"
+			log "daemon: run failed"
+		fi
+		rm -f "$_daemon_ips_file"
+		sleep_seconds="$(cron_interval_seconds "$CRON_INTERVAL")"
+		log "daemon: sleeping ${sleep_seconds}s (interval=${CRON_INTERVAL})"
+		sleep "$sleep_seconds"
+	done
+}
+
+cmd_to_cron() {
+	local interval="${CLI_ARG1:-}"
+	local custom="${CLI_ARG2:-}"
+
+	[ -z "$interval" ] && { load_uci_config; interval="$CRON_INTERVAL"; }
+
+	if [ "$interval" = "custom" ]; then
+		interval="${custom:-6h}"
+	fi
+
+	to_cron_expression "$interval" || {
+		echo "ERROR: cannot convert schedule to cron expression" >&2
+		exit 1
+	}
+}
+
+cmd_sync() {
+	JSON_MODE=true
+	local sync_mode="${CLI_ARG1:-}"
+	[[ -n "$sync_mode" ]] || { json_error "missing plugin name (passwall or openclash)"; return 1; }
+	[[ "$sync_mode" == "passwall" || "$sync_mode" == "openclash" ]] || { json_error "unsupported plugin: $sync_mode; use passwall or openclash"; return 1; }
+
+	load_uci_config
+	[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+
+	# Wait for main program lock with 300s timeout
+	log "sync: waiting for lock (plugin=$sync_mode)..."
+	if ! acquire_lock 300; then
+		json_error "timed out waiting for lock, main program may still be running"
+		return 1
+	fi
+	trap _on_exit EXIT
+
+	log "sync: lock acquired, syncing $sync_mode"
+
+	# Read best IPs from status.json
+	if [[ ! -f "$STATUS_FILE" ]]; then
+		release_lock
+		trap - EXIT
+		json_error "no status file found, run speedtest first"
+		return 1
+	fi
+
+	local best_ips_raw
+	best_ips_raw="$(jq -r '.best_ips[]' "$STATUS_FILE" 2>/dev/null)" || {
+		release_lock
+		trap - EXIT
+		json_error "failed to read best IPs from status file"
+		return 1
+	}
+
+	FAST_IPS=()
+	while IFS= read -r ip; do
+		[[ -n "$ip" ]] && FAST_IPS+=("$ip")
+	done <<< "$best_ips_raw"
+
+	if ((${#FAST_IPS[@]} == 0)); then
+		release_lock
+		trap - EXIT
+		json_error "no best IPs available, run speedtest first"
+		return 1
+	fi
+
+	log "sync: using ${#FAST_IPS[@]} best IPs: ${FAST_IPS[*]}"
+
+	# Adjust IP_COUNT to actual available IPs to prevent out-of-bounds in modulo
+	IP_COUNT=${#FAST_IPS[@]}
+
+	# Update the specified plugin
+	case "$sync_mode" in
+		passwall)
+			[[ -n "$PASSWALL_TARGET_DOMAIN" ]] || { release_lock; trap - EXIT; json_error "PASSWALL_TARGET_DOMAIN is empty"; return 1; }
+			update_passwall
+			;;
+		openclash)
+			[[ -n "$OPENCLASH_TARGET_DOMAIN" ]] || { release_lock; trap - EXIT; json_error "OPENCLASH_TARGET_DOMAIN is empty"; return 1; }
+			update_openclash
+			;;
+	esac
+
+	release_lock
+	trap - EXIT
+	json_result "synced" "$sync_mode" "ip_count" "${#FAST_IPS[@]}"
+}
+
+cmd_apply_selected() {
+	JSON_MODE=true
+	local selected="${CLI_ARG1:-}" apply_mode="${CLI_ARG2:-}"
+	[[ -s "$selected" ]] && [[ "$apply_mode" == passwall || "$apply_mode" == openclash ]] || { json_error "invalid selected mapping"; return 1; }
+	load_uci_config
+	FAST_IPS=()
+	while IFS= read -r ip; do [[ -n "$ip" && "$ip" != null ]] && FAST_IPS+=("$ip"); done < <(jq -r '.[].ip' "$selected" 2>/dev/null)
+	((${#FAST_IPS[@]} > 0)) || { json_error "selected mapping is empty"; return 1; }
+	IP_COUNT=${#FAST_IPS[@]}
+	MODE="$apply_mode"
+	STOP_SERVICE_BEFORE_SPEEDTEST=false
+	PURE_APPLY="true"
+	if [[ "$MODE" == openclash ]]; then
+		_OPENCLASH_ENABLE_SAVED="$(uci -q get openclash.config.enable 2>/dev/null || printf '1')"
+		uci -q set "openclash.config.enable=$_OPENCLASH_ENABLE_SAVED"
+		uci -q commit openclash
+	fi
+	case "$MODE" in
+		passwall) update_passwall ;;
+		openclash) update_openclash ;;
+	esac
+	json_result "applied" "$MODE" "ip_count" "${#FAST_IPS[@]}"
+}
+
+cmd_write_status() {
+	mkdir -p "$STATUS_DIR"
+
+	# Preserve existing fields, only update running and last_result
+	if [[ -f "$STATUS_FILE" ]] && command -v jq >/dev/null 2>&1; then
+		local tmp="${STATUS_FILE}.tmp"
+		jq -c '. + {"running":true,"last_result":"scheduled"}' "$STATUS_FILE" > "$tmp" 2>/dev/null && \
+			mv "$tmp" "$STATUS_FILE" 2>/dev/null && return 0
+		rm -f "$tmp" 2>/dev/null
+	fi
+
+	# Fallback: write minimal status preserving best_ips
+	local best_ips="[]"
+	[[ -f "$STATUS_FILE" ]] && best_ips="$(jq -c '.best_ips // []' "$STATUS_FILE" 2>/dev/null)" || best_ips="[]"
+	cat > "$STATUS_FILE" <<EOF
+{"running":true,"last_result":"scheduled","last_run":"","best_ips":${best_ips}}
+EOF
+	log "status: crontab-managed mode initialized"
+}
+
+cmd_oc_list_backups() {
+	JSON_MODE=true
+	load_uci_config
+	local config_dir config_base file ts size timestamp
+	config_dir="$(dirname "$OPENCLASH_CONFIG")"
+	config_base="$(basename "$OPENCLASH_CONFIG")"
+
+	local backups_json=""
+	while IFS= read -r file; do
+		[[ -f "$file" ]] || continue
+		ts="${file#*.bak.}"
+		size="$(wc -c < "$file" 2>/dev/null || echo 0)"
+		timestamp="$(date -r "$file" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "$ts")"
+		# Escape special characters for JSON
+		ts="${ts//\\/\\\\}"; ts="${ts//\"/\\\"}"
+		file="${file//\\/\\\\}"; file="${file//\"/\\\"}"
+		timestamp="${timestamp//\\/\\\\}"; timestamp="${timestamp//\"/\\\"}"
+		[[ -n "$backups_json" ]] && backups_json+=","
+		backups_json+="{\"id\":\"${ts}\",\"file\":\"${file}\",\"timestamp\":\"${timestamp}\",\"size\":${size}}"
+	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+
+	printf '{"success":true,"config":"%s","backups":[%s]}\n' "$OPENCLASH_CONFIG" "$backups_json"
+}
+
+cmd_oc_restore_backup() {
+	JSON_MODE=true
+	load_uci_config
+	local backup_id="${CLI_ARG1:-}"
+	[[ -n "$backup_id" ]] || { json_error "missing backup id"; return 1; }
+
+	local config_dir config_base
+	config_dir="$(dirname "$OPENCLASH_CONFIG")"
+	config_base="$(basename "$OPENCLASH_CONFIG")"
+	local backup_file=""
+	local file
+	while IFS= read -r file; do
+		[[ -f "$file" ]] || continue
+		if [[ "$file" == *".bak.${backup_id}" || "$file" == *".bak.${backup_id}."* ]]; then
+			backup_file="$file"
+			break
+		fi
+	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+
+	[[ -n "$backup_file" ]] || { json_error "backup not found: $backup_id"; return 1; }
+	[[ -f "$OPENCLASH_CONFIG" ]] || { json_error "OpenClash config not found"; return 1; }
+
+	# Create a pre-restore backup
+	local pre_backup_ts pre_backup
+	pre_backup_ts="$(date +%Y%m%d%H%M%S)"
+	pre_backup="${OPENCLASH_CONFIG}.bak.${pre_backup_ts}.pre-restore"
+	cp "$OPENCLASH_CONFIG" "$pre_backup"
+
+	# Restore
+	cp "$backup_file" "$OPENCLASH_CONFIG"
+	rotate_openclash_backups "$OPENCLASH_CONFIG" "$OPENCLASH_BACKUP_COUNT"
+
+	json_result "restored_from" "$backup_file" "pre_restore_backup" "$pre_backup"
+}
+
+cmd_oc_delete_backup() {
+	JSON_MODE=true
+	load_uci_config
+	local backup_id="${CLI_ARG1:-}"
+	[[ -n "$backup_id" ]] || { json_error "missing backup id"; return 1; }
+
+	local config_dir config_base
+	config_dir="$(dirname "$OPENCLASH_CONFIG")"
+	config_base="$(basename "$OPENCLASH_CONFIG")"
+	local found=false
+	local file
+	while IFS= read -r file; do
+		[[ -f "$file" ]] || continue
+		if [[ "$file" == *".bak.${backup_id}" || "$file" == *".bak.${backup_id}."* ]]; then
+			rm -f "$file"
+			found=true
+			break
+		fi
+	done < <(ls -t "${config_dir}/${config_base}.bak."* 2>/dev/null)
+
+	if $found; then
+		json_result "deleted" "$backup_id"
+	else
+		json_error "backup not found: $backup_id"
+	fi
+}
+
+# ========== Usage ==========
+
+usage() {
+	cat <<'EOF'
+Usage:
+  cf-ip-auto [OPTIONS]
+
+Options:
+  --status        Read and output status.json
+  --run           Run the full speedtest flow, output JSON result
+  --check-env     Check dependencies and environment (reads cache), output JSON
+  --refresh-env   Re-check environment and update cache, output JSON
+  --version       Output script and cfst version as JSON
+  --read-log      Read and output the log file as JSON
+  --clear-log     Clear the log file, output JSON result
+  --ip-history    Read and output IP history as JSON
+  --download-cfst Download or update CloudflareSpeedTest, output JSON result
+  --self-update   Run self-update check, output JSON result
+  --daemon        Run in daemon loop mode (for procd)
+  --to-cron       Convert the configured cron_interval to a crontab expression
+  --sync PLUGIN   Sync plugin (passwall or openclash) with existing best IPs
+  --write-status  Write initial status for crontab-managed mode
+  -v, --verbose   Enable verbose output
+  -h, --help      Show this help message
+
+When called without arguments, runs the full speedtest flow
+using UCI config (cf_ip).
+EOF
+}
+
+# ========== Entry Point ==========
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	CLI_ACTION=""
+	while (($# > 0)); do
+		case "$1" in
+			--status) CLI_ACTION="status" ;;
+			--run) CLI_ACTION="run" ;;
+			--no-delay) SKIP_STARTUP_DELAY="true" ;;
+			--check-env) CLI_ACTION="check-env" ;;
+			--refresh-env) CLI_ACTION="refresh-env" ;;
+			--version) CLI_ACTION="version" ;;
+			--read-log) CLI_ACTION="read-log" ;;
+			--clear-log) CLI_ACTION="clear-log" ;;
+			--ip-history) CLI_ACTION="ip-history" ;;
+			--download-cfst) CLI_ACTION="download-cfst" ;;
+			--self-update) CLI_ACTION="self-update" ;;
+			--daemon) CLI_ACTION="daemon" ;;
+			--to-cron) CLI_ACTION="to-cron"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; [ $# -gt 0 ] && CLI_ARG2="$1" && shift; continue ;;
+			--sync) CLI_ACTION="sync"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; continue ;;
+			--apply-selected) CLI_ACTION="apply-selected"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; [ $# -gt 0 ] && CLI_ARG2="$1" && shift; continue ;;
+			--write-status) CLI_ACTION="write-status" ;;
+			--oc-list-backups) CLI_ACTION="oc-list-backups" ;;
+			--oc-restore-backup) CLI_ACTION="oc-restore-backup"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; continue ;;
+			--oc-delete-backup) CLI_ACTION="oc-delete-backup"; shift; [ $# -gt 0 ] && CLI_ARG1="$1" && shift; continue ;;
+			-v|--verbose) CLI_VERBOSE="true" ;;
+			-h|--help) usage; exit 0 ;;
+			*) die "unexpected argument: $1; use --help for usage" ;;
+		esac
+		shift
+	done
+
+	case "$CLI_ACTION" in
+		status) cmd_status ;;
+		run) cmd_run ;;
+		check-env) cmd_check_env ;;
+	refresh-env) cmd_refresh_env ;;
+	version) cmd_version ;;
+		read-log) cmd_read_log ;;
+		clear-log) cmd_clear_log ;;
+		ip-history) cmd_ip_history ;;
+		download-cfst) cmd_download_cfst ;;
+		self-update) cmd_self_update ;;
+		daemon) cmd_daemon ;;
+		to-cron) cmd_to_cron ;;
+		sync) cmd_sync ;;
+		apply-selected) cmd_apply_selected ;;
+		write-status) cmd_write_status ;;
+		oc-list-backups) cmd_oc_list_backups ;;
+		oc-restore-backup) cmd_oc_restore_backup ;;
+		oc-delete-backup) cmd_oc_delete_backup ;;
+		"")
+			# Traditional mode: load UCI config and run main flow
+			load_uci_config
+			[[ "$CLI_VERBOSE" == "true" ]] && VERBOSE="true"
+			if ! acquire_lock 0; then
+				lock_pid=""
+				[[ -f "$LOCK_FILE/pid" ]] && lock_pid="$(<"$LOCK_FILE/pid")"
+				echo "[cloudflare-ip] ERROR: another instance is running (pid=$lock_pid)" >&2
+				exit 1
+			fi
+			trap _on_exit EXIT
+			apply_startup_delay
+			run_main_flow
+			release_lock
+			trap - EXIT
+			;;
+	esac
+fi

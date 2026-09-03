@@ -3,8 +3,9 @@ module("luci.controller.cloudflare-ip", package.seeall)
 function index()
 	local nixio = require("nixio")
 
-	-- Plugin registry: add a new entry here to support a new proxy tool.
-	-- Each plugin defines its init script path, display title, and menu order.
+	-- Legacy LuCI controller compatibility for optional proxy pages. The
+	-- package menu.d file owns the core routes; these entries are registered
+	-- only when the corresponding plugin is actually installed.
 	local plugins = {
 		{ id = "openclash", init = "/etc/init.d/openclash", title = "OpenClash", order = 30 },
 		{ id = "passwall",  init = "/etc/init.d/passwall",  title = "PassWall",  order = 40 },

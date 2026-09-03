@@ -159,6 +159,8 @@ update_openclash
 grep -q 'name: VLESS-xhttp \[CF-1\]' "$OPENCLASH_CONFIG" || fail "CF-1 should be generated from unmarked template"
 grep -q 'name: VLESS-xhttp \[CF-2\]' "$OPENCLASH_CONFIG" || fail "CF-2 should be generated from unmarked template"
 assert_blank_before '  - name: VLESS-xhttp [CF-2]' "$OPENCLASH_CONFIG"
-! grep -q 'name: VLESS-xhttp \[CF-3\]' "$OPENCLASH_CONFIG" || fail "proxy expansion should not exceed IP_COUNT"
+if grep -q 'name: VLESS-xhttp \[CF-3\]' "$OPENCLASH_CONFIG"; then
+    fail "proxy expansion should not exceed IP_COUNT"
+fi
 
 printf 'ok openclash xhttp filter\n'

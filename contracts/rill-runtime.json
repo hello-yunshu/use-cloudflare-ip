@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "policy": {
+    "major": 1,
+    "track": "latest-qualified-stable"
+  },
+  "resolved": {
+    "version": "1.5.6",
+    "tag": "v1.5.6",
+    "upstreamCommit": "b990cd7043d313b0ff29c9693f091a94a5bdaf47",
+    "sourceArchiveSha256": "c06a792811d1f08aa7b640c10ee36047c44f825cf7272aa0f75c42ab60806a84"
+  },
+  "preview": {
+    "repository": "hello-yunshu/rill-ml",
+    "commit": "da8389fec7f879b826d8d17cbc6bb98c03ef8462",
+    "channel": "preview-exact-commit",
+    "featureSchemaVersion": 2,
+    "modelGeneration": 2
+  },
+  "openwrtPackage": {
+    "repository": "hello-yunshu/rill-openwrt-packages",
+    "commit": "64ee22f978ed8f8ed19bb675700678f57eec19e3",
+    "package": "rill-runtime-preview",
+    "packageVersion": "1.5.6",
+    "packageRelease": 2,
+    "binary": "/usr/bin/rill-runtime"
+  },
+  "qualification": {
+    "required": true,
+    "workflow": "qualify.yml",
+    "runId": 33735123909,
+    "verdict": "PASS"
+  }
+}

@@ -1,6 +1,13 @@
 msgid ""
 msgstr ""
+"Project-Id-Version: luci-app-cloudflare-ip\n"
+"PO-Revision-Date: 2026-08-28 00:00+0800\n"
+"Last-Translator: yunshu\n"
+"Language-Team: English\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"MIME-Version: 1.0\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
 
 msgid "Cloudflare IP Optimization"
 msgstr ""
@@ -74,7 +81,13 @@ msgstr ""
 msgid "IP Count"
 msgstr ""
 
-msgid "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
+msgid "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
+msgstr ""
+
+msgid "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
+msgstr ""
+
+msgid "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
 msgstr ""
 
 msgid "IP Type"
@@ -584,3 +597,224 @@ msgstr ""
 msgid "Failed to trigger speedtest: %s"
 msgstr ""
 
+msgid "Status unavailable / Native fallback"
+msgstr ""
+
+msgid "Assisted requested → Shadow fallback"
+msgstr ""
+
+msgid "consumer not qualified"
+msgstr ""
+
+msgid "Available"
+msgstr ""
+
+msgid "version unknown"
+msgstr ""
+
+msgid "Disabled / Native ranking"
+msgstr ""
+
+msgid "Unavailable / Native fallback"
+msgstr ""
+
+msgid "Rill Intelligence"
+msgstr ""
+
+msgid "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
+msgstr ""
+
+msgid "Rill Runtime Consumer"
+msgstr ""
+
+msgid "Enable Rill Intelligence"
+msgstr ""
+
+msgid "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
+msgstr ""
+
+msgid "Off"
+msgstr ""
+
+msgid "Shadow"
+msgstr ""
+
+msgid "Assisted (qualification-gated)"
+msgstr ""
+
+msgid "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
+msgstr ""
+
+msgid "Runtime Timeout (ms)"
+msgstr ""
+
+msgid "Runtime Path"
+msgstr ""
+
+msgid "State File"
+msgstr ""
+
+msgid "Live State"
+msgstr ""
+
+msgid "Runtime"
+msgstr ""
+
+msgid "Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native."
+msgstr ""
+
+msgid "Runtime Channel"
+msgstr ""
+
+msgid "Runtime API"
+msgstr ""
+
+msgid "Feature Schema"
+msgstr ""
+
+msgid "State / Model Generation"
+msgstr ""
+
+msgid "Learning"
+msgstr ""
+
+msgid "Valid feedback"
+msgstr ""
+
+msgid "delayed pending"
+msgstr ""
+
+msgid "completed"
+msgstr ""
+
+msgid "Current Authority"
+msgstr ""
+
+msgid "Guarded Assisted"
+msgstr ""
+
+msgid "Qualification"
+msgstr ""
+
+msgid "Fallback Reason"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "Shadow Self-check"
+msgstr ""
+
+msgid "Run now"
+msgstr ""
+
+msgid "Checking..."
+msgstr ""
+
+msgid "Rill self-check passed."
+msgstr ""
+
+msgid "Rill self-check fell back to Native."
+msgstr ""
+
+msgid "Self-check failed: "
+msgstr ""
+
+msgid "Reset Learning State"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Resetting..."
+msgstr ""
+
+msgid "Reset Rill learning state? Native configuration will not be changed."
+msgstr ""
+
+msgid "Rill learning state was reset."
+msgstr ""
+
+msgid "Reset rejected"
+msgstr ""
+
+msgid "Reset failed: "
+msgstr ""
+
+msgid "Measurement Policy"
+msgstr ""
+
+msgid "Source Strategy"
+msgstr ""
+
+msgid "Balanced"
+msgstr ""
+
+msgid "Official-heavy"
+msgstr ""
+
+msgid "History-heavy"
+msgstr ""
+
+msgid "Diversity-heavy"
+msgstr ""
+
+msgid "Community-heavy"
+msgstr ""
+
+msgid "Probe Batch Size"
+msgstr ""
+
+msgid "Maximum Probes"
+msgstr ""
+
+msgid "Deterministic Early Stop"
+msgstr ""
+
+msgid "Runtime Health"
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "Resource pressure"
+msgstr ""
+
+msgid "Runtime Inspect"
+msgstr ""
+
+msgid "pending"
+msgstr ""
+
+msgid "last error"
+msgstr ""
+
+msgid "Probe Efficiency"
+msgstr ""
+
+msgid "probed"
+msgstr ""
+
+msgid "avoided"
+msgstr ""
+
+msgid "early stop"
+msgstr ""
+
+msgid "yes"
+msgstr ""
+
+msgid "no"
+msgstr ""
+
+msgid "Native vs Rill"
+msgstr ""
+
+msgid "native"
+msgstr ""
+
+msgid "Rill"
+msgstr ""
+
+msgid "regret"
+msgstr ""

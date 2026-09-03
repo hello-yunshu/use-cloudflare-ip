@@ -9,6 +9,7 @@ var FOOTER_VERSION = '@PKG_VERSION@';
 
 var callStatus = rpc.declare({ object: 'cf_ip', method: 'status', expect: { '': {} } });
 var callCheckEnv = rpc.declare({ object: 'cf_ip', method: 'check-env', expect: { '': {} } });
+var callValidateConfig = rpc.declare({ object: 'cf_ip', method: 'validate-config', params: [ 'candidate' ], expect: { '': {} } });
 var callServiceRestart = rpc.declare({ object: 'cf_ip', method: 'restart', expect: { '': {} } });
 
 var FOOTER_OPTIONS = {
@@ -81,6 +82,33 @@ function requireSuccess(result) {
 	if (!result || result.success !== true)
 		throw new Error(result.error || _('service action failed'));
 	return result || {};
+}
+
+function buildStagedCandidate() {
+	var sections = {
+		main: [ 'enabled', 'mode', 'ip_count', 'ip_type', 'speedtest_protocol', 'speedtest_cfcolo',
+			'speedtest_dn', 'speedtest_dt', 'speedtest_threads', 'speedtest_ping_count', 'speedtest_tll',
+			'speedtest_tl', 'stop_service', 'startup_delay', 'work_dir', 'cron_interval', 'cron_custom',
+			'cfst_persist', 'candidate_budget', 'probe_top_count', 'probe_concurrency', 'probe_timeout',
+			'measurement_timeout', 'recovery_timeout', 'probe_batch_size', 'max_probe_count',
+			'early_stop_enabled', 'source_policy', 'reuse_enabled', 'max_full_optimize_interval',
+			'reuse_validation_timeout', 'reuse_loss_limit', 'reuse_ttfb_limit', 'reuse_total_limit',
+			'github_mirror', 'verbose' ],
+			rill: [ 'enabled', 'mode', 'runtime', 'state_file', 'timeout_ms', 'safe_top_k',
+				'min_feedback_samples', 'delayed_feedback_minutes' ],
+		lan: [ 'enabled', 'bind_address', 'port' ],
+		passwall: [ 'target_domain', 'name_suffix' ],
+		openclash: [ 'config', 'target_domain', 'name_suffix', 'transport_filter', 'backup_count' ]
+	};
+	var candidate = {};
+	Object.keys(sections).forEach(function(section) {
+		sections[section].forEach(function(option) {
+			var value = uci.get('cf_ip', section, option);
+			if (value !== undefined && value !== null)
+				candidate['cf_ip.' + section + '.' + option] = value;
+		});
+	});
+	return candidate;
 }
 
 function loadSharedCSS() {
@@ -176,8 +204,11 @@ function renderFooter(options) {
 
 function appendFooter(node, options) {
 	loadSharedCSS();
-	if (node)
+	if (node) {
+		if (node.classList && node.classList.contains('cbi-map') && !node.classList.contains('cfi-dashboard'))
+			node.classList.add('cfi-form-map');
 		node.appendChild(renderFooter(options));
+	}
 	return node;
 }
 
@@ -200,7 +231,11 @@ function createHandleSave(m) {
 
 function createHandleSaveApply(m) {
 	m.handleSaveApply = function(ev, mode) {
+		var candidate;
 		return this.handleSave(ev).then(function() {
+			candidate = buildStagedCandidate();
+			return callValidateConfig(candidate).then(requireSuccess);
+		}).then(function() {
 			return safeApply();
 		}).then(function() {
 			return uci.load('cf_ip');
@@ -237,6 +272,8 @@ return baseclass.extend({
 	renderWithFooter: renderWithFooter,
 	callStatus: callStatus,
 	callCheckEnv: callCheckEnv,
+	callValidateConfig: callValidateConfig,
+	buildStagedCandidate: buildStagedCandidate,
 	callServiceRestart: callServiceRestart,
 	FOOTER_OPTIONS: FOOTER_OPTIONS,
 	createHandleSave: createHandleSave,

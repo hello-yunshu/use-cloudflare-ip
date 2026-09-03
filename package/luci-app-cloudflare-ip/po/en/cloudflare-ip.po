@@ -81,8 +81,14 @@ msgstr "PassWall or OpenClash is not installed. Please install one before using 
 msgid "IP Count"
 msgstr "IP Count"
 
-msgid "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
-msgstr "Number of best IPs to keep. If fewer IPs found, the fastest one is reused."
+msgid "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
+msgstr "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
+
+msgid "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
+msgstr "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
+
+msgid "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
+msgstr "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
 
 msgid "IP Type"
 msgstr "IP Type"
@@ -590,3 +596,222 @@ msgstr "Project"
 
 msgid "Failed to trigger speedtest: %s"
 msgstr "Failed to trigger speedtest: %s"
+
+msgid "Status unavailable / Native fallback"
+msgstr "Status unavailable / Native fallback"
+
+msgid "Assisted requested → Shadow fallback"
+msgstr "Assisted requested → Shadow fallback"
+
+msgid "consumer not qualified"
+msgstr "consumer not qualified"
+
+msgid "Available"
+msgstr "Available"
+
+msgid "version unknown"
+msgstr "version unknown"
+
+msgid "Disabled / Native ranking"
+msgstr "Disabled / Native ranking"
+
+msgid "Unavailable / Native fallback"
+msgstr "Unavailable / Native fallback"
+
+msgid "Rill Intelligence"
+msgstr "Rill Intelligence"
+
+msgid "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
+msgstr "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
+
+msgid "Rill Runtime Consumer"
+msgstr "Rill Runtime Consumer"
+
+msgid "Enable Rill Intelligence"
+msgstr "Enable Rill Intelligence"
+
+msgid "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
+msgstr "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
+
+msgid "Off"
+msgstr "Off"
+
+msgid "Shadow"
+msgstr "Shadow"
+
+msgid "Assisted (qualification-gated)"
+msgstr "Assisted (qualification-gated)"
+
+msgid "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
+msgstr "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
+
+msgid "Runtime Timeout (ms)"
+msgstr "Runtime Timeout (ms)"
+
+msgid "Runtime Path"
+msgstr "Runtime Path"
+
+msgid "State File"
+msgstr "State File"
+
+msgid "Live State"
+msgstr "Live State"
+
+msgid "Runtime"
+msgstr "Runtime"
+
+msgid "Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native."
+msgstr "Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native."
+
+msgid "Runtime Channel"
+msgstr "Runtime Channel"
+
+msgid "Runtime API"
+msgstr "Runtime API"
+
+msgid "Feature Schema"
+msgstr "Feature Schema"
+
+msgid "State / Model Generation"
+msgstr "State / Model Generation"
+
+msgid "Learning"
+msgstr "Learning"
+
+msgid "Valid feedback"
+msgstr "Valid feedback"
+
+msgid "delayed pending"
+msgstr "delayed pending"
+
+msgid "completed"
+msgstr "completed"
+
+msgid "Current Authority"
+msgstr "Current Authority"
+
+msgid "Guarded Assisted"
+msgstr "Guarded Assisted"
+
+msgid "Qualification"
+msgstr "Qualification"
+
+msgid "Fallback Reason"
+msgstr "Fallback Reason"
+
+msgid "None"
+msgstr "None"
+
+msgid "Shadow Self-check"
+msgstr "Shadow Self-check"
+
+msgid "Run now"
+msgstr "Run now"
+
+msgid "Rill self-check passed."
+msgstr "Rill self-check passed."
+
+msgid "Rill self-check fell back to Native."
+msgstr "Rill self-check fell back to Native."
+
+msgid "Self-check failed: "
+msgstr "Self-check failed: "
+
+msgid "Reset Learning State"
+msgstr "Reset Learning State"
+
+msgid "Reset"
+msgstr "Reset"
+
+msgid "Resetting..."
+msgstr "Resetting..."
+
+msgid "Reset Rill learning state? Native configuration will not be changed."
+msgstr "Reset Rill learning state? Native configuration will not be changed."
+
+msgid "Rill learning state was reset."
+msgstr "Rill learning state was reset."
+
+msgid "Reset rejected"
+msgstr "Reset rejected"
+
+msgid "Reset failed: "
+msgstr "Reset failed: "
+
+msgid "Measurement Policy"
+msgstr "Measurement Policy"
+
+msgid "Source Strategy"
+msgstr "Source Strategy"
+
+msgid "Balanced"
+msgstr "Balanced"
+
+msgid "Official-heavy"
+msgstr "Official-heavy"
+
+msgid "History-heavy"
+msgstr "History-heavy"
+
+msgid "Diversity-heavy"
+msgstr "Diversity-heavy"
+
+msgid "Community-heavy"
+msgstr "Community-heavy"
+
+msgid "Probe Batch Size"
+msgstr "Probe Batch Size"
+
+msgid "Maximum Probes"
+msgstr "Maximum Probes"
+
+msgid "Deterministic Early Stop"
+msgstr "Deterministic Early Stop"
+
+msgid "Runtime Health"
+msgstr "Runtime Health"
+
+msgid "Unknown"
+msgstr "Unknown"
+
+msgid "Resource pressure"
+msgstr "Resource pressure"
+
+msgid "Runtime Inspect"
+msgstr "Runtime Inspect"
+
+msgid "pending"
+msgstr "pending"
+
+msgid "last error"
+msgstr "last error"
+
+msgid "Probe Efficiency"
+msgstr "Probe Efficiency"
+
+msgid "probed"
+msgstr "probed"
+
+msgid "avoided"
+msgstr "avoided"
+
+msgid "early stop"
+msgstr "early stop"
+
+msgid "yes"
+msgstr "yes"
+
+msgid "no"
+msgstr "no"
+
+msgid "Native vs Rill"
+msgstr "Native vs Rill"
+
+msgid "native"
+msgstr "native"
+
+msgid "Rill"
+msgstr "Rill"
+
+msgid "regret"
+msgstr "regret"

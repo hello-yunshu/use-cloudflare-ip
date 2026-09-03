@@ -17,13 +17,13 @@
 - **LuCI Web Interface**: Dashboard overview, settings forms, log maintenance — all visual
 - **PassWall / OpenClash Dual Mode**: Auto-detects installed proxy services, shows relevant config pages only
 - **CFST Auto-Management**: One-click download CloudflareSpeedTest on first use, with online updates
-- **Scheduled Tasks**: Automatic runs via procd daemon with configurable intervals
+- **Scheduled Tasks**: Automatic runs via cron-managed schedules with configurable intervals
 - **IP Type**: IPv4 / IPv6 / Dual-stack
 - **Benchmark Protocol**: TCP (default) / HTTP (with data center filtering)
 - **Connectivity Verification**: Validates each IP after benchmarking, skips unreachable ones
 - **Multi-Domain Support**: Comma-separated target domains
 - **IP History**: View historical optimized IP list
-- **Self-Update**: Script auto-updates from GitHub
+- **Upgrade Policy**: 2.0 is package-managed; the legacy script self-update key is retained only for migration compatibility
 
 ## Installation
 
@@ -119,7 +119,7 @@ Finds nodes where `server` matches the target domain, generates `[CF-1]`, `[CF-2
 |--------|-------------|---------|
 | Stop Proxy Before Benchmark | Avoid proxy interference with benchmark results | On |
 | Startup Delay | Random delay in seconds, `random` = 0~300s | — |
-| Self-Update | Enable script self-update | On |
+| Self-Update | Deprecated; 2.0 is package-managed | Off |
 | GitHub Mirror | Mirror URL to accelerate GitHub downloads | — |
 | Download Retries | GitHub download retry count | 3 |
 | Retry Delay | Retry interval in seconds | 5 |
@@ -130,7 +130,7 @@ Finds nodes where `server` matches the target domain, generates `[CF-1]`, `[CF-2
 - View runtime logs
 - View IP history
 - Manually trigger benchmark
-- Manually update script
+- Self-update only reports “deprecated”; upgrade through the IPK/APK package
 - Start / Stop / Restart service
 
 ## Project Structure
@@ -139,10 +139,10 @@ Finds nodes where `server` matches the target domain, generates `[CF-1]`, `[CF-2
 root/
 ├── etc/
 │   ├── config/cf_ip                          # UCI configuration
-│   └── init.d/cf_ip                          # procd service script
+│   └── init.d/cf_ip                          # lifecycle and cron scheduler script
 └── usr/
     ├── bin/cf-ip-auto                        # Core business script
-    │   ├── libexec/rpcd/cf_ip                    # RPC backend (18 API methods)
+    │   ├── libexec/rpcd/cf_ip                    # RPC backend (compatibility API + 2.0 extensions)
     └── share/
         ├── luci/menu.d/                      # LuCI menu registration
         └── rpcd/acl.d/                       # RPC access control
@@ -165,7 +165,7 @@ htdocs/luci-static/resources/
 ```
 ┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
 │  LuCI Frontend│ ──────────────→  │  rpcd Backend     │ ──────────→ │  UCI Config   │
-│  (6 JS views) │ ←──────────────  │  (18 API methods) │ ←──────────  │  cf_ip        │
+│  (8 JS views) │ ←──────────────  │  (compatibility + extensions) │ ←────── │  cf_ip │
 └──────────────┘     JSON response └──────────────────┘              └──────┬───────┘
                                                                             │
                                                               cf-ip-auto
@@ -182,7 +182,7 @@ htdocs/luci-static/resources/
 
 1. Frontend calls rpcd backend via `ubus call cf_ip <method>`
 2. Backend invokes `cf-ip-auto` to execute operations
-3. Benchmark results are written to `/tmp/cf_ip/status.json`
+3. Benchmark results are written to persistent `/etc/cf_ip/status.json`
 4. PassWall or OpenClash nodes are updated based on UCI mode config
 5. Logs are written to `/tmp/cf_ip/cf-ip-auto.log`
 
@@ -198,12 +198,12 @@ htdocs/luci-static/resources/
 | `ip_type` | enum | ipv4 | IP type: `ipv4` / `ipv6` / `both` |
 | `speedtest_protocol` | enum | tcp | Benchmark protocol: `tcp` / `http` |
 | `speedtest_cfcolo` | string | — | Filter by data center (HTTP protocol only) |
-| `speedtest_dn` | integer | 10 | Download benchmark threads |
+| `speedtest_dn` | integer | 8 | Download benchmark threads |
 | `speedtest_tll` | integer | 40 | Average latency floor (ms), filter fake IPs |
 | `speedtest_tl` | integer | — | Average latency ceiling (ms), leave empty for no limit |
 | `stop_service` | boolean | 1 | Stop proxy service before benchmarking |
 | `startup_delay` | string | — | Startup delay, `random` = 0~300s |
-| `auto_update` | boolean | 1 | Enable script self-update |
+| `auto_update` | boolean | 0 | Deprecated script self-update compatibility key; unused by 2.0 |
 | `self_update_url` | string | — | Self-update download URL |
 | `download_retries` | integer | 3 | GitHub download retry count |
 | `download_retry_delay` | integer | 5 | Retry interval in seconds |
@@ -211,7 +211,9 @@ htdocs/luci-static/resources/
 | `verbose` | boolean | 0 | Verbose logging |
 | `work_dir` | string | — | Working directory |
 | `cron_interval` | string | 6h | Auto-run schedule, supports `6h`, `30m`, or a 5-field cron expression |
-| `cfst_persist` | boolean | 1 | Preserve CFST binary across sysupgrade |
+| `measurement_timeout` | integer | 60 | Measurement and normal-apply deadline (20-300 seconds) |
+| `recovery_timeout` | integer | 30 | Rollback, service restore and recovery-health deadline (10-120 seconds) |
+| `cfst_persist` | boolean | 1 | Preserve `${work_dir}/cfst/cfst` across sysupgrade |
 
 ### passwall section
 
@@ -240,3 +242,18 @@ This project uses GitHub Actions for automated builds:
 ## Acknowledgments
 
 - [XIU2/CloudflareSpeedTest](https://github.com/XIU2/CloudflareSpeedTest)
+## 2.0 clean-rebuild engine (development)
+
+Package version `2.0.0-dev` is rebuilt from the complete 1.8.3 behavior baseline. Overview, Settings, Diagnostics, PassWall, OpenClash, scheduling, CFST, suffixes, multi-IP variants, backups, and upgrade behavior remain available. Candidate IP Sources, bounded scheduling, target-domain Active Probe, Native Rank, transactional apply/rollback, optional generic Rill Runtime v3 Preview shadow intelligence, and an optional LAN Publisher are additive. The upstream OpenWrt package repository owns distribution and publishes a separately qualified `rill-runtime-preview` package pinned to the exact Preview commit; this repository only provides the optional consumer mapping package.
+
+Candidate Budget defaults to 128 and accepts 100-512 unique candidates. Fresh history, community seeds, and official CIDR exploration receive about 1/8, 5/8, and 1/4; deficits flow between pools. Official CIDRs are sampled into concrete IPs and one CFST process measures the merged input. A community `IP:port` contributes only its IP; domain candidates are rejected without DNS resolution.
+
+The measurement policy is explicit and bounded: `balanced`, `official-heavy`, `history-heavy`, `diversity-heavy`, or `community-heavy`. Source Intelligence is deterministic registry/profile/order/cache/scheduler logic, not a Runtime Learner. Runtime has one Candidate Learner with a 22D schema and `candidate` partition. Active probes run in bounded batches with a deterministic early-stop rule; Reward v2, delayed feedback, rolling qualification, Health/Inspect and resource-pressure fail-closed behavior remain enabled. Assisted can prefer only inside the Native safe envelope and falls back to Native on every invalid or unhealthy Runtime result. Reuse is a Native current-IP validation hard gate: stale, changed or failed validation forces full optimize.
+
+Before PassWall or OpenClash is changed, every selected IP must pass the configured target-domain probe with the intended SNI/Host. One host transaction captures state before stopping the proxy; the measurement deadline covers measurement, probes, apply and normal restart, while failures enter an independent recovery deadline for rollback, service restore and health confirmation. The transaction invokes a pure transformer, performs block-level intended-mapping readback, restarts, and verifies health. Timeout, failed eligibility, or restart failure rolls back configuration and managed state. Rill errors always fall back to Native Rank. Shadow separately probes a Rill-only candidate, and only candidate-specific non-censored outcomes enter delayed feedback.
+
+Script self-update is deprecated because 2.0 is multi-file and package-managed. `auto_update=0` is the default; upgrade via a validated IPK/APK package. UCI, CFST, source last-good caches, ownership and bounded history persist across upgrades, while run/probe/publisher files are temporary. LAN Publisher is disabled by default, LAN-only, refuses `0.0.0.0`, and serves `/ip.txt`, `/best-ipv4.txt`, `/best-ipv6.txt`, and `/result.json`.
+
+Release status: development only. Stable publication requires every legacy item, host/RPC/LuCI, same-release generic Rill consumer integration, OpenWrt 24.10.5 IPK, OpenWrt 25.12.0 APK, rollback gates, and real CFST smoke. Package or Docker checks do not prove live OpenWrt or hardware soak.
+
+When fewer candidates qualify, the result reports a degraded candidate count and never duplicates the fastest IP. More sources enlarge the seed pool, but all candidates are retested locally; source count does not mean an unbounded number of IPs in one speed test. LAN Publisher is optional, LAN-only, disabled by default, and never replaces direct PassWall/OpenClash updates.

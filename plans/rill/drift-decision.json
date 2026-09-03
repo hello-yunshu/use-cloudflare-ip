@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "decision": "deprecated",
+  "legacyDetector": "PageHinkley",
+  "status": "removed-from-cloudflare-consumer",
+  "responsibility": "The legacy detector monitored a Cloudflare-specific latency stream and requested model resets after sustained distribution drift.",
+  "replacement": "The generic Rill Runtime remains responsible only for bounded learner state and generic model-health signals; Cloudflare keeps native ranking authoritative.",
+  "hostSafety": "Removing the detector cannot authorize host mutation. Runtime failure, unhealthy model state, or reset is handled as advisory failure and falls back to native ranking.",
+  "resetPolicy": "Reset is explicit and state-generation checked; no automatic Cloudflare-specific reset is claimed by the consumer.",
+  "fallbackPolicy": "Any missing, invalid, stale, rejected, or unhealthy Runtime result leaves the native candidate order and host transaction unchanged.",
+  "verification": [
+    "tests/v2-rill-shadow.sh",
+    "tests/rill-feedback-integration.sh",
+    "tests/rill-feedback-negative.sh"
+  ]
+}

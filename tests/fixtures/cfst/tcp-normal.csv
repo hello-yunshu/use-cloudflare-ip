@@ -1,0 +1,3 @@
+IP,Sent,Received,Loss,Latency,Download,Colo
+104.16.1.1,4,4,0.00,35.2,20.5,HKG
+104.16.1.2,4,3,25,42.0,10.0,SJC

@@ -66,7 +66,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'ip_count', _('IP Count'),
-			_('Number of best IPs to keep. If fewer IPs found, the fastest one is reused.'));
+			_('Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP.'));
 		o.datatype = 'range(1,20)';
 		o.placeholder = '4';
 		o.rmempty = false;
@@ -95,6 +95,24 @@ return view.extend({
 			_('Number of IPs to test download speed.'));
 		o.datatype = 'range(1,100)';
 		o.placeholder = '10';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'speedtest_dt', _('Download Seconds per IP'),
+			_('Seconds spent on the download measurement for each shortlisted IP.'));
+		o.datatype = 'range(1,60)';
+		o.default = '6';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'speedtest_threads', _('Speed Test Threads'),
+			_('CFST measurement concurrency. This controls load, not the candidate budget.'));
+		o.datatype = 'range(1,1000)';
+		o.default = '200';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'speedtest_ping_count', _('Ping Count'),
+			_('Number of latency samples per candidate.'));
+		o.datatype = 'range(1,20)';
+		o.default = '3';
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'speedtest_tll', _('Average Latency Floor (ms)'),
