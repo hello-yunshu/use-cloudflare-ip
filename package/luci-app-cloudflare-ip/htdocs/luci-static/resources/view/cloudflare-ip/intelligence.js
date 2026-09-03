@@ -133,6 +133,26 @@ return view.extend({
 	};
 	o = s.option(form.DummyValue, '_qualification', _('Qualification'));
 	o.cfgvalue = function() { return (status.intelligence || {}).qualificationState || _('Unknown'); };
+	o = s.option(form.DummyValue, '_context', _('Learning Context'));
+	o.cfgvalue = function() {
+		var c = status.learningContext || (status.intelligence || {}).learningContext || {};
+		return (c.contextFingerprint || _('Unknown')) + (status.contextChanged ? ' / ' + _('changed') : '');
+	};
+	o = s.option(form.DummyValue, '_confidence', _('Decision Confidence'));
+	o.cfgvalue = function() {
+		var d = status.decision || {}, i = status.intelligence || {};
+		return d.confidenceLevel || i.confidenceLevel || _('Unavailable / Native fallback');
+	};
+	o = s.option(form.DummyValue, '_evidence', _('Decision Evidence'));
+	o.cfgvalue = function() {
+		var e = status.evidenceAggregate || (status.intelligence || {}).evidenceAggregate || {};
+		return _('comparable') + ': ' + (e.comparableDecisions || 0) + ', ' + _('wins') + ': ' + (e.wins || 0) + ', ' + _('ties') + ': ' + (e.ties || 0) + ', ' + _('losses') + ': ' + (e.losses || 0) + ', Δ ' + (e.meanRewardDelta == null ? '?' : Number(e.meanRewardDelta).toFixed(3));
+	};
+	o = s.option(form.DummyValue, '_holdout', _('Native Holdout'));
+	o.cfgvalue = function() {
+		var e = status.evidenceAggregate || (status.intelligence || {}).evidenceAggregate || {};
+		return _('performed') + ': ' + (e.holdoutCount || 0) + ', ' + _('failures') + ': ' + (e.holdoutFailures || 0) + ' / ' + _('non-blocking');
+	};
 	o = s.option(form.DummyValue, '_fallback', _('Fallback Reason'));
 	o.cfgvalue = function() { return status.fallbackReason || (status.intelligence || {}).lastResetReason || _('None'); };
 	o = s.option(form.DummyValue, '_source_policy', _('Source Strategy Loop'));

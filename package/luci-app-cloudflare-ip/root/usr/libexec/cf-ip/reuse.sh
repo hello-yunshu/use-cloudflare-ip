@@ -52,7 +52,6 @@ cfip_reuse_hard_gate_reason() {
     ((now-last_full <= CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL)) || { printf 'full_optimize_interval_expired'; return 0; }
     [[ "$last_validation" =~ ^[0-9]+$ && $last_validation -gt 0 && "$(jq -r '.validationSuccess // false' <<<"$state")" == true ]] || { printf 'previous_validation_failed'; return 0; }
     [[ "$(jq -r '.last_result // "unknown"' "$CFIP_STATUS_FILE")" == success ]] || { printf 'recent_run_failed'; return 0; }
-    if [[ -s "${CFIP_RILL_STATE_META_FILE:-}" ]] && [[ "$(jq -r '.resetRequired // false' "$CFIP_RILL_STATE_META_FILE" 2>/dev/null || printf false)" == true ]]; then printf 'runtime_reset_required'; return 0; fi
     return 1
 }
 

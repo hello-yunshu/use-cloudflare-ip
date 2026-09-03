@@ -56,6 +56,8 @@ jobs:
           bash tests/rill-state-and-delayed.sh
           bash tests/rill-health-contract.sh
           bash tests/rill-guarded-assisted.sh
+          bash tests/rill-assisted-authority-fallback.sh
+          bash tests/rill-assisted-resource-pressure-selection.sh
           bash tests/rill-outcome-attribution.sh
           bash tests/rill-reward-v2.sh
           bash tests/rill-qualification-rolling.sh
@@ -67,6 +69,7 @@ jobs:
           bash tests/resource-pressure-contract.sh
           bash tests/multi-ip-diversity-contract.sh
           bash tests/reuse-policy-contract.sh
+          bash tests/reuse-runtime-independence.sh
           bash tests/reuse-fresh-lifecycle.sh
           bash tests/delayed-feedback-lifecycle-contract.sh
           bash tests/delayed-feedback-reset-lineage.sh
@@ -77,6 +80,11 @@ jobs:
           bash tests/installed-routing-contract.sh
           bash tests/disabled-cron-contract.sh
           bash tests/evidence-manifest-default.sh
+          bash tests/qualification-evidence-validator.sh
+          bash tests/rill-context-fingerprint.sh
+          bash tests/rill-context-change-reset.sh
+          bash tests/rill-context-pending-feedback-isolation.sh
+          bash tests/rill-context-nonmaterial-config-change.sh
           jq empty plans/rill/drift-decision.json
           bash tests/recovery-deadline.sh
           bash tests/transaction-commit-failure.sh
@@ -334,6 +342,7 @@ jobs:
         run: |
           bash tests/rill-feedback-integration.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
           bash tests/rill-feedback-negative.sh
+          bash tests/rill-real-runtime-full-lifecycle.sh "$RUNNER_TEMP/preview-ipk/data/usr/bin/rill-runtime"
       - name: Record same-release evidence
         shell: bash
         env:

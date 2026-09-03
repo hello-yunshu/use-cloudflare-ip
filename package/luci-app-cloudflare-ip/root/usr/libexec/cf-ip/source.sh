@@ -45,10 +45,12 @@ cfip_source_policy_json() {
 cfip_source_policy_order() {
     local ids="$1" policy="${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}"
     cfip_source_policy_valid "$policy" || policy=balanced
-    jq -rn --arg ids "$ids" --arg policy "$policy" --argjson registry "$(cfip_source_policy_registry_json)" '
+    jq -rn --arg ids "$ids" --arg policy "$policy" --argjson registry "$(cfip_source_policy_registry_json)" --argjson sources "$(cfip_builtin_registry_json)" '
       ($registry|map(select(.id==$policy))[0] // $registry[0]) as $p |
       ($ids|split(" ")|map(select(length>0))) as $ids |
-      ($ids|to_entries|map({id:.value,index:.key,rank:(if (.value|test("official")) then $p.official elif (.value|test("carrier")) then $p.carrier elif (.value|test("svips")) then $p.measured else $p.community end)})|sort_by(-.rank,.index)|map(.id)|join(" "))
+      ($ids|to_entries|map(. as $entry | ($sources|map(select(.id==$entry.value))[0] // {sourceClass:"community"}) as $source |
+        {id:$entry.value,index:$entry.key,sourceClass:($source.sourceClass // "community"),rank:(if ($source.sourceClass // "community")=="official" then $p.official elif ($source.sourceClass // "community")=="carrier" then $p.carrier elif ($source.sourceClass // "community")=="measured" then $p.measured else $p.community end)})
+       |sort_by(-.rank,.index)|map(.id)|join(" "))
     '
 }
 
@@ -61,10 +63,10 @@ cfip_builtin_registry_json() {
   {"id":"ipdb-bestcf-v4","name":"IPDB BestCF IPv4","group":"recommended","sourceClass":"community","family":"ipv4","parser":"ip-text","url":"https://ipdb.api.030101.xyz/?type=bestcfv4","defaultEnabled":false},
   {"id":"ipdb-bestcf-v6","name":"IPDB BestCF IPv6","group":"recommended","sourceClass":"community","family":"ipv6","parser":"ip-text","url":"https://ipdb.api.030101.xyz/?type=bestcfv6","defaultEnabled":false},
   {"id":"dustinwin-bestcf-generic","name":"DustinWin BestCF","group":"recommended","sourceClass":"community","family":"auto","parser":"ip-text","url":"https://raw.githubusercontent.com/DustinWin/BestCF/bestcf/bestcf-ip.txt","defaultEnabled":false},
-  {"id":"dustinwin-bestcf-cmcc","name":"DustinWin BestCF CMCC","group":"carrier","sourceClass":"community","family":"auto","parser":"ip-text","url":"https://raw.githubusercontent.com/DustinWin/BestCF/bestcf/cmcc-ip.txt","defaultEnabled":false},
-  {"id":"dustinwin-bestcf-cucc","name":"DustinWin BestCF CUCC","group":"carrier","sourceClass":"community","family":"auto","parser":"ip-text","url":"https://raw.githubusercontent.com/DustinWin/BestCF/bestcf/cucc-ip.txt","defaultEnabled":false},
-  {"id":"dustinwin-bestcf-ctcc","name":"DustinWin BestCF CTCC","group":"carrier","sourceClass":"community","family":"auto","parser":"ip-text","url":"https://raw.githubusercontent.com/DustinWin/BestCF/bestcf/ctcc-ip.txt","defaultEnabled":false},
-  {"id":"svips-best-ips","name":"svip-s measured seed IPs","group":"measured","sourceClass":"community","family":"ipv4","parser":"ip-text","url":"https://raw.githubusercontent.com/svip-s/cloudflare_ip/main/best_ips.txt","defaultEnabled":false}
+  {"id":"dustinwin-bestcf-cmcc","name":"DustinWin BestCF CMCC","group":"carrier","sourceClass":"carrier","family":"auto","parser":"ip-text","url":"https://raw.githubusercontent.com/DustinWin/BestCF/bestcf/cmcc-ip.txt","defaultEnabled":false},
+  {"id":"dustinwin-bestcf-cucc","name":"DustinWin BestCF CUCC","group":"carrier","sourceClass":"carrier","family":"auto","parser":"ip-text","url":"https://raw.githubusercontent.com/DustinWin/BestCF/bestcf/cucc-ip.txt","defaultEnabled":false},
+  {"id":"dustinwin-bestcf-ctcc","name":"DustinWin BestCF CTCC","group":"carrier","sourceClass":"carrier","family":"auto","parser":"ip-text","url":"https://raw.githubusercontent.com/DustinWin/BestCF/bestcf/ctcc-ip.txt","defaultEnabled":false},
+  {"id":"svips-best-ips","name":"svip-s measured seed IPs","group":"measured","sourceClass":"measured","family":"ipv4","parser":"ip-text","url":"https://raw.githubusercontent.com/svip-s/cloudflare_ip/main/best_ips.txt","defaultEnabled":false}
 ]
 JSON
 }
@@ -269,7 +271,7 @@ cfip_source_fetch_remote() {
 }
 
 cfip_source_collect_custom() {
-    local aggregate="$1" status="$2" section enabled kind name url family parser ips id tmp raw parsed source_class=community remaining
+    local aggregate="$1" status="$2" section enabled kind name url family parser ips id tmp raw parsed source_class remaining
     while IFS= read -r section; do
         [[ -n "$section" ]] || continue
         ((CFIP_SOURCE_USED_COUNT < CFIP_SOURCE_MAX_COUNT)) || break
@@ -278,7 +280,8 @@ cfip_source_collect_custom() {
         enabled="$(uci -q get "cf_ip.$section.enabled" 2>/dev/null || printf 0)"
         [[ "$(cfip_bool "$enabled")" == true ]] || continue
         CFIP_SOURCE_USED_COUNT=$((CFIP_SOURCE_USED_COUNT+1))
-        id="custom-$section"; kind="$(uci -q get "cf_ip.$section.kind" 2>/dev/null || printf url)"; name="$(uci -q get "cf_ip.$section.name" 2>/dev/null || printf '%s' "$section")"; family="$(uci -q get "cf_ip.$section.family" 2>/dev/null || printf auto)"; parser="$(uci -q get "cf_ip.$section.parser" 2>/dev/null || printf ip-text)"
+        id="custom-$section"; kind="$(uci -q get "cf_ip.$section.kind" 2>/dev/null || printf url)"; name="$(uci -q get "cf_ip.$section.name" 2>/dev/null || printf '%s' "$section")"; family="$(uci -q get "cf_ip.$section.family" 2>/dev/null || printf auto)"; parser="$(uci -q get "cf_ip.$section.parser" 2>/dev/null || printf ip-text)"; source_class="$(uci -q get "cf_ip.$section.source_class" 2>/dev/null || printf community)"
+        case "$source_class" in official|community|carrier|measured) ;; *) cfip_source_meta_write "$id" false false false 0 0 invalid_source_class ""; continue ;; esac
         cfip_source_family_allowed "$family" || [[ "$family" == auto ]] || continue
         tmp="$CFIP_SOURCE_RUNTIME_DIR/$id/records.json"; mkdir -p "${tmp%/*}"
         if [[ "$kind" == manual ]]; then
