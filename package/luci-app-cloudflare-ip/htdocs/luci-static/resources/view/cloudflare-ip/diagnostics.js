@@ -93,7 +93,7 @@ return view.extend({
 			res = res || {};
 			if (res.success !== true) {
 				logArea.className = 'cbi-input-textarea cfi-log-area is-error';
-				setLogText(res.error || _('Failed to read logs'));
+				setLogText(res.error || _('Unable to read logs. Check the service status and try again.'));
 			} else if (res.logs) {
 				logArea.className = 'cbi-input-textarea cfi-log-area';
 				setLogText(res.logs);
@@ -114,7 +114,7 @@ return view.extend({
 			setLogText(_('Loading...'));
 			return callReadLog().then(renderLogResult).catch(function(e) {
 				logArea.className = 'cbi-input-textarea cfi-log-area is-error';
-				setLogText(_('Failed to read logs: ') + (e.message || e));
+				setLogText(_('Unable to read logs: %s').format(e.message || e));
 			}).finally(function() {
 				if (btn)
 					utils.resetBusy(btn);
@@ -143,10 +143,10 @@ return view.extend({
 						logArea.className = 'cbi-input-textarea cfi-log-area is-empty';
 						setLogText(_('Log file cleared.'));
 					} else {
-						ui.addNotification(null, E('p', _('Failed to clear logs: ') + (res.error || _('unknown'))), 'error');
+						ui.addNotification(null, E('p', _('Unable to clear logs: %s').format(res.error || _('Unknown'))), 'error');
 					}
 				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Failed to clear logs: ') + e.message), 'error');
+					ui.addNotification(null, E('p', _('Unable to clear logs: %s').format(e.message)), 'error');
 				}).finally(function() {
 					utils.resetBusy(btn);
 				});
@@ -160,7 +160,7 @@ return view.extend({
 
 		if (status.error && status.error !== 'Status file not found') {
 			logSection.appendChild(E('div', { 'class': 'alert-message danger', 'style': 'margin-top:1em' },
-				E('p', {}, '\u2718 ' + _('Last Error: ') + status.error)));
+				E('p', {}, '\u2718 ' + _('Last error: %s').format(status.error))));
 		}
 		container.appendChild(logSection);
 
@@ -176,7 +176,7 @@ return view.extend({
 
 			res = res || {};
 			if (res.success !== true) {
-				ipTableBody.appendChild(E('tr', { 'class': 'tr' }, E('td', { 'class': 'td', 'colspan': '2', 'style': 'color:var(--danger-color)' }, res.error || _('Failed to load IP history'))));
+				ipTableBody.appendChild(E('tr', { 'class': 'tr' }, E('td', { 'class': 'td', 'colspan': '2', 'style': 'color:var(--danger-color)' }, res.error || _('Unable to load IP history. Refresh and try again.'))));
 				return;
 			}
 

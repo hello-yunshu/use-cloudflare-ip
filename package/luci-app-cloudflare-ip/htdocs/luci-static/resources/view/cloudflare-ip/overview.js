@@ -50,7 +50,7 @@ var STATUS_LABELS = {
 	success: _('Success'),
 	error: _('Error'),
 	stopped: _('Stopped'),
-	unknown: _('unknown')
+	unknown: _('Unknown')
 };
 
 function translateStatus(status) {
@@ -113,11 +113,11 @@ function showSpeedtestModal() {
 	function refresh() {
 		callSpeedtestStatus().then(update).catch(function(err) {
 			logNode.className = 'cbi-input-textarea cfi-log-area is-error';
-			setLogText(_('Failed to get status: ') + String(err));
+			setLogText(_('Unable to load status: %s').format(String(err)));
 		});
 	}
 
-	ui.showModal(_('Speedtest Log'), [
+	ui.showModal(_('Speed Test Log'), [
 		E('div', { 'class': 'cbi-value' }, [
 			E('label', { 'class': 'cbi-value-title' }, _('Status')),
 			E('div', { 'class': 'cbi-value-field' }, statusNode)
@@ -144,7 +144,7 @@ function showSpeedtestModal() {
 function waitReadyAndReload() {
 	return utils.waitForServiceReady(utils.callStatus).then(function(status) {
 		if (status && status.last_result === 'running')
-			ui.addNotification(null, E('p', _('Service action completed, but speedtest is still in progress. Refreshing current status.')), 'warning');
+			ui.addNotification(null, E('p', _('Service action completed, but the speed test is still in progress. Refreshing current status.')), 'warning');
 		utils.reloadSoon(300);
 		return status;
 	});
@@ -270,14 +270,19 @@ return view.extend({
 
 		var isRunningTest = running && lastResult === 'running';
 		var bannerState = isRunningTest ? 'running-test' : (running ? 'running' : 'stopped');
-		var banner = E('div', { 'class': 'cbi-section cfi-status-banner ' + bannerState });
+		var banner = E('div', {
+			'class': 'cbi-section cfi-status-banner ' + bannerState,
+			'role': 'status',
+			'aria-live': 'polite',
+			'aria-atomic': 'true'
+		});
 		banner.appendChild(E('div', { 'class': 'cfi-status-icon ' + bannerState },
 			isRunningTest ? '\u23F3' : (running ? '\u25CF' : '\u25CB')));
 		var bannerText = E('div', { 'class': 'cfi-status-text' });
 		bannerText.appendChild(E('h3', { 'class': bannerState },
-			isRunningTest ? _('Speedtest Running') : (running ? _('Service Running') : _('Service Stopped'))));
+			isRunningTest ? _('Speed Test Running') : (running ? _('Service Running') : _('Service Stopped'))));
 		bannerText.appendChild(E('p', {}, isRunningTest ?
-			_('Cloudflare IP speedtest is in progress, please wait...') :
+			_('Cloudflare IP speed test is in progress. Please wait.') :
 			(running ?
 				_('Cloudflare IP optimization service is active and running.') :
 				_('Cloudflare IP optimization service is not running. Click Start to begin.'))));
@@ -318,7 +323,7 @@ return view.extend({
 
 		statsGrid.appendChild(E('div', { 'class': 'cbi-section cfi-stat-card' }, [
 			E('div', { 'class': 'cfi-stat-value' }, speedtestProtocol.toUpperCase()),
-			E('div', { 'class': 'cfi-stat-label' }, _('Speedtest Protocol'))
+			E('div', { 'class': 'cfi-stat-label' }, _('Speed Test Protocol'))
 		]));
 
 		statsGrid.appendChild(E('div', { 'class': 'cbi-section cfi-stat-card' }, [
@@ -343,7 +348,7 @@ return view.extend({
 						ui.addNotification(null, E('p', _('Service started.')), 'info');
 						return waitReadyAndReload();
 					}).catch(function(e) {
-						ui.addNotification(null, E('p', _('Failed to start service: ') + e.message), 'error');
+						ui.addNotification(null, E('p', _('Unable to start service: %s').format(e.message)), 'error');
 						utils.resetBusy(btn);
 					});
 				}
@@ -360,7 +365,7 @@ return view.extend({
 						ui.addNotification(null, E('p', _('Service stopped.')), 'info');
 						utils.reloadSoon();
 					}).catch(function(e) {
-						ui.addNotification(null, E('p', _('Failed to stop service: ') + e.message), 'error');
+						ui.addNotification(null, E('p', _('Unable to stop service: %s').format(e.message)), 'error');
 						utils.resetBusy(btn);
 					});
 				}
@@ -376,7 +381,7 @@ return view.extend({
 					ui.addNotification(null, E('p', _('Service restarted.')), 'info');
 					return waitReadyAndReload();
 				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Failed to restart service: ') + e.message), 'error');
+					ui.addNotification(null, E('p', _('Unable to restart service: %s').format(e.message)), 'error');
 					utils.resetBusy(btn);
 				});
 			}
@@ -398,7 +403,7 @@ return view.extend({
 					callRun().then(function(result) {
 						result = result || {};
 						if (result.success !== true) {
-							ui.addNotification(null, E('p', _('Failed to trigger speedtest: %s').format(result.error || _('unknown'))), 'error');
+							ui.addNotification(null, E('p', _('Unable to start speed test: %s').format(result.error || _('Unknown'))), 'error');
 							isRunningTest = false;
 							utils.resetBusy(btn);
 							return;
@@ -406,12 +411,12 @@ return view.extend({
 						// Reload page after short delay; backend writes "running" status almost instantly
 						utils.reloadSoon(1000);
 					}).catch(function(e) {
-						ui.addNotification(null, E('p', _('Speedtest failed: %s').format(e.message)), 'error');
+						ui.addNotification(null, E('p', _('Speed test failed: %s').format(e.message)), 'error');
 						isRunningTest = false;
 						utils.resetBusy(btn);
 					});
 				}
-			}, isRunningTest ? '\u23F3 ' + _('Running...') : '\u26A1 ' + _('Run Speedtest'));
+			}, isRunningTest ? '\u23F3 ' + _('Running...') : '\u26A1 ' + _('Run Speed Test'));
 			btnGroup.appendChild(speedtestBtn);
 		}
 
@@ -430,13 +435,13 @@ return view.extend({
 				return callDownloadCfst().then(function(result) {
 					result = result || {};
 					if (result.success !== true) {
-						ui.addNotification(null, E('p', _('CFST operation failed: ') + (result.error || _('unknown'))), 'error');
+						ui.addNotification(null, E('p', _('Unable to update CFST: %s').format(result.error || _('Unknown'))), 'error');
 					} else {
 						ui.addNotification(null, E('p', _('CFST updated successfully.') + (result.cfst_version ? ' (' + result.cfst_version + ')' : '')), 'info');
 						utils.reloadSoon(1500);
 					}
-				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('CFST operation failed: ') + e.message), 'error');
+					}).catch(function(e) {
+						ui.addNotification(null, E('p', _('Unable to update CFST: %s').format(e.message)), 'error');
 				}).finally(function() {
 					utils.resetBusy(btn);
 				});
@@ -462,7 +467,11 @@ return view.extend({
 
 		var lastResultBadge;
 		if (lastResult === 'running') {
-			lastResultBadge = E('span', { 'class': 'cfi-badge orange', 'style': 'cursor:pointer', 'click': showSpeedtestModal }, '\u23F3 ' + translateStatus(lastResult));
+			lastResultBadge = E('button', {
+				'class': 'cbi-button cfi-badge orange',
+				'type': 'button',
+				'click': showSpeedtestModal
+			}, '\u23F3 ' + translateStatus(lastResult));
 		} else if (lastResult === 'success' || (typeof lastResult === 'string' && lastResult.indexOf('success') === 0)) {
 			lastResultBadge = E('span', { 'class': 'cfi-badge green' }, '\u2714 ' + translateStatus(lastResult));
 		} else if (lastResult === '-' || lastResult === 'unknown') {
@@ -596,13 +605,13 @@ return view.extend({
 					depSection = newDepSection;
 
 					utils.resetBusy(btn);
-					ui.addNotification(null, E('p', _('Environment detection refreshed.')), 'info');
-				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Failed to refresh environment: ') + e.message), 'error');
+						ui.addNotification(null, E('p', _('Environment detection refreshed.')), 'info');
+					}).catch(function(e) {
+						ui.addNotification(null, E('p', _('Unable to refresh environment: %s').format(e.message)), 'error');
 					utils.resetBusy(btn);
 				});
 			}
-		}, '\u21BB ' + _('Refresh Env')));
+		}, '\u21BB ' + _('Refresh Environment')));
 		envSection.appendChild(envBtnBar);
 		container.appendChild(envSection);
 

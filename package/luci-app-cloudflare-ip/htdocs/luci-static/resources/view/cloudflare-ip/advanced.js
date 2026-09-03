@@ -21,7 +21,7 @@ return view.extend({
 
 		/* Self Update: 2.x is package-managed; keep the old keys readable but do
 		 * not expose a button that claims to replace one script safely. */
-		s = m.section(form.TypedSection, 'service', _('Self Update'));
+		s = m.section(form.TypedSection, 'service', _('Script Updates'));
 		s.anonymous = true;
 
 		o = s.option(form.Flag, 'auto_update', _('Auto Update Script'),
@@ -30,7 +30,7 @@ return view.extend({
 		o.rmempty = false;
 		o.readonly = true;
 
-		o = s.option(form.Value, 'self_update_url', _('Self Update URL'),
+		o = s.option(form.Value, 'self_update_url', _('Script Update URL'),
 			_('Retained only for migration compatibility; it is not used by the 2.x engine.'));
 		o.placeholder = 'https://raw.githubusercontent.com/...';
 		o.rmempty = false;
@@ -80,7 +80,7 @@ return view.extend({
 		o.rmempty = true;
 		o.datatype = 'string';
 
-		o = s.option(form.Value, 'measurement_timeout', _('Proxy-off Hard Limit (seconds)'),
+		o = s.option(form.Value, 'measurement_timeout', _('Measurement Deadline (seconds)'),
 			_('Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline.'));
 		o.datatype = 'range(20,300)';
 		o.default = '60';

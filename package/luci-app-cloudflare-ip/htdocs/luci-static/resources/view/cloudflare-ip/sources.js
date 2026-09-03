@@ -49,7 +49,7 @@ return view.extend({
     var box=E('div',{'class':'cbi-section'},[
       E('h3',{},_('Runtime Source Status')),
       E('p',{},_('Each run allocates roughly 1/8 to fresh history champions, 5/8 to community seeds, and 1/4 to Cloudflare official range exploration. Missing pools flow to other sources. All candidates are deduplicated and measured locally in one CFST run; community ports are never reused.')),
-      E('div',{'class':'cfi-table-wrap'}, E('div',{'class':'table'},[
+      E('div',{'class':'cfi-table-wrap'}, E('div',{'class':'table cfi-source-table cfi-responsive-table'},[
         E('div',{'class':'tr table-titles'},[
           E('div',{'class':'th'},_('Source')),
           E('div',{'class':'th'},_('State')),
@@ -71,7 +71,7 @@ return view.extend({
       E('div',{'class':'td','data-label':_('Candidates')},String(q.parsedCount||0)),
       E('div',{'class':'td','data-label':_('Last Error')},q.lastError||'—')
     ]));});
-    box.appendChild(E('button',{'class':'btn cbi-button-action','click':function(){return callRefresh().then(function(r){ui.addNotification(null,E('p',{},r.success?_('Sources refreshed; candidate pool prepared.'):_('Source refresh failed.')),r.success?'info':'error'); setTimeout(function(){location.reload();},500);});}},_('Refresh Sources Now')));
+    box.appendChild(E('button',{'class':'btn cbi-button-action','click':function(){var btn=this;utils.setBusy(btn,_('Refreshing...'));return callRefresh().then(function(r){if(r.success){ui.addNotification(null,E('p',{},_('Sources refreshed; candidate pool prepared.')),'info');setTimeout(function(){location.reload();},500);}else{ui.addNotification(null,E('p',{},_('Unable to refresh sources: %s').format(r.error||_('Unknown'))),'error');}}).catch(function(e){ui.addNotification(null,E('p',{},_('Unable to refresh sources: %s').format(e.message||e)),'error');}).finally(function(){utils.resetBusy(btn);});}},_('Refresh Sources')));
     return utils.renderWithFooter(m.render().then(function(node){ node.appendChild(box); return node; }), utils.FOOTER_OPTIONS);
   }
 });

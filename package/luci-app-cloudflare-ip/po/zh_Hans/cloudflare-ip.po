@@ -1,7 +1,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: luci-app-cloudflare-ip\n"
-"PO-Revision-Date: 2026-06-13 00:00+0000\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-04 04:08+0800\n"
+"PO-Revision-Date: 2026-09-04 00:00+0800\n"
 "Last-Translator: yunshu\n"
 "Language-Team: Chinese (Simplified)\n"
 "Language: zh_Hans\n"
@@ -9,809 +11,1625 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:16
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:183
 msgid "Cloudflare IP Optimization"
 msgstr "Cloudflare IP 优选"
 
-msgid "Settings"
-msgstr "设置"
-
-msgid "Overview"
-msgstr "概览"
-
-msgid "Service"
-msgstr "服务"
-
-msgid "Enable Service"
-msgstr "启用服务"
-
-msgid "Run the background service to periodically optimize Cloudflare IPs."
-msgstr "运行后台服务，定期优选 Cloudflare IP。"
-
-msgid "Run Schedule"
-msgstr "运行计划"
-
-msgid "Select how often the speed test runs. The service computes the next run time automatically."
-msgstr "选择测速运行频率，服务会自动计算下次运行时间。"
-
-msgid "Every 6 hours (recommended)"
-msgstr "每 6 小时（推荐）"
-
-msgid "Every hour"
-msgstr "每小时"
-
-msgid "Every 30 minutes"
-msgstr "每 30 分钟"
-
-msgid "Every 15 minutes"
-msgstr "每 15 分钟"
-
-msgid "Daily at 3:00 AM"
-msgstr "每天凌晨 3:00"
-
-msgid "Daily at 3:00 AM & 3:00 PM"
-msgstr "每天凌晨 3:00 和下午 3:00"
-
-msgid "Every 6 hours at :00"
-msgstr "每 6 小时整点"
-
-msgid "Custom..."
-msgstr "自定义..."
-
-msgid "Custom Schedule"
-msgstr "自定义计划"
-
-msgid "Cron duration (e.g. 6h, 30m) or 5-field crontab expression."
-msgstr "可转换为 cron 的时长（如 6h、30m）或 5 字段 crontab 表达式。"
-
-msgid "Speed Test"
-msgstr "测速"
-
-msgid "Mode"
-msgstr "模式"
-
-msgid "Select which proxy service to update."
-msgstr "选择要更新的代理服务。"
-
-msgid "None (No proxy service detected)"
-msgstr "无（未检测到代理服务）"
-
-msgid "PassWall or OpenClash is not installed. Please install one before using this service."
-msgstr "未安装 PassWall 或 OpenClash，请先安装其中之一再使用此服务。"
-
-msgid "IP Count"
-msgstr "IP 数量"
-
-msgid "Number of best IPs to keep. If fewer IPs qualify, the result reports degraded candidate count and never duplicates an IP."
-msgstr "保留的优选 IP 数量。如果合格 IP 不足，会报告降级候选数量，绝不复制同一 IP。"
-
-msgid "Measurement deadline for stop, CFST, probes, apply and normal restart. Recovery has a separate deadline."
-msgstr "停止服务、CFST、探测、应用和正常重启使用的测量 deadline；恢复使用独立 deadline。"
-
-msgid "Independent fail-safe deadline for rollback, restoring service state and recovery health checks. Allowed: 10-120 seconds."
-msgstr "回滚、恢复服务状态和恢复健康确认使用的独立保护 deadline，允许 10-120 秒。"
-
-msgid "IP Type"
-msgstr "IP 类型"
-
-msgid "Select which IP addresses to test."
-msgstr "选择要测速的 IP 地址类型。"
-
-msgid "Both"
-msgstr "双栈"
-
-msgid "Speed Test Protocol"
-msgstr "测速协议"
-
-msgid "HTTPing supports data center filtering; TCPing does not."
-msgstr "HTTPing 支持数据中心筛选，TCPing 不支持。"
-
-msgid "Data Center Filter"
-msgstr "数据中心筛选"
-
-msgid "Filter by Cloudflare data center in HTTPing mode. Comma-separated, e.g. HKG,NRT,LAX. Only effective with HTTPing."
-msgstr "HTTPing 模式下按 Cloudflare 数据中心筛选。逗号分隔，如 HKG,NRT,LAX。仅 HTTPing 模式生效。"
-
-msgid "Download Test Count"
-msgstr "下载测速数量"
-
-msgid "Number of IPs to test download speed."
-msgstr "测试下载速度的 IP 数量。"
-
-msgid "Average Latency Floor (ms)"
-msgstr "平均延迟下限（ms）"
-
-msgid "Skip IPs with average latency below this value."
-msgstr "跳过平均延迟低于此值的 IP。"
-
-msgid "Average Latency Ceiling (ms)"
-msgstr "平均延迟上限（ms）"
-
-msgid "Skip IPs with average latency above this value. Leave empty for no upper limit."
-msgstr "跳过平均延迟超过此值的 IP。留空表示不设上限。"
-
-msgid "Stop Service Before Test"
-msgstr "测速前停止服务"
-
-msgid "Stop the proxy service before speed testing to avoid interference, and restart after updating."
-msgstr "测速前停止代理服务以避免干扰，更新配置后自动重启。"
-
-msgid "Keep CFST Across Upgrades"
-msgstr "升级时保留 CFST"
-
-msgid "Preserve CFST binary during OpenWrt sysupgrade so it survives system upgrades."
-msgstr "在 OpenWrt 系统升级时保留 CFST 二进制文件，升级后无需重新下载。"
-
-msgid "Configuration saved and applied."
-msgstr "配置已保存并应用。"
-
-msgid "Configuration saved. Restarting service..."
-msgstr "配置已保存。正在重启服务..."
-
-msgid "Configuration applied and service is ready."
-msgstr "配置已应用，服务就绪。"
-
-msgid "Failed to apply configuration: "
-msgstr "应用配置失败："
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:83
 msgid "service action failed"
 msgstr "服务操作失败"
 
-msgid "Speedtest Running"
-msgstr "测速进行中"
-
-msgid "Service Running"
-msgstr "服务运行中"
-
-msgid "Service Stopped"
-msgstr "服务已停止"
-
-msgid "Cloudflare IP speedtest is in progress, please wait..."
-msgstr "Cloudflare IP 测速正在进行中，请稍候..."
-
-msgid "Cloudflare IP optimization service is active and running."
-msgstr "Cloudflare IP 优选服务正在运行。"
-
-msgid "Cloudflare IP optimization service is not running. Click Start to begin."
-msgstr "Cloudflare IP 优选服务未运行。点击启动开始。"
-
-msgid "Best IP Count"
-msgstr "优选 IP 数量"
-
-msgid "Speedtest Protocol"
-msgstr "测速协议"
-
-msgid "CFST Version"
-msgstr "CFST 版本"
-
-msgid "Service Control"
-msgstr "服务控制"
-
-msgid "Service started."
-msgstr "服务已启动。"
-
-msgid "Failed to start service: "
-msgstr "启动服务失败："
-
-msgid "Start"
-msgstr "启动"
-
-msgid "Service stopped."
-msgstr "服务已停止。"
-
-msgid "Failed to stop service: "
-msgstr "停止服务失败："
-
-msgid "Stop"
-msgstr "停止"
-
-msgid "Service restarted."
-msgstr "服务已重启。"
-
-msgid "Failed to restart service: "
-msgstr "重启服务失败："
-
-msgid "Restart"
-msgstr "重启"
-
-msgid "Running..."
-msgstr "运行中..."
-
-msgid "Speedtest failed: %s"
-msgstr "测速失败：%s"
-
-msgid "Run Speedtest"
-msgstr "立即测速"
-
-msgid "Updating..."
-msgstr "更新中..."
-
-msgid "Downloading..."
-msgstr "下载中..."
-
-msgid "Updating CFST, please wait..."
-msgstr "正在更新 CFST，请耐心等待..."
-
-msgid "Downloading CFST, please wait..."
-msgstr "正在下载 CFST，请耐心等待..."
-
-msgid "CFST operation failed: "
-msgstr "CFST 操作失败："
-
-msgid "CFST updated successfully."
-msgstr "CFST 更新成功。"
-
-msgid "Update CFST"
-msgstr "更新 CFST"
-
-msgid "Download CFST"
-msgstr "下载 CFST"
-
-msgid "Service Information"
-msgstr "服务信息"
-
-msgid "Last Run Time"
-msgstr "上次运行时间"
-
-msgid "Last Result"
-msgstr "上次结果"
-
-msgid "Best IPs"
-msgstr "优选 IP"
-
-msgid "Script Version"
-msgstr "脚本版本"
-
-msgid "GitHub"
-msgstr "GitHub"
-
-msgid "Environment Detection"
-msgstr "环境检测"
-
-msgid "tar"
-msgstr "tar"
-
-msgid "jq"
-msgstr "jq"
-
-msgid "PassWall"
-msgstr "PassWall"
-
-msgid "OpenClash"
-msgstr "OpenClash"
-
-msgid "CFST"
-msgstr "CFST"
-
-msgid "Installed"
-msgstr "已安装"
-
-msgid "Missing"
-msgstr "未安装"
-
-msgid "Installed (Stopped)"
-msgstr "已安装（已停止）"
-
-msgid "Not Installed"
-msgstr "未安装"
-
-msgid "Missing Dependencies & Fix Commands"
-msgstr "缺失依赖及安装命令"
-
-msgid "Missing dependencies: "
-msgstr "缺失依赖："
-
-msgid "Checking..."
-msgstr "检测中..."
-
-msgid "Environment detection refreshed."
-msgstr "环境检测已刷新。"
-
-msgid "Failed to refresh environment: "
-msgstr "刷新环境检测失败："
-
-msgid "Refresh Env"
-msgstr "刷新环境"
-
-msgid "Running"
-msgstr "运行中"
-
-msgid "Loading..."
-msgstr "加载中..."
-
-msgid "No log output yet."
-msgstr "暂无日志输出。"
-
-msgid "Failed to get status: "
-msgstr "获取状态失败："
-
-msgid "Speedtest Log"
-msgstr "测速日志"
-
-msgid "Status"
-msgstr "状态"
-
-msgid "Log"
-msgstr "日志"
-
-msgid "Close"
-msgstr "关闭"
-
-msgid "OpenClash Not Found"
-msgstr "未找到 OpenClash"
-
-msgid "OpenClash is not installed. Please install OpenClash before using this feature."
-msgstr "未安装 OpenClash，请先安装 OpenClash 再使用此功能。"
-
-msgid "OpenClash Settings"
-msgstr "OpenClash 设置"
-
-msgid "Config File Path"
-msgstr "配置文件路径"
-
-msgid "Path to the OpenClash YAML configuration file."
-msgstr "OpenClash YAML 配置文件路径。"
-
-msgid "Only OpenClash proxies whose server matches this domain will be updated. Comma-separated for multiple domains."
-msgstr "只更新 server 匹配此域名的 OpenClash 代理。逗号分隔支持多域名。"
-
-msgid "Proxy Name Suffix"
-msgstr "代理名称后缀"
-
-msgid "Suffix appended to the original proxy name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
-msgstr "修改代理后在原始名称后追加的后缀。占位符：{n} = 序号，{ip} = IP 地址。留空不修改名称。"
-
-msgid "Transport Filter"
-msgstr "传输协议过滤"
-
-msgid "Only update proxies with the specified transport protocol. Comma-separated. Values: ws, grpc, xhttp, h2, http. Leave empty to update all supported proxies."
-msgstr "只更新指定传输协议的代理节点。逗号分隔。可选值：ws、grpc、xhttp、h2、http。留空更新所有支持的节点。"
-
-msgid "Backup Count"
-msgstr "备份数量"
-
-msgid "Number of OpenClash config backups to keep."
-msgstr "OpenClash 配置备份保留数量。"
-
-msgid "Config Backups"
-msgstr "配置备份"
-
-msgid "No backups available. Backups are created automatically when the config is updated."
-msgstr "暂无备份。更新配置时会自动创建备份。"
-
-msgid "Backup Time"
-msgstr "备份时间"
-
-msgid "Size"
-msgstr "大小"
-
-msgid "Actions"
-msgstr "操作"
-
-msgid "Confirm Restore"
-msgstr "确认恢复"
-
-msgid "Are you sure you want to restore this backup? A backup of the current configuration will be created first."
-msgstr "确定要恢复此备份吗？恢复前会先创建当前配置的备份。"
-
-msgid "Cancel"
-msgstr "取消"
-
-msgid "Restoring..."
-msgstr "恢复中..."
-
-msgid "Please wait..."
-msgstr "请稍候..."
-
-msgid "Backup restored successfully."
-msgstr "备份恢复成功。"
-
-msgid "Restore failed: "
-msgstr "恢复失败："
-
-msgid "Restore"
-msgstr "恢复"
-
-msgid "Confirm Delete"
-msgstr "确认删除"
-
-msgid "Are you sure you want to delete this backup?"
-msgstr "确定要删除此备份吗？"
-
-msgid "Backup deleted"
-msgstr "备份已删除"
-
-msgid "Delete"
-msgstr "删除"
-
-msgid "PassWall Not Found"
-msgstr "未找到 PassWall"
-
-msgid "PassWall is not installed. Please install PassWall before using this feature."
-msgstr "未安装 PassWall，请先安装 PassWall 再使用此功能。"
-
-msgid "PassWall Settings"
-msgstr "PassWall 设置"
-
-msgid "Target Domain"
-msgstr "目标域名"
-
-msgid "Only PassWall nodes whose address equals this domain will be updated. Comma-separated for multiple domains."
-msgstr "只更新 address 等于此域名的 PassWall 节点。逗号分隔支持多域名。"
-
-msgid "Node Name Suffix"
-msgstr "节点名称后缀"
-
-msgid "Suffix appended to the original node name. Placeholders: {n} = sequence number, {ip} = IP address. Leave empty to keep original names."
-msgstr "修改节点后在原始名称后追加的后缀。占位符：{n} = 序号，{ip} = IP 地址。留空不修改名称。"
-
-msgid "Advanced"
-msgstr "高级"
-
-msgid "Self Update"
-msgstr "自动更新"
-
-msgid "Auto Update Script"
-msgstr "自动更新脚本"
-
-msgid "Auto-check and update script on startup."
-msgstr "启动时自动检查并更新脚本。"
-
-msgid "Self Update URL"
-msgstr "更新地址"
-
-msgid "URL to download the latest script version."
-msgstr "下载最新脚本版本的 URL。"
-
-msgid "Update Script Now"
-msgstr "立即更新脚本"
-
-msgid "Manually check for and install the latest script version."
-msgstr "手动检查并安装最新脚本版本。"
-
-msgid "Update Script"
-msgstr "更新脚本"
-
-msgid "Checking for script updates, this may take a moment. Please wait..."
-msgstr "正在检查脚本更新，可能需要一点时间，请耐心等待..."
-
-msgid "Self-update failed: "
-msgstr "自动更新失败："
-
-msgid "Script updated to version %s."
-msgstr "脚本已更新至版本 %s。"
-
-msgid "Script is already up to date."
-msgstr "脚本已是最新版本。"
-
-msgid "Download"
-msgstr "下载"
-
-msgid "GitHub Mirror"
-msgstr "GitHub 镜像"
-
-msgid "GitHub download proxy URL. Leave empty for direct downloads. Must end with /."
-msgstr "GitHub 下载代理 URL。留空直接从 GitHub 下载。必须以 / 结尾。"
-
-msgid "Download Retries"
-msgstr "下载重试次数"
-
-msgid "Number of retry attempts for GitHub downloads."
-msgstr "GitHub 下载重试次数。"
-
-msgid "Retry Delay (seconds)"
-msgstr "重试间隔（秒）"
-
-msgid "Seconds to wait between download retries."
-msgstr "下载重试之间的等待秒数。"
-
-msgid "Startup"
-msgstr "启动"
-
-msgid "Startup Delay"
-msgstr "启动延迟"
-
-msgid "Random delay upper bound (seconds). Empty/random = 0~300s, 0 = no delay."
-msgstr "随机延迟上限（秒）。留空/random = 0~300秒，0 = 不等待。"
-
-msgid "Verbose Logging"
-msgstr "详细日志"
-
-msgid "Output detailed progress logs."
-msgstr "输出详细的过程日志。"
-
-msgid "Work Directory"
-msgstr "工作目录"
-
-msgid "Leave empty to use the script directory."
-msgstr "留空使用脚本所在目录。"
-
-msgid "Service action completed, but speedtest is still in progress. Refreshing current status."
-msgstr "服务操作已完成，但测速仍在进行中。正在刷新状态。"
-
-msgid "Logs & Records"
-msgstr "日志与记录"
-
-msgid "Recent Logs"
-msgstr "最近日志"
-
-msgid "Failed to read logs"
-msgstr "读取日志失败"
-
-msgid "No logs found."
-msgstr "暂无日志。"
-
-msgid "Failed to read logs: "
-msgstr "读取日志失败："
-
-msgid "Refresh"
-msgstr "刷新"
-
-msgid "Clear log file?"
-msgstr "确认清除日志文件？"
-
-msgid "Log file cleared."
-msgstr "日志已清除。"
-
-msgid "Failed to clear logs: "
-msgstr "清除日志失败："
-
-msgid "Clear Logs"
-msgstr "清除日志"
-
-msgid "Last Error: "
-msgstr "最近错误："
-
-msgid "IP History"
-msgstr "IP 历史"
-
-msgid "(latest 10)"
-msgstr "（最近 10 条）"
-
-msgid "Failed to load IP history"
-msgstr "加载 IP 历史失败"
-
-msgid "No IP history available"
-msgstr "暂无 IP 历史记录"
-
-msgid "IP Address"
-msgstr "IP 地址"
-
-msgid "Scheduled"
-msgstr "已计划"
-
-msgid "Success"
-msgstr "成功"
-
-msgid "Error"
-msgstr "错误"
-
-msgid "Stopped"
-msgstr "已停止"
-
-msgid "unknown"
-msgstr "未知"
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:196
 msgid "Project"
 msgstr "项目"
 
-msgid "Failed to trigger speedtest: %s"
-msgstr "触发测速失败：%s"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:244
+msgid "Configuration saved and applied."
+msgstr "配置已保存并应用。"
 
-msgid "Status unavailable / Native fallback"
-msgstr "状态不可用 / Native 回退"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:249
+msgid "Configuration saved. Restarting service..."
+msgstr "配置已保存。正在重启服务..."
 
-msgid "Assisted requested → Shadow fallback"
-msgstr "已请求 Assisted → 回退到 Shadow"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:253
+msgid "Configuration applied and service is ready."
+msgstr "配置已应用，服务就绪。"
 
-msgid "consumer not qualified"
-msgstr "消费者尚未通过资格验证"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/cloudflare-ip/utils.js:257
+#, javascript-format
+msgid "Unable to apply configuration: %s"
+msgstr "无法应用配置：%s"
 
-msgid "Available"
-msgstr "可用"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:10
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:20
+msgid "Advanced"
+msgstr "高级"
 
-msgid "version unknown"
-msgstr "版本未知"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:24
+msgid "Script Updates"
+msgstr "脚本更新"
 
-msgid "Disabled / Native ranking"
-msgstr "已禁用 / Native 排名"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:27
+msgid "Auto Update Script"
+msgstr "自动更新脚本"
 
-msgid "Unavailable / Native fallback"
-msgstr "不可用 / Native 回退"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:28
+msgid "Deprecated in 2.x. Package upgrades are required to update the engine."
+msgstr "2.x 已弃用。更新引擎需要升级软件包。"
 
-msgid "Rill Intelligence"
-msgstr "Rill 智能"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:33
+msgid "Script Update URL"
+msgstr "脚本更新地址"
 
-msgid "The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions."
-msgstr "通用 Rill Runtime 由 OpenWrt 软件包提供。Cloudflare IP 负责候选验证、排名策略、奖励和代理事务。"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:34
+msgid ""
+"Retained only for migration compatibility; it is not used by the 2.x engine."
+msgstr "仅为迁移兼容而保留；2.x 引擎不会使用此项。"
 
-msgid "Rill Runtime Consumer"
-msgstr "Rill Runtime 消费者"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:38
+msgid "Update policy"
+msgstr "更新策略"
 
-msgid "Enable Rill Intelligence"
-msgstr "启用 Rill 智能"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:39
+msgid "Deprecated / package-managed"
+msgstr "已弃用 / 由软件包管理"
 
-msgid "Enable the optional Rill consumer. Native ranking remains authoritative when Rill is disabled or unavailable."
-msgstr "启用可选的 Rill 消费者。Rill 被禁用或不可用时，Native 排名仍为权威结果。"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:42
+msgid "Download"
+msgstr "下载"
 
-msgid "Off"
-msgstr "关闭"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:45
+msgid "GitHub Mirror"
+msgstr "GitHub 镜像"
 
-msgid "Shadow"
-msgstr "Shadow"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:46
+msgid ""
+"GitHub download proxy URL. Leave empty for direct downloads. Must end with /."
+msgstr "GitHub 下载代理 URL。留空直接从 GitHub 下载。必须以 / 结尾。"
 
-msgid "Assisted (qualification-gated)"
-msgstr "Assisted（需通过资格验证）"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:51
+msgid "Download Retries"
+msgstr "下载重试次数"
 
-msgid "Assisted is currently qualification-gated and falls back to Shadow; Native ranking remains authoritative."
-msgstr "Assisted 当前受资格验证限制，未通过时会回退到 Shadow；Native 排名仍为权威结果。"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:52
+msgid "Number of retry attempts for GitHub downloads."
+msgstr "GitHub 下载重试次数。"
 
-msgid "Runtime Timeout (ms)"
-msgstr "Runtime 超时（毫秒）"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:57
+msgid "Retry Delay (seconds)"
+msgstr "重试间隔（秒）"
 
-msgid "Runtime Path"
-msgstr "Runtime 路径"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:58
+msgid "Seconds to wait between download retries."
+msgstr "下载重试之间的等待秒数。"
 
-msgid "State File"
-msgstr "状态文件"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:64
+msgid "Startup"
+msgstr "启动"
 
-msgid "Live State"
-msgstr "实时状态"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:67
+msgid "Startup Delay"
+msgstr "启动延迟"
 
-msgid "Runtime"
-msgstr "Runtime"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:68
+msgid ""
+"Random delay upper bound (seconds). Empty/random = 0~300s, 0 = no delay."
+msgstr "随机延迟上限（秒）。留空/random = 0~300秒，0 = 不等待。"
 
-msgid "Assisted is qualification-gated and uses only the Native safe envelope; any Runtime problem falls back to Native."
-msgstr "Assisted 受资格验证限制，仅能在 Native 安全集合内选择；Runtime 出现任何问题都会回退到 Native。"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:73
+msgid "Verbose Logging"
+msgstr "详细日志"
 
-msgid "Runtime Channel"
-msgstr "Runtime 通道"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:74
+msgid "Output detailed progress logs."
+msgstr "输出详细的过程日志。"
 
-msgid "Runtime API"
-msgstr "Runtime API"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:77
+msgid "Work Directory"
+msgstr "工作目录"
 
-msgid "Feature Schema"
-msgstr "特征 Schema"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:78
+msgid "Leave empty to use the script directory."
+msgstr "留空使用脚本所在目录。"
 
-msgid "State / Model Generation"
-msgstr "状态 / 模型代际"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:83
+msgid "Measurement Deadline (seconds)"
+msgstr "测量截止时间（秒）"
 
-msgid "Learning"
-msgstr "学习状态"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:84
+msgid ""
+"Measurement deadline for stop, CFST, probes, apply and normal restart. "
+"Recovery has a separate deadline."
+msgstr ""
+"停止服务、CFST、探测、应用和正常重启使用此测量截止时间；恢复操作使用独立的截"
+"止时间。"
 
-msgid "Valid feedback"
-msgstr "有效反馈"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:89
+msgid "Recovery Deadline (seconds)"
+msgstr "恢复截止时间（秒）"
 
-msgid "delayed pending"
-msgstr "待处理延迟反馈"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:90
+msgid ""
+"Independent fail-safe deadline for rollback, restoring service state and "
+"recovery health checks. Allowed: 10-120 seconds."
+msgstr ""
+"回滚、恢复服务状态和恢复健康检查使用独立的故障保护截止时间，允许范围为 10–"
+"120 秒。"
 
-msgid "completed"
-msgstr "已完成"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:95
+msgid "Probe Top Candidates"
+msgstr "探测候选数量"
 
-msgid "Current Authority"
-msgstr "当前决策权"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:96
+msgid ""
+"Number of CFST results to verify against every target domain before ranking."
+msgstr "排名前，针对每个目标域名验证的 CFST 结果数量。"
 
-msgid "Guarded Assisted"
-msgstr "受保护 Assisted"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:101
+msgid "Probe Concurrency"
+msgstr "探测并发数"
 
-msgid "Qualification"
-msgstr "资格状态"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:102
+msgid ""
+"Concurrent target-domain probes, bounded to protect the proxy-off window."
+msgstr "并发探测目标域名；数量受限，以保护代理停止窗口。"
 
-msgid "Fallback Reason"
-msgstr "回退原因"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:107
+msgid "Probe Timeout (seconds)"
+msgstr "探测超时（秒）"
 
-msgid "None"
-msgstr "无"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/advanced.js:108
+msgid "Per-domain probe timeout; the global hard limit still wins."
+msgstr "单个域名的探测超时时间；全局测量截止时间优先。"
 
-msgid "Shadow Self-check"
-msgstr "Shadow 自检"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:40
+msgid "Diagnostics unavailable"
+msgstr "无法获取诊断信息"
 
-msgid "Run now"
-msgstr "立即运行"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:59
+msgid "Logs & Records"
+msgstr "日志与记录"
 
-msgid "Rill self-check passed."
-msgstr "Rill 自检通过。"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:62
+msgid "Rill Diagnostics"
+msgstr "Rill 诊断"
 
-msgid "Rill self-check fell back to Native."
-msgstr "Rill 自检未通过，已回退到 Native。"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:63
+msgid ""
+"This snapshot explains fallback, qualification, delayed feedback, Prefix and "
+"Colo intelligence without exposing the internal model."
+msgstr ""
+"此快照用于说明回退、资格校验、延迟反馈、Prefix 和 Colo 智能状态，不会暴露内部"
+"模型。"
 
-msgid "Self-check failed: "
-msgstr "自检失败："
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:79
+msgid "Recent Logs"
+msgstr "最近日志"
 
-msgid "Reset Learning State"
-msgstr "重置学习状态"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:96
+msgid "Unable to read logs. Check the service status and try again."
+msgstr "无法读取日志。请检查服务状态后重试。"
 
-msgid "Reset"
-msgstr "重置"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:106
+msgid "No logs found."
+msgstr "暂无日志。"
 
-msgid "Resetting..."
-msgstr "重置中..."
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:112
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:114
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:139
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:157
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:203
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:72
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:346
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:363
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:379
+msgid "Loading..."
+msgstr "加载中..."
 
-msgid "Reset Rill learning state? Native configuration will not be changed."
-msgstr "确定重置 Rill 学习状态吗？Native 配置不会改变。"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:117
+#, javascript-format
+msgid "Unable to read logs: %s"
+msgstr "无法读取日志：%s"
 
-msgid "Rill learning state was reset."
-msgstr "Rill 学习状态已重置。"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:131
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:212
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:130
+msgid "Refresh"
+msgstr "刷新"
 
-msgid "Reset rejected"
-msgstr "重置请求被拒绝"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:136
+msgid "Clear log file?"
+msgstr "清除日志文件？"
 
-msgid "Reset failed: "
-msgstr "重置失败："
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:144
+msgid "Log file cleared."
+msgstr "日志已清除。"
 
-msgid "Measurement Policy"
-msgstr "测量策略"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:146
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:149
+#, javascript-format
+msgid "Unable to clear logs: %s"
+msgstr "无法清除日志：%s"
 
-msgid "Source Strategy"
-msgstr "来源策略"
-
-msgid "Balanced"
-msgstr "均衡"
-
-msgid "Official-heavy"
-msgstr "官方优先"
-
-msgid "History-heavy"
-msgstr "历史优先"
-
-msgid "Diversity-heavy"
-msgstr "多样性优先"
-
-msgid "Community-heavy"
-msgstr "社区优先"
-
-msgid "Probe Batch Size"
-msgstr "探测批次大小"
-
-msgid "Maximum Probes"
-msgstr "最大探测数"
-
-msgid "Deterministic Early Stop"
-msgstr "确定性提前停止"
-
-msgid "Runtime Health"
-msgstr "运行时健康"
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:146
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:103
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:105
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:122
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:135
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:140
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:177
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:186
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:53
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:406
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:438
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
 msgid "Unknown"
 msgstr "未知"
 
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:154
+msgid "Clear Logs"
+msgstr "清除日志"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:163
+#, javascript-format
+msgid "Last error: %s"
+msgstr "最近错误：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:169
+msgid "(latest 10)"
+msgstr "（最近 10 条）"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:169
+msgid "IP History"
+msgstr "IP 历史记录"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:179
+msgid "Unable to load IP history. Refresh and try again."
+msgstr "无法加载 IP 历史记录。请刷新后重试。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:185
+msgid "No IP history available"
+msgstr "暂无 IP 历史记录"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/diagnostics.js:220
+msgid "IP Address"
+msgstr "IP 地址"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:17
+msgid "Status unavailable / Native fallback"
+msgstr "状态不可用 / 回退到 Native"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:24
+msgid "Assisted requested → Shadow fallback"
+msgstr "请求 Assisted，已回退到 Shadow"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:24
+msgid "consumer not qualified"
+msgstr "接入方尚未通过资格校验"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:27
+msgid "Available"
+msgstr "可用"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:27
+msgid "version unknown"
+msgstr "版本未知"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:30
+msgid "Disabled / Native ranking"
+msgstr "已禁用 / 使用 Native 排名"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:32
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:145
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:150
+msgid "Unavailable / Native fallback"
+msgstr "不可用 / 回退到 Native"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:36
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:51
+msgid "Rill Intelligence"
+msgstr "Rill 智能"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:52
+msgid ""
+"The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP "
+"owns candidate validation, ranking policy, reward and proxy transactions."
+msgstr ""
+"通用 Rill Runtime 由 OpenWrt 软件包提供。Cloudflare IP 负责候选验证、排名策"
+"略、反馈奖励和代理配置事务。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:55
+msgid "Measurement Policy"
+msgstr "测量策略"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:57
+msgid "Source Strategy"
+msgstr "来源策略"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:58
+msgid "Balanced"
+msgstr "均衡"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:59
+msgid "Official-heavy"
+msgstr "官方优先"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:60
+msgid "History-heavy"
+msgstr "历史优先"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:61
+msgid "Diversity-heavy"
+msgstr "多样性优先"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:62
+msgid "Community-heavy"
+msgstr "社区优先"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:64
+msgid "Probe Batch Size"
+msgstr "探测批次大小"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:67
+msgid "Maximum Probes"
+msgstr "最大探测数"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:70
+msgid "Deterministic Early Stop"
+msgstr "确定性提前停止"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:73
+msgid "Rill Runtime Consumer"
+msgstr "Rill Runtime 接入"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:76
+msgid "Enable Rill Intelligence"
+msgstr "启用 Rill 智能"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:77
+msgid ""
+"Enable the optional Rill consumer. Native ranking remains authoritative when "
+"Rill is disabled or unavailable."
+msgstr "启用可选的 Rill 接入。Rill 被禁用或不可用时，Native 排名仍为最终依据。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:81
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:459
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:55
+msgid "Mode"
+msgstr "模式"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:82
+msgid "Off"
+msgstr "关闭"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:83
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:132
+msgid "Shadow"
+msgstr "Shadow"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:84
+msgid "Assisted (qualification-gated)"
+msgstr "Assisted（需通过资格校验）"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:85
+msgid ""
+"Assisted is qualification-gated and uses only the Native safe envelope; any "
+"Runtime problem falls back to Native."
+msgstr ""
+"Assisted 受资格校验限制，只能在 Native 安全范围内选择；Runtime 出现任何问题都"
+"会回退到 Native。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:88
+msgid "Runtime Timeout (ms)"
+msgstr "Runtime 超时（毫秒）"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:92
+msgid "Runtime Path"
+msgstr "Runtime 路径"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:95
+msgid "State File"
+msgstr "状态文件"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:98
+msgid "Live State"
+msgstr "实时状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:100
+msgid "Runtime"
+msgstr "Runtime"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:102
+msgid "Runtime Channel"
+msgstr "Runtime 通道"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:104
+msgid "Runtime API"
+msgstr "Runtime API"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:106
+msgid "Feature Schema"
+msgstr "特征 Schema"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:111
+msgid "State / Model Generation"
+msgstr "状态代际 / 模型代际"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:116
+msgid "Learning"
+msgstr "学习状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:119
+msgid "Valid feedback"
+msgstr "有效反馈"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:119
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:129
+msgid "completed"
+msgstr "已完成"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:119
+msgid "delayed pending"
+msgstr "待处理延迟反馈"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:121
+msgid "Runtime Health"
+msgstr "运行时健康状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:122
 msgid "Resource pressure"
 msgstr "资源压力"
 
-msgid "Runtime Inspect"
-msgstr "运行时检查"
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:123
+msgid "Resource Guard"
+msgstr "资源保护"
 
-msgid "pending"
-msgstr "待处理"
-
-msgid "last error"
-msgstr "最近错误"
-
-msgid "Probe Efficiency"
-msgstr "探测效率"
-
-msgid "probed"
-msgstr "已探测"
-
-msgid "avoided"
-msgstr "已避免"
-
-msgid "early stop"
-msgstr "提前停止"
-
-msgid "yes"
-msgstr "是"
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
 msgid "no"
 msgstr "否"
 
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:129
+msgid "pending"
+msgstr "待处理"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+msgid "pressure"
+msgstr "压力"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+msgid "state bytes"
+msgstr "状态字节数"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:126
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
+msgid "yes"
+msgstr "是"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:128
+msgid "Runtime Inspect"
+msgstr "运行时检查"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:129
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:168
+msgid "None"
+msgstr "无"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:129
+msgid "last error"
+msgstr "最近错误"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:130
+msgid "Current Authority"
+msgstr "当前决策权"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:132
+msgid "Guarded Assisted"
+msgstr "受保护 Assisted"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:132
+msgid "Native"
+msgstr "Native"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:134
+msgid "Qualification"
+msgstr "资格状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:136
+msgid "Learning Context"
+msgstr "学习上下文"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:140
+msgid "changed"
+msgstr "已变更"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:140
+msgid "last changed"
+msgstr "最近变更"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:142
+msgid "Decision Confidence"
+msgstr "决策置信度"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:147
+msgid "Confidence Reasons"
+msgstr "置信度原因"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:152
+msgid "Decision Selection"
+msgstr "决策选择"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+msgid "Native top1"
+msgstr "Native 首选"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+msgid "Rill top1"
+msgstr "Rill 首选"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+msgid "agreement"
+msgstr "一致"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:155
+msgid "final"
+msgstr "最终结果"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:157
+msgid "Decision Evidence"
+msgstr "决策证据"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:160
+msgid "comparable"
+msgstr "可比较决策"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:160
+msgid "losses"
+msgstr "落败"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:160
+msgid "ties"
+msgstr "平局"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:160
+msgid "wins"
+msgstr "胜出"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:162
+msgid "Native Holdout"
+msgstr "Native 留出验证"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:165
+msgid "failures"
+msgstr "失败"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:165
+msgid "non-blocking"
+msgstr "非阻断"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:165
+msgid "performed"
+msgstr "已执行"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:167
+msgid "Fallback Reason"
+msgstr "回退原因"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:169
+msgid "Source Strategy Loop"
+msgstr "来源策略状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+msgid "deterministic"
+msgstr "确定性"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+msgid "effective"
+msgstr "生效值"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:172
+msgid "requested"
+msgstr "请求值"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:174
+msgid "Reuse / Full Optimize"
+msgstr "复用 / 完整优选"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:177
+msgid "Native hard gate"
+msgstr "Native 强制门槛"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:177
+msgid "none"
+msgstr "无"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:177
+msgid "reason"
+msgstr "原因"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:179
+msgid "Probe Efficiency"
+msgstr "探测效率"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
+msgid "avoided"
+msgstr "已避免"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
+msgid "early stop"
+msgstr "提前停止"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:180
+msgid "probed"
+msgstr "已探测"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:181
 msgid "Native vs Rill"
 msgstr "Native 与 Rill"
 
-msgid "native"
-msgstr "Native"
-
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:182
 msgid "Rill"
 msgstr "Rill"
 
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:182
+msgid "native"
+msgstr "Native"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:182
 msgid "regret"
 msgstr "遗憾值"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:183
+msgid "Prefix Intelligence"
+msgstr "Prefix 智能"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:184
+msgid "high quality"
+msgstr "高质量"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:184
+msgid "low quality"
+msgstr "低质量"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:184
+msgid "tracked"
+msgstr "已跟踪"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:185
+msgid "Colo Intelligence"
+msgstr "Colo 智能"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:186
+msgid "latest"
+msgstr "最新"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:186
+msgid "observed"
+msgstr "已观测"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:188
+msgid "Shadow Self-check"
+msgstr "Shadow 自检"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:189
+msgid "Run self-check"
+msgstr "运行自检"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:193
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:567
+msgid "Checking..."
+msgstr "检测中..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:196
+msgid "Rill self-check passed."
+msgstr "Rill 自检通过。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:198
+msgid "Rill self-check fell back to Native."
+msgstr "Rill 自检未通过，已回退到 Native。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:200
+#, javascript-format
+msgid "Unable to complete self-check: %s"
+msgstr "无法完成自检：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:203
+msgid "Reset Learning State"
+msgstr "重置学习状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:204
+msgid "Reset learning state"
+msgstr "重置学习状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:207
+msgid "Reset Rill learning state? Native configuration will not be changed."
+msgstr "是否重置 Rill 学习状态？不会修改 Native 配置。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:211
+msgid "Resetting..."
+msgstr "重置中..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:214
+msgid "Reset rejected"
+msgstr "重置请求被拒绝"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:215
+msgid "Rill learning state was reset."
+msgstr "Rill 学习状态已重置。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/intelligence.js:217
+#, javascript-format
+msgid "Unable to reset learning state: %s"
+msgstr "无法重置学习状态：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:21
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:46
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:526
+msgid "OpenClash"
+msgstr "OpenClash"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:38
+msgid "OpenClash Not Found"
+msgstr "未检测到 OpenClash"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:39
+msgid ""
+"OpenClash is not installed. Please install OpenClash before using this "
+"feature."
+msgstr "未安装 OpenClash。请先安装 OpenClash，再使用此功能。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:48
+msgid "OpenClash Settings"
+msgstr "OpenClash 设置"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:53
+msgid "Config File Path"
+msgstr "配置文件路径"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:54
+msgid "Path to the OpenClash YAML configuration file."
+msgstr "OpenClash YAML 配置文件路径。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:59
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:39
+msgid "Target Domain"
+msgstr "目标域名"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:60
+msgid ""
+"Only OpenClash proxies whose server matches this domain will be updated. "
+"Comma-separated for multiple domains."
+msgstr "仅更新 server 与该域名匹配的 OpenClash 代理。多个域名请用逗号分隔。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:65
+msgid "Proxy Name Suffix"
+msgstr "代理名称后缀"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:66
+msgid ""
+"Suffix appended to the original proxy name. Placeholders: {n} = sequence "
+"number, {ip} = IP address. Leave empty to keep original names."
+msgstr ""
+"追加到原始代理名称末尾的后缀。占位符：{n} = 序号，{ip} = IP 地址。留空则保留"
+"原名称。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:70
+msgid "Transport Filter"
+msgstr "传输协议过滤"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:71
+msgid ""
+"Only update proxies with the specified transport protocol. Comma-separated. "
+"Values: ws, grpc, xhttp, h2, http. Leave empty to update all supported "
+"proxies."
+msgstr ""
+"仅更新指定传输协议的代理节点。多个协议请用逗号分隔。可选值：ws、grpc、xhttp、"
+"h2、http。留空则更新所有支持的节点。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:76
+msgid "Backup Count"
+msgstr "备份数量"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:77
+msgid "Number of OpenClash config backups to keep."
+msgstr "OpenClash 配置备份保留数量。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:87
+msgid "Config Backups"
+msgstr "配置备份"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:94
+msgid ""
+"No backups available. Backups are created automatically when the config is "
+"updated."
+msgstr "暂无备份。更新配置时会自动创建备份。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:96
+msgid "Actions"
+msgstr "操作"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:96
+msgid "Backup Time"
+msgstr "备份时间"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:96
+msgid "Size"
+msgstr "大小"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:118
+msgid "Confirm Restore"
+msgstr "确认恢复"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:120
+msgid ""
+"Are you sure you want to restore this backup? A backup of the current "
+"configuration will be created first."
+msgstr "确定要恢复此备份吗？恢复前会先创建当前配置的备份。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:122
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:153
+msgid "Cancel"
+msgstr "取消"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:127
+msgid "Please wait..."
+msgstr "请稍候..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:127
+msgid "Restoring..."
+msgstr "恢复中..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:131
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:138
+#, javascript-format
+msgid "Unable to restore backup: %s"
+msgstr "无法恢复备份：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:133
+msgid "Backup restored successfully."
+msgstr "备份恢复成功。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:141
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:145
+msgid "Restore"
+msgstr "恢复"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:150
+msgid "Confirm Delete"
+msgstr "确认删除"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:151
+msgid "Are you sure you want to delete this backup?"
+msgstr "确定要删除此备份吗？"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:160
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:166
+#, javascript-format
+msgid "Unable to delete backup: %s"
+msgstr "无法删除备份：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:162
+msgid "Backup deleted"
+msgstr "备份已删除"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:169
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/openclash.js:173
+msgid "Delete"
+msgstr "删除"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:48
+msgid "Scheduled"
+msgstr "已计划"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:49
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:67
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:162
+msgid "Running"
+msgstr "运行中"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:50
+msgid "Success"
+msgstr "成功"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:51
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:68
+msgid "Error"
+msgstr "错误"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:52
+msgid "Stopped"
+msgstr "已停止"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:106
+msgid "No log output yet."
+msgstr "暂无日志输出。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:116
+#, javascript-format
+msgid "Unable to load status: %s"
+msgstr "无法加载状态：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:120
+msgid "Speed Test Log"
+msgstr "测速日志"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:122
+msgid "Status"
+msgstr "状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:126
+msgid "Log"
+msgstr "日志"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:137
+msgid "Close"
+msgstr "关闭"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:147
+msgid ""
+"Service action completed, but the speed test is still in progress. "
+"Refreshing current status."
+msgstr "服务操作已完成，但测速仍在进行中。正在刷新当前状态。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:155
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:542
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:582
+msgid "Installed"
+msgstr "已安装"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:157
+msgid "Missing"
+msgstr "缺少"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:164
+msgid "Installed (Stopped)"
+msgstr "已安装（已停止）"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:166
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:544
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:584
+msgid "Not Installed"
+msgstr "未安装"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:174
+msgid "Missing Dependencies & Fix Commands"
+msgstr "缺少依赖及修复命令"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:179
+msgid "Missing dependencies: "
+msgstr "缺少依赖："
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:269
+msgid "Overview"
+msgstr "概览"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:283
+msgid "Service Running"
+msgstr "服务运行中"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:283
+msgid "Service Stopped"
+msgstr "服务已停止"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:283
+msgid "Speed Test Running"
+msgstr "测速进行中"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:285
+msgid "Cloudflare IP speed test is in progress. Please wait."
+msgstr "Cloudflare IP 测速正在进行中，请稍候。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:287
+msgid "Cloudflare IP optimization service is active and running."
+msgstr "Cloudflare IP 优选服务正在运行。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:288
+msgid ""
+"Cloudflare IP optimization service is not running. Click Start to begin."
+msgstr "Cloudflare IP 优选服务未运行。点击“启动”以开始。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:316
+msgid "Best IP Count"
+msgstr "优选 IP 数量"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:321
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:74
+msgid "IP Type"
+msgstr "IP 类型"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:326
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:82
+msgid "Speed Test Protocol"
+msgstr "测速协议"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:331
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:499
+msgid "CFST Version"
+msgstr "CFST 版本"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:337
+msgid "Service Control"
+msgstr "服务控制"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:348
+msgid "Service started."
+msgstr "服务已启动。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:351
+#, javascript-format
+msgid "Unable to start service: %s"
+msgstr "无法启动服务：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:355
+msgid "Start"
+msgstr "启动"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:365
+msgid "Service stopped."
+msgstr "服务已停止。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:368
+#, javascript-format
+msgid "Unable to stop service: %s"
+msgstr "无法停止服务：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:372
+msgid "Stop"
+msgstr "停止"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:381
+msgid "Service restarted."
+msgstr "服务已重启。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:384
+#, javascript-format
+msgid "Unable to restart service: %s"
+msgstr "无法重启服务：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:388
+msgid "Restart"
+msgstr "重启"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:400
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:419
+msgid "Running..."
+msgstr "运行中..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:406
+#, javascript-format
+msgid "Unable to start speed test: %s"
+msgstr "无法开始测速：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:414
+#, javascript-format
+msgid "Speed test failed: %s"
+msgstr "测速失败：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:419
+msgid "Run Speed Test"
+msgstr "立即测速"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:431
+msgid "Downloading..."
+msgstr "下载中..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:431
+msgid "Updating..."
+msgstr "更新中..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:433
+msgid "Updating CFST, please wait..."
+msgstr "正在更新 CFST，请稍候..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:434
+msgid "Downloading CFST, please wait..."
+msgstr "正在下载 CFST，请稍候..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:438
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:444
+#, javascript-format
+msgid "Unable to update CFST: %s"
+msgstr "无法更新 CFST：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:440
+msgid "CFST updated successfully."
+msgstr "CFST 更新成功。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:449
+msgid "Download CFST"
+msgstr "下载 CFST"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:449
+msgid "Update CFST"
+msgstr "更新 CFST"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:454
+msgid "Service Information"
+msgstr "服务信息"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:464
+msgid "Last Run Time"
+msgstr "上次运行时间"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:483
+msgid "Last Result"
+msgstr "上次结果"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:489
+msgid "Best IPs"
+msgstr "优选 IP"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:494
+msgid "Script Version"
+msgstr "脚本版本"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:504
+msgid "GitHub"
+msgstr "GitHub"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:518
+msgid "Environment Detection"
+msgstr "环境检测"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:523
+msgid "tar"
+msgstr "tar"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:524
+msgid "jq"
+msgstr "jq"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:525
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:9
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:32
+msgid "PassWall"
+msgstr "PassWall"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:527
+msgid "CFST"
+msgstr "CFST"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:608
+msgid "Environment detection refreshed."
+msgstr "环境检测已刷新。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:610
+#, javascript-format
+msgid "Unable to refresh environment: %s"
+msgstr "无法刷新环境检测：%s"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/overview.js:614
+msgid "Refresh Environment"
+msgstr "刷新环境检测"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:24
+msgid "PassWall Not Found"
+msgstr "未检测到 PassWall"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:25
+msgid ""
+"PassWall is not installed. Please install PassWall before using this feature."
+msgstr "未安装 PassWall。请先安装 PassWall，再使用此功能。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:34
+msgid "PassWall Settings"
+msgstr "PassWall 设置"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:40
+msgid ""
+"Only PassWall nodes whose address equals this domain will be updated. Comma-"
+"separated for multiple domains."
+msgstr "仅更新 address 等于该域名的 PassWall 节点。多个域名请用逗号分隔。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:45
+msgid "Node Name Suffix"
+msgstr "节点名称后缀"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/passwall.js:46
+msgid ""
+"Suffix appended to the original node name. Placeholders: {n} = sequence "
+"number, {ip} = IP address. Leave empty to keep original names."
+msgstr ""
+"追加到原始节点名称末尾的后缀。占位符：{n} = 序号，{ip} = IP 地址。留空则保留"
+"原名称。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:24
+msgid "Settings"
+msgstr "设置"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:26
+msgid "Service"
+msgstr "服务"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:29
+msgid "Enable Service"
+msgstr "启用服务"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:30
+msgid "Run the background service to periodically optimize Cloudflare IPs."
+msgstr "运行后台服务，定期优选 Cloudflare IP。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:34
+msgid "Run Schedule"
+msgstr "运行计划"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:35
+msgid ""
+"Select how often the speed test runs. The service computes the next run time "
+"automatically."
+msgstr "选择测速运行频率，服务会自动计算下次运行时间。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:36
+msgid "Every 6 hours (recommended)"
+msgstr "每 6 小时（推荐）"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:37
+msgid "Every hour"
+msgstr "每小时"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:38
+msgid "Every 30 minutes"
+msgstr "每 30 分钟"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:39
+msgid "Every 15 minutes"
+msgstr "每 15 分钟"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:40
+msgid "Daily at 3:00 AM"
+msgstr "每天凌晨 3:00"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:41
+msgid "Daily at 3:00 AM & 3:00 PM"
+msgstr "每天凌晨 3:00 和下午 3:00"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:42
+msgid "Every 6 hours at :00"
+msgstr "每 6 小时整点"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:43
+msgid "Custom..."
+msgstr "自定义..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:47
+msgid "Custom Schedule"
+msgstr "自定义计划"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:48
+msgid "Cron duration (e.g. 6h, 30m) or 5-field crontab expression."
+msgstr "支持 6h、30m 等时长，或填写 5 字段 crontab 表达式。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:52
+msgid "Speed Test"
+msgstr "测速"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:56
+msgid "Select which proxy service to update."
+msgstr "选择要更新的代理服务。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:62
+msgid "None (No proxy service detected)"
+msgstr "无（未检测到代理服务）"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:63
+msgid ""
+"PassWall or OpenClash is not installed. Please install one before using this "
+"service."
+msgstr "未安装 PassWall 或 OpenClash。请先安装其中一个，再使用此服务。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:68
+msgid "IP Count"
+msgstr "保留 IP 数量"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:69
+msgid ""
+"Number of best IPs to keep. If fewer IPs qualify, the result reports "
+"degraded candidate count and never duplicates an IP."
+msgstr ""
+"保留的优选 IP 数量。如果合格 IP 不足，会报告降级候选数量，绝不复制同一 IP。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:75
+msgid "Select which IP addresses to test."
+msgstr "选择要测速的 IP 地址类型。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:78
+msgid "Both"
+msgstr "双栈"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:83
+msgid "HTTPing supports data center filtering; TCPing does not."
+msgstr "HTTPing 支持数据中心筛选，TCPing 不支持。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:89
+msgid "Data Center Filter"
+msgstr "数据中心筛选"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:90
+msgid ""
+"Filter by Cloudflare data center in HTTPing mode. Comma-separated, e.g. "
+"HKG,NRT,LAX. Only effective with HTTPing."
+msgstr ""
+"HTTPing 模式下按 Cloudflare 数据中心筛选。逗号分隔，如 HKG,NRT,LAX。仅 "
+"HTTPing 模式生效。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:94
+msgid "Download Test Count"
+msgstr "下载测速 IP 数量"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:95
+msgid "Number of IPs to test download speed."
+msgstr "参与下载测速的 IP 数量。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:100
+msgid "Download Seconds per IP"
+msgstr "每个 IP 下载测速秒数"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:101
+msgid "Seconds spent on the download measurement for each shortlisted IP."
+msgstr "每个入选 IP 的下载测量时长（秒）。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:106
+msgid "Speed Test Threads"
+msgstr "测速线程数"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:107
+msgid ""
+"CFST measurement concurrency. This controls load, not the candidate budget."
+msgstr "CFST 测量并发数。此项控制负载，不控制候选数量。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:112
+msgid "Ping Count"
+msgstr "Ping 次数"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:113
+msgid "Number of latency samples per candidate."
+msgstr "每个候选 IP 的延迟采样次数。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:118
+msgid "Average Latency Floor (ms)"
+msgstr "平均延迟下限（ms）"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:119
+msgid "Skip IPs with average latency below this value."
+msgstr "跳过平均延迟低于此值的 IP。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:124
+msgid "Average Latency Ceiling (ms)"
+msgstr "平均延迟上限（ms）"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:125
+msgid ""
+"Skip IPs with average latency above this value. Leave empty for no upper "
+"limit."
+msgstr "跳过平均延迟超过此值的 IP。留空表示不设上限。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:130
+msgid "Stop Service Before Test"
+msgstr "测速前停止服务"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:131
+msgid ""
+"Stop the proxy service before speed testing to avoid interference, and "
+"restart after updating."
+msgstr "测速前停止代理服务以避免干扰，更新配置后自动重启。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:135
+msgid "Keep CFST Across Upgrades"
+msgstr "升级时保留 CFST"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/settings.js:136
+msgid ""
+"Preserve CFST binary during OpenWrt sysupgrade so it survives system "
+"upgrades."
+msgstr "在 OpenWrt 系统升级时保留 CFST 二进制文件，升级后无需重新下载。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:21
+msgid "Candidate Sources"
+msgstr "候选来源"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:22
+msgid "Candidate Budget"
+msgstr "候选数量预算"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:24
+msgid "CFST Candidate IP Count"
+msgstr "CFST 候选 IP 数量"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:24
+msgid ""
+"Maximum unique IPs supplied to one CFST run. Allocation is automatic: a "
+"small local-history share, a majority community share, and the remainder "
+"official-range exploration; unused quota flows to the other pools."
+msgstr ""
+"单次 CFST 运行提供的唯一 IP 最大数量。系统会自动分配：少量来自本地历史，主要"
+"来自社区，其余用于官方网段探索；未用额度会分配给其他来源。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:26
+msgid "Built-in Sources"
+msgstr "内置来源"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:26
+msgid ""
+"Official sources are authoritative ranges. Community sources are untrusted "
+"seed IPs and are always re-tested locally."
+msgstr ""
+"官方来源提供权威网段。社区来源是不受信任的种子 IP，始终会在本地重新测速。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:28
+msgid "Carrier-specific"
+msgstr "运营商来源"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:28
+msgid "Measured Seeds"
+msgstr "已测种子"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:28
+msgid "Official"
+msgstr "官方来源"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:28
+msgid "Recommended Community"
+msgstr "推荐社区来源"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:33
+msgid "Custom Sources"
+msgstr "自定义来源"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:33
+msgid ""
+"Custom sources accept HTTPS text lists containing IP, IP:port, IPv6, "
+"bracketed IPv6:port, or CIDR. Only the IP/CIDR is retained; domains are "
+"rejected."
+msgstr ""
+"自定义来源支持包含 IP、IP:port、IPv6、带方括号的 IPv6:port 或 CIDR 的 HTTPS "
+"文本列表。仅保留 IP/CIDR；拒绝域名。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:35
+msgid "Enabled"
+msgstr "已启用"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:36
+msgid "Name"
+msgstr "名称"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:37
+msgid "HTTPS URL"
+msgstr "HTTPS URL"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:37
+msgid "Kind"
+msgstr "类型"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:37
+msgid "Manual IP list"
+msgstr "手动 IP 列表"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:38
+msgid "URL"
+msgstr "URL"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:39
+msgid "Manual IP / CIDR"
+msgstr "手动 IP / CIDR"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:40
+msgid "Auto"
+msgstr "自动"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:40
+msgid "Family"
+msgstr "地址族"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:42
+msgid "LAN Result Publisher"
+msgstr "局域网结果发布"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:42
+msgid ""
+"Optional compatibility output for other LAN tools. PassWall/OpenClash still "
+"use direct modification and do not need this."
+msgstr ""
+"为其他局域网工具提供可选的兼容输出。PassWall/OpenClash 仍直接修改配置，无需使"
+"用此项。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:44
+msgid "Enable LAN Publisher"
+msgstr "启用局域网发布"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:45
+msgid "Bind IPv4"
+msgstr "绑定 IPv4"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:45
+msgid "LAN auto-detect"
+msgstr "自动检测局域网地址"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:45
+msgid ""
+"Leave empty to use the current LAN IPv4 automatically. Public or 0.0.0.0 "
+"bindings are refused."
+msgstr "留空则自动使用当前局域网 IPv4。拒绝公共地址或 0.0.0.0 绑定。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:46
+msgid "HTTP Port"
+msgstr "HTTP 端口"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:47
+msgid "Published Paths"
+msgstr "发布路径"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:50
+msgid "Runtime Source Status"
+msgstr "运行时来源状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:51
+msgid ""
+"Each run allocates roughly 1/8 to fresh history champions, 5/8 to community "
+"seeds, and 1/4 to Cloudflare official range exploration. Missing pools flow "
+"to other sources. All candidates are deduplicated and measured locally in "
+"one CFST run; community ports are never reused."
+msgstr ""
+"每次运行大致将 1/8 分配给新的历史优选项，5/8 分配给社区种子，1/4 用于 "
+"Cloudflare 官方网段探索。来源不足时，额度会流向其他来源。所有候选会去重，并在"
+"一次 CFST 运行中本地测量；不会复用社区来源中的端口。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:54
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:63
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:69
+msgid "Source"
+msgstr "来源"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:55
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:64
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:70
+msgid "State"
+msgstr "状态"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:56
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:65
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:71
+msgid "Candidates"
+msgstr "候选数量"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:57
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:66
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:72
+msgid "Last Error"
+msgstr "最近错误"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:62
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:68
+msgid "Cached / stale"
+msgstr "已缓存 / 已过期"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:62
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:68
+msgid "Fresh"
+msgstr "最新"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:62
+msgid "Not fetched"
+msgstr "未获取"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
+msgid "Refresh Sources"
+msgstr "刷新来源"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
+msgid "Refreshing..."
+msgstr "刷新中..."
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
+msgid "Sources refreshed; candidate pool prepared."
+msgstr "来源已刷新，候选池已准备就绪。"
+
+#: package/luci-app-cloudflare-ip/htdocs/luci-static/resources/view/cloudflare-ip/sources.js:74
+#, javascript-format
+msgid "Unable to refresh sources: %s"
+msgstr "无法刷新来源：%s"

@@ -128,14 +128,14 @@ return view.extend({
 										callOcRestoreBackup(backup.id).then(function(result) {
 											ui.hideModal();
 											if (result && result.error) {
-												ui.addNotification(null, E('p', {}, _('Restore failed: ') + result.error), 'error');
+												ui.addNotification(null, E('p', {}, _('Unable to restore backup: %s').format(result.error)), 'error');
 											} else {
 												ui.addNotification(null, E('p', {}, _('Backup restored successfully.')), 'info');
 												setTimeout(function() { location.reload(); }, 500);
 											}
 										}).catch(function(e) {
 											ui.hideModal();
-											ui.addNotification(null, E('p', {}, _('Restore failed: ') + e.message), 'error');
+											ui.addNotification(null, E('p', {}, _('Unable to restore backup: %s').format(e.message)), 'error');
 										});
 									}
 								}, '\u21A9 ' + _('Restore'))
@@ -157,13 +157,13 @@ return view.extend({
 										ui.hideModal();
 										callOcDeleteBackup(backup.id).then(function(result) {
 											if (result && result.error) {
-												ui.addNotification(null, E('p', {}, result.error), 'error');
+												ui.addNotification(null, E('p', {}, _('Unable to delete backup: %s').format(result.error)), 'error');
 											} else {
 												ui.addNotification(null, E('p', {}, _('Backup deleted')), 'info');
 												setTimeout(function() { location.reload(); }, 500);
 											}
 										}).catch(function(e) {
-											ui.addNotification(null, E('p', {}, e.message), 'error');
+											ui.addNotification(null, E('p', {}, _('Unable to delete backup: %s').format(e.message)), 'error');
 										});
 									}
 								}, _('Delete'))
