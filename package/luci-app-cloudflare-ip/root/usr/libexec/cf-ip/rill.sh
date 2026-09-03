@@ -757,6 +757,7 @@ cfip_rill_record_evaluation() {
 
 cfip_rill_record_evidence() {
     local decision="$1" outcome="$2" holdout="${3:-}" current actual native rill delta result qualification context fp lineage effective requested authority agreement native_top1 holdout_performed holdout_reward feedback_eligible evidence epsilon confidence_level confidence_reasons evaluation_source
+    [[ -f "$holdout" ]] && holdout="$(cat "$holdout" 2>/dev/null || printf '{}')"
     [[ -s "$decision" && -s "$outcome" ]] || return 1
     [[ -n "$holdout" ]] || holdout='{}'
     [[ -f "$holdout" ]] && holdout="$(cat "$holdout")"
@@ -768,7 +769,7 @@ cfip_rill_record_evidence() {
     epsilon="${CFIP_RILL_REWARD_TIE_EPSILON:-0.02}"
     result="$(jq -r --argjson epsilon "$epsilon" '.comparison // (if (.rewardDelta|type)!="number" then "unavailable" elif .rewardDelta>$epsilon then "win" elif .rewardDelta < (-$epsilon) then "loss" else "tie" end)' "$outcome" 2>/dev/null || printf unavailable)"
     requested="$(jq -r '.requestedMode // "off"' "$decision")"; effective="$(jq -r '.effectiveMode // "off"' "$decision")"; authority="$(jq -r '.authorityActionId // empty' "$decision")"; native_top1="$(jq -r '.nativeOrder[0] // empty' "$decision")"; agreement="$(jq -r '.nativeRillTop1Agreement // false' "$decision")"; qualification="$(cfip_rill_qualification_json | jq -r '.state // "cold"')"; lineage="$(cfip_rill_lineage_id 2>/dev/null || printf '')"
-    holdout_performed="$(jq -r '.performed // false' <<<"$holdout" 2>/dev/null || printf false)"; holdout_reward="$(jq -r '.nativeHoldoutReward // null' <<<"$holdout" 2>/dev/null || printf null)"; feedback_eligible="$(jq -r 'if has("feedbackEligible") then .feedbackEligible else empty end' "$outcome" 2>/dev/null || true)"; if [[ -z "$feedback_eligible" ]]; then feedback_eligible="$(jq -r '.feedbackEligible // true' <<<"$holdout" 2>/dev/null || printf true)"; fi; [[ "$feedback_eligible" == true ]] || feedback_eligible=false
+    holdout_performed="$(jq -r '.performed // false' <<<"$holdout" 2>/dev/null || printf false)"; holdout_reward="$(jq -r '.nativeHoldoutReward // null' <<<"$holdout" 2>/dev/null || printf null)"; feedback_eligible="$(jq -r 'if has("feedbackEligible") then .feedbackEligible else empty end' "$outcome" 2>/dev/null || true)"; if [[ -z "$feedback_eligible" ]]; then feedback_eligible="$(jq -r 'if has("feedbackEligible") then .feedbackEligible else true end' <<<"$holdout" 2>/dev/null || printf true)"; fi; [[ "$feedback_eligible" == true ]] || feedback_eligible=false
     if [[ "$effective" == assisted ]]; then
         native="$holdout_reward"
         delta="$(jq -cn --argjson a "$actual" --argjson n "$native" 'if ($a|type)=="number" and ($n|type)=="number" then $a-$n else null end')"
