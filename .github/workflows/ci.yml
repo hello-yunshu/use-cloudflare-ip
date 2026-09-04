@@ -130,6 +130,9 @@ jobs:
           bash tests/no-delay-contract.sh
           bash tests/service-state-preservation.sh
           bash tests/semantic-config-validation.sh
+          bash tests/adaptive-preprobe-feature-contract.sh
+          bash tests/adaptive-scheduler-deterministic.sh
+          bash tests/adaptive-shadow-no-influence.sh
           bash tests/adaptive-measurement.sh
 
   legacy-contract:
