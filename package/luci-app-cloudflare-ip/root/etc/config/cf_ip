@@ -51,6 +51,7 @@ config rill 'rill'
 	option safe_top_k '3'
 	option min_feedback_samples '30'
 	option delayed_feedback_minutes '10'
+	option evaluation_max_age_seconds '86400'
 
 config lan 'lan'
 	option enabled '0'

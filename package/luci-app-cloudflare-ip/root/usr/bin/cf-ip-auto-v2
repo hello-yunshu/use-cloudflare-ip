@@ -24,7 +24,7 @@ CFIP_PUBLISH_ENABLED=false; CFIP_PUBLISH_BIND=""; CFIP_PUBLISH_PORT=12345
 CFIP_PASSWALL_TARGET_DOMAIN=""; CFIP_PASSWALL_NAME_SUFFIX=" [CF-{n}]"
 CFIP_OPENCLASH_CONFIG="/etc/openclash/config/config.yaml"; CFIP_OPENCLASH_TARGET_DOMAIN=""; CFIP_OPENCLASH_NAME_SUFFIX=" [CF-{n}]"; CFIP_OPENCLASH_TRANSPORT_FILTER=""; CFIP_OPENCLASH_BACKUP_COUNT=3
 CFIP_GITHUB_MIRROR=""
-CFIP_RILL_ENABLED=false; CFIP_RILL_MODE=shadow; CFIP_RILL_RUNTIME="/usr/bin/rill-runtime"; CFIP_RILL_STATE="$CFIP_STATUS_DIR/rill-state.json"; CFIP_RILL_TIMEOUT_S=2; CFIP_RILL_SAFE_TOP_K=3; CFIP_RILL_MIN_FEEDBACK_SAMPLES=30; CFIP_RILL_DELAYED_FEEDBACK_SECONDS=600; CFIP_RILL_DELAYED_PROBE_TIMEOUT=5
+CFIP_RILL_ENABLED=false; CFIP_RILL_MODE=shadow; CFIP_RILL_RUNTIME="/usr/bin/rill-runtime"; CFIP_RILL_STATE="$CFIP_STATUS_DIR/rill-state.json"; CFIP_RILL_TIMEOUT_S=2; CFIP_RILL_SAFE_TOP_K=3; CFIP_RILL_MIN_FEEDBACK_SAMPLES=30; CFIP_RILL_EVALUATION_MAX_AGE_SECONDS=86400; CFIP_RILL_DELAYED_FEEDBACK_SECONDS=600; CFIP_RILL_DELAYED_PROBE_TIMEOUT=5
 CFIP_REUSE_ENABLED=true; CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL=86400; CFIP_REUSE_VALIDATION_TIMEOUT=5; CFIP_REUSE_LOSS_LIMIT=0.25; CFIP_REUSE_TTFB_LIMIT=3000; CFIP_REUSE_TOTAL_LIMIT=5000; CFIP_REUSE_STATE_FILE="$CFIP_STATUS_DIR/reuse-policy.json"; CFIP_REUSE_DECISION_FILE=""
 
 CFIP_CANDIDATES_FILE=""; CFIP_PROBED_FILE=""; CFIP_NATIVE_FILE=""; CFIP_SELECTED_FILE=""; CFIP_RILL_FILE=""; CFIP_DECISION_FILE=""; CFIP_OUTCOME_FILE=""; CFIP_TXN_RESULT_FILE=""; CFIP_REUSE_DECISION_FILE=""
@@ -55,7 +55,7 @@ load_config() {
     CFIP_PASSWALL_TARGET_DOMAIN="$(uci_get cf_ip.passwall.target_domain '')"; CFIP_PASSWALL_NAME_SUFFIX="$(uci_get cf_ip.passwall.name_suffix ' [CF-{n}]')"
     CFIP_OPENCLASH_CONFIG="$(uci_get cf_ip.openclash.config /etc/openclash/config/config.yaml)"; CFIP_OPENCLASH_TARGET_DOMAIN="$(uci_get cf_ip.openclash.target_domain '')"; CFIP_OPENCLASH_NAME_SUFFIX="$(uci_get cf_ip.openclash.name_suffix ' [CF-{n}]')"; CFIP_OPENCLASH_TRANSPORT_FILTER="$(uci_get cf_ip.openclash.transport_filter '')"; CFIP_OPENCLASH_BACKUP_COUNT="$(uci_get cf_ip.openclash.backup_count 3)"
     CFIP_PUBLISH_ENABLED="$(cfip_bool "$(uci_get cf_ip.lan.enabled 0)")"; CFIP_PUBLISH_BIND="$(uci_get cf_ip.lan.bind_address '')"; CFIP_PUBLISH_PORT="$(uci_get cf_ip.lan.port 12345)"
-    CFIP_RILL_ENABLED="$(cfip_bool "$(uci_get cf_ip.rill.enabled 0)")"; CFIP_RILL_MODE="$(uci_get cf_ip.rill.mode shadow)"; CFIP_RILL_RUNTIME="$(uci_get cf_ip.rill.runtime /usr/bin/rill-runtime)"; CFIP_RILL_STATE="$(uci_get cf_ip.rill.state_file "$CFIP_STATUS_DIR/rill-state.json")"; CFIP_RILL_SAFE_TOP_K="$(uci_get cf_ip.rill.safe_top_k 3)"; CFIP_RILL_MIN_FEEDBACK_SAMPLES="$(uci_get cf_ip.rill.min_feedback_samples 30)"; local delayed_minutes; delayed_minutes="$(uci_get cf_ip.rill.delayed_feedback_minutes 10)"; [[ "$delayed_minutes" =~ ^[1-9][0-9]*$ ]] || delayed_minutes=10; CFIP_RILL_DELAYED_FEEDBACK_SECONDS="$((delayed_minutes*60))"
+    CFIP_RILL_ENABLED="$(cfip_bool "$(uci_get cf_ip.rill.enabled 0)")"; CFIP_RILL_MODE="$(uci_get cf_ip.rill.mode shadow)"; CFIP_RILL_RUNTIME="$(uci_get cf_ip.rill.runtime /usr/bin/rill-runtime)"; CFIP_RILL_STATE="$(uci_get cf_ip.rill.state_file "$CFIP_STATUS_DIR/rill-state.json")"; CFIP_RILL_SAFE_TOP_K="$(uci_get cf_ip.rill.safe_top_k 3)"; CFIP_RILL_MIN_FEEDBACK_SAMPLES="$(uci_get cf_ip.rill.min_feedback_samples 30)"; CFIP_RILL_EVALUATION_MAX_AGE_SECONDS="$(uci_get cf_ip.rill.evaluation_max_age_seconds 86400)"; local delayed_minutes; delayed_minutes="$(uci_get cf_ip.rill.delayed_feedback_minutes 10)"; [[ "$delayed_minutes" =~ ^[1-9][0-9]*$ ]] || delayed_minutes=10; CFIP_RILL_DELAYED_FEEDBACK_SECONDS="$((delayed_minutes*60))"
     CFIP_REUSE_ENABLED="$(cfip_bool "$(uci_get cf_ip.main.reuse_enabled 1)")"; CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL="$(uci_get cf_ip.main.max_full_optimize_interval 86400)"; CFIP_REUSE_VALIDATION_TIMEOUT="$(uci_get cf_ip.main.reuse_validation_timeout 5)"; CFIP_REUSE_LOSS_LIMIT="$(uci_get cf_ip.main.reuse_loss_limit 0.25)"; CFIP_REUSE_TTFB_LIMIT="$(uci_get cf_ip.main.reuse_ttfb_limit 3000)"; CFIP_REUSE_TOTAL_LIMIT="$(uci_get cf_ip.main.reuse_total_limit 5000)"; CFIP_REUSE_STATE_FILE="$CFIP_STATUS_DIR/reuse-policy.json"
     local timeout_ms; timeout_ms="$(uci_get cf_ip.rill.timeout_ms 2000)"; [[ "$timeout_ms" =~ ^[0-9]+$ ]] && ((timeout_ms>0)) && CFIP_RILL_TIMEOUT_S=$(((timeout_ms+999)/1000)) || CFIP_RILL_TIMEOUT_S=2
     if [[ "$CFIP_IP_COUNT" =~ ^[1-9][0-9]*$ && "$CFIP_PROBE_TOP_COUNT" =~ ^[1-9][0-9]*$ ]] && ((CFIP_PROBE_TOP_COUNT < CFIP_IP_COUNT)); then CFIP_PROBE_TOP_COUNT="$CFIP_IP_COUNT"; fi
@@ -83,6 +83,7 @@ validate_config() {
     [[ "$CFIP_RILL_MODE" == off || "$CFIP_RILL_MODE" == shadow || "$CFIP_RILL_MODE" == assisted ]] || { cfip_json_error "invalid rill mode"; return 1; }
     [[ "$CFIP_RILL_SAFE_TOP_K" =~ ^[1-9][0-9]*$ ]] && ((CFIP_RILL_SAFE_TOP_K<=8)) || { cfip_json_error "safe_top_k must be 1..8"; return 1; }
     [[ "$CFIP_RILL_MIN_FEEDBACK_SAMPLES" =~ ^[1-9][0-9]*$ ]] && ((CFIP_RILL_MIN_FEEDBACK_SAMPLES<=200)) || { cfip_json_error "min_feedback_samples must be 1..200"; return 1; }
+    [[ "$CFIP_RILL_EVALUATION_MAX_AGE_SECONDS" =~ ^[1-9][0-9]*$ ]] && ((CFIP_RILL_EVALUATION_MAX_AGE_SECONDS<=604800)) || { cfip_json_error "evaluation_max_age_seconds must be 1..604800"; return 1; }
     cfip_source_policy_valid "$CFIP_SOURCE_POLICY" || { cfip_json_error "invalid source_policy"; return 1; }
     ((CFIP_RILL_DELAYED_FEEDBACK_SECONDS>=60 && CFIP_RILL_DELAYED_FEEDBACK_SECONDS<=86400)) || { cfip_json_error "delayed_feedback_minutes must be 1..1440"; return 1; }
     [[ "$CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL" =~ ^[1-9][0-9]*$ ]] && ((CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL>=300 && CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL<=604800)) || { cfip_json_error "max_full_optimize_interval must be 300..604800"; return 1; }
@@ -415,7 +416,9 @@ run_v2() {
         if cfip_rill_shadow_observe "$CFIP_DECISION_FILE" "$CFIP_RILL_FILE" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" "$shadow_outcome" "$CFIP_OUTCOME_FILE"; then
             feedback_file="$shadow_outcome"
         else
-            cfip_log "shadow candidate observation unavailable"
+            cfip_log "shadow candidate observation unavailable; suppressing Candidate feedback"
+            jq -cn --arg reason "shadow_observation_unavailable" '{feedbackEligible:false,observationUnavailable:true,reason:$reason,candidateOutcome:"unknown",hostOutcome:"success",censored:true}' | cfip_atomic_write "$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/shadow-observation-unavailable.json"
+            feedback_file="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/shadow-observation-unavailable.json"
         fi
     fi
     cfip_rill_record_evidence "$CFIP_DECISION_FILE" "$feedback_file" "$(cat "$holdout_json" 2>/dev/null || printf '{}')" || cfip_log "Rill evidence store update deferred"
