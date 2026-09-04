@@ -36,6 +36,14 @@ Source Intelligence 与 Reuse 仍分别由确定性 consumer 逻辑和 Native cu
 `sha256sums.txt` 和 `qualification.json` 是同一资格化证据链的一部分；真实 OpenWrt 设备、
 硬件矩阵和 Soak 不由主机或 SDK 测试替代。
 
+2.2 开发中的 Adaptive Measurement 是独立的 Native 预探测调度层，默认 Shadow；
+它只使用 CFST、来源、历史、前缀/Colo 和上一健康赢家等 pre-probe 字段，绝不创建
+第二个 Rill learner 或 partition。Guarded 只有在完整、兼容、未过期的真实审计证据
+达到 recall、安全性和节省阈值后才可启用；资格失效、状态损坏或探测错误下一次全量
+回退。详见 docs/2.2_ADAPTIVE_MEASUREMENT.md。
+
+Guarded 模式只有在 `probe_top_count` 大于 `adaptive_min_probe_count` 时才会产生明显的 probe savings；默认值保持保守，不为追求表面 savings 放大完整测量规模。
+
 ## 安装
 
 ### 前置条件

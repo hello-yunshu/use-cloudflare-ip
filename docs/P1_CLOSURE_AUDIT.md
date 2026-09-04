@@ -51,6 +51,23 @@ the release workflow validate the same SHA and generated qualification manifest.
 Physical-device matrix and soak remain the two explicitly approved evidence
 boundaries; they are not represented as automated PASS.
 
+## 2.2 Adaptive Measurement boundary
+
+2.2 adds a Native-only Adaptive Measurement scheduler. Its versioned pre-probe
+contract admits CFST/source/history/prefix/colo metadata but no current-run
+target-domain results, current Native/Rill rank, or reward. The default is
+`requestedMode=shadow` and production retains the existing Native probe input.
+The scheduler emits baseline, CFST-only, and explainable deterministic Adaptive
+orders; it does not create a Runtime partition or learner.
+
+Full audits are persisted in a separate bounded evidence store and expose
+K25/K40/K60 winner/top-N/applied coverage, severe miss, eligible insufficiency,
+and probe savings. Guarded subset probing requires fresh context- and
+version-compatible evidence. Minimum IP/family/source/prefix/colo anchors,
+deterministic exploration, bounded expansion, and scheduler/state/probe errors
+all preserve complete Native fallback. Synthetic qualification tests validate
+only the state machine; they do not claim online or physical-device efficacy.
+
 ## Final semantic closure record
 
 | Gate | Status | Evidence boundary |

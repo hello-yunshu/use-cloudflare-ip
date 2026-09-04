@@ -113,3 +113,12 @@ replace only the generic part of that responsibility; no Cloudflare-specific
 drift claim is made. A reset is explicit and state-generation checked. Any
 missing, invalid, stale, rejected, or unhealthy Runtime result keeps native
 ranking authoritative and leaves host mutation unchanged.
+
+## 2.2 boundary
+
+Adaptive Measurement is outside this Runtime qualification contract. It is a
+Native probe scheduler with its own versioned pre-probe contract and bounded
+audit evidence. It does not add `measurement`, `source`, or `reuse` partitions;
+the Candidate partition remains the only Runtime learner. Adaptive Shadow has no
+production influence, and Adaptive Guarded requires fresh full-audit evidence
+before it can reduce Native probing.

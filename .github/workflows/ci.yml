@@ -130,6 +130,18 @@ jobs:
           bash tests/no-delay-contract.sh
           bash tests/service-state-preservation.sh
           bash tests/semantic-config-validation.sh
+          bash tests/adaptive-preprobe-feature-contract.sh
+          bash tests/adaptive-scheduler-deterministic.sh
+          bash tests/adaptive-shadow-no-influence.sh
+          bash tests/adaptive-measurement.sh
+          bash tests/adaptive-expansion-multi-batch.sh
+          bash tests/adaptive-expansion-unique-count.sh
+          bash tests/adaptive-evidence-byte-cap.sh
+          bash tests/adaptive-multi-ip-qualification.sh
+          bash tests/adaptive-off-no-side-effect.sh
+          bash tests/adaptive-deterministic-exploration.sh
+          bash tests/adaptive-guarded-run-lifecycle.sh
+          bash tests/adaptive-candidate-coexistence.sh
 
   legacy-contract:
     runs-on: ubuntu-latest
@@ -407,7 +419,7 @@ jobs:
             ( "$GITHUB_EVENT_NAME" == pull_request && "$GITHUB_BASE_REF" == main ) ]]; then
             [[ "$version" != *-dev ]]
           else
-            [[ "$version" =~ ^2\.1\.1-dev$ ]]
+            [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-dev$ ]]
           fi
 
   rpc-luci-contract:
