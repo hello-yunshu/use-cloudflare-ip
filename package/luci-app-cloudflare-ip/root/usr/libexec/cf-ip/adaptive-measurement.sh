@@ -71,6 +71,18 @@ cfip_adaptive_write_plan() {
             [[ -n "$ip" ]] && selected="$(jq -cn --argjson a "$selected" --arg ip "$ip" '$a+[$ip]|unique')"
         done
     fi
+    while IFS= read -r source; do
+        [[ -n "$source" ]] || continue
+        ip="$(jq -r --arg source "$source" '.scoredCandidates[]|select((.sources|index($source))!=null)|.ip' <<<"$orders" | head -n1)"
+        [[ -n "$ip" ]] && selected="$(jq -cn --argjson a "$selected" --arg ip "$ip" '$a+[$ip]|unique')"
+    done < <(jq -r '.scoredCandidates[].sources[]?' <<<"$orders" | sort -u)
+    for feature in prefixHistory coloHistory; do
+        while IFS= read -r value; do
+            [[ -n "$value" && "$value" != null ]] || continue
+            ip="$(jq -r --arg feature "$feature" --arg value "$value" '.scoredCandidates[]|select((.[ $feature ]|tostring)==$value)|.ip' <<<"$orders" | head -n1)"
+            [[ -n "$ip" ]] && selected="$(jq -cn --argjson a "$selected" --arg ip "$ip" '$a+[$ip]|unique')"
+        done < <(jq -r --arg feature "$feature" '.scoredCandidates[]|select(.[ $feature ]!=null)|.[ $feature ]|tostring' <<<"$orders" | sort -u)
+    done
     explore_count="$((k*explore_count/100))"
     selected="$(jq -cn --argjson a "$selected" --argjson ranked "$(jq -c '.adaptiveOrder' <<<"$orders")" --argjson tail "$(jq -c '.adaptiveOrder|reverse' <<<"$orders")" --argjson k "$k" --argjson e "$explore_count" '($a+[$tail[0:$e][]]+$ranked) as $all|reduce $all[] as $ip ([];if index($ip) then . else .+[$ip] end)|.[0:$k]')"
     remaining="$(jq -cn --argjson c "$candidates" --argjson selected "$selected" '$c|map(select((.ip as $ip|$selected|index($ip))==null))')"
