@@ -445,8 +445,10 @@ run_v2() {
             feedback_file="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/shadow-observation-unavailable.json"
         fi
     fi
-    cfip_rill_record_evidence "$CFIP_DECISION_FILE" "$feedback_file" "$(cat "$holdout_json" 2>/dev/null || printf '{}')" || cfip_log "Rill evidence store update deferred"
-    cfip_rill_queue_feedback "$CFIP_DECISION_FILE" "$feedback_file" "$CFIP_TARGET_DOMAINS" || cfip_log "Rill delayed feedback queue unavailable"
+    if [[ "$CFIP_RILL_ENABLED" == true ]]; then
+        cfip_rill_record_evidence "$CFIP_DECISION_FILE" "$feedback_file" "$(cat "$holdout_json" 2>/dev/null || printf '{}')" || cfip_log "Rill evidence store update deferred"
+        cfip_rill_queue_feedback "$CFIP_DECISION_FILE" "$feedback_file" "$CFIP_TARGET_DOMAINS" || cfip_log "Rill delayed feedback queue unavailable"
+    fi
     CFIP_LAST_RESULT=success; CFIP_PHASE=done; CFIP_ERROR=""
     write_status false done success ""
     remember_history
