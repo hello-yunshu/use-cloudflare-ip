@@ -363,28 +363,37 @@ run_v2() {
     CFIP_PHASE=probing
     cfip_rill_probe_priority "$CFIP_CANDIDATES_FILE" "$CFIP_PROBE_INPUT_FILE" || cp "$CFIP_CANDIDATES_FILE" "$CFIP_PROBE_INPUT_FILE"
     CFIP_ADAPTIVE_CONTEXT_FINGERPRINT="$(cfip_rill_context_fingerprint 2>/dev/null || printf '')"; CFIP_ADAPTIVE_NOW="$(date +%s)"
-    CFIP_ADAPTIVE_EFFECTIVE_MODE="$(cfip_adaptive_effective_mode)"
-    if cfip_adaptive_note_run; then CFIP_ADAPTIVE_AUDIT_DUE=true; else CFIP_ADAPTIVE_AUDIT_DUE=false; fi
+    CFIP_ADAPTIVE_EFFECTIVE_MODE="$(cfip_adaptive_effective_mode)"; CFIP_ADAPTIVE_AUDIT_DUE=false
+    # Off is a hard no-side-effect mode: it does not advance audit cadence or
+    # create qualification evidence. Shadow still records a plan, but keeps
+    # the production input and probe behavior unchanged.
+    if [[ "$CFIP_ADAPTIVE_MEASUREMENT_ENABLED" == true && "$CFIP_ADAPTIVE_MEASUREMENT_MODE" != off ]]; then
+        if cfip_adaptive_note_run; then CFIP_ADAPTIVE_AUDIT_DUE=true; fi
+    fi
     cfip_adaptive_prepare_probe_input "$CFIP_PROBE_INPUT_FILE" "$CFIP_ADAPTIVE_PROBE_INPUT_FILE" "$CFIP_ADAPTIVE_PLAN_FILE" || { fail_run "adaptive measurement planning failed"; return 1; }
-    cfip_adaptive_probe "$CFIP_PROBE_INPUT_FILE" "$CFIP_PROBED_FILE" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" "$CFIP_IP_COUNT" "$CFIP_ADAPTIVE_EXPANSION_BATCH_SIZE" "$CFIP_ADAPTIVE_MAX_PROBE_COUNT" "$CFIP_ADAPTIVE_PLAN_FILE" "$CFIP_PROBE_METRICS_FILE" "$CFIP_ADAPTIVE_EFFECTIVE_MODE" || { fail_run "candidate probing failed"; return 1; }
-    cfip_rill_update_history "$CFIP_PROBED_FILE" || cfip_log "candidate history update deferred"
+    local eligible audit_rc=0
+    if [[ "$CFIP_ADAPTIVE_AUDIT_DUE" == true ]]; then
+        # An audit is the production run on this cadence. Probe the full
+        # pre-probe pool once, rank that result, and use it for selection.
+        cfip_probe_candidates "$CFIP_PROBE_INPUT_FILE" "$CFIP_PROBED_FILE" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" || audit_rc=$?
+        [[ -s "$CFIP_PROBED_FILE" ]] || printf '[]\n' | cfip_atomic_write "$CFIP_PROBED_FILE"
+        cfip_adaptive_update_runtime "" "$(jq '.selectedK' "$CFIP_ADAPTIVE_PLAN_FILE")" 0
+        cfip_rill_update_history "$CFIP_PROBED_FILE" || cfip_log "candidate history update deferred"
+    else
+        cfip_adaptive_probe "$CFIP_PROBE_INPUT_FILE" "$CFIP_PROBED_FILE" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" "$CFIP_IP_COUNT" "$CFIP_ADAPTIVE_EXPANSION_BATCH_SIZE" "$CFIP_ADAPTIVE_MAX_PROBE_COUNT" "$CFIP_ADAPTIVE_PLAN_FILE" "$CFIP_PROBE_METRICS_FILE" "$CFIP_ADAPTIVE_EFFECTIVE_MODE" || { fail_run "candidate probing failed"; return 1; }
+        cfip_rill_update_history "$CFIP_PROBED_FILE" || cfip_log "candidate history update deferred"
+    fi
     [[ "$(cfip_deadline_remaining)" -gt 0 ]] || { fail_run "measurement timeout during target probe"; return 1; }
     CFIP_PHASE=ranking
     cfip_native_rank "$CFIP_PROBED_FILE" "$CFIP_NATIVE_FILE" || { fail_run "native ranking failed"; return 1; }
-    local eligible audit_probe audit_native
     eligible="$(jq 'length' "$CFIP_NATIVE_FILE")"
-    ((eligible>0)) || { fail_run "NoEligibleCandidate: every target-domain probe failed"; return 1; }
     if [[ "$CFIP_ADAPTIVE_AUDIT_DUE" == true ]]; then
-        audit_probe="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/adaptive-audit-probed.json"
-        audit_native="$CFIP_RUNTIME_DIR/run-$CFIP_RUN_ID/adaptive-audit-native.json"
-        if cfip_probe_candidates "$CFIP_PROBE_INPUT_FILE" "$audit_probe" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" && \
-           cfip_native_rank "$audit_probe" "$audit_native" && \
-           cfip_adaptive_make_audit_record "$CFIP_ADAPTIVE_PLAN_FILE" "$audit_native" "$audit_probe" "$CFIP_ADAPTIVE_AUDIT_FILE"; then
+        cfip_adaptive_make_audit_record "$CFIP_ADAPTIVE_PLAN_FILE" "$CFIP_NATIVE_FILE" "$CFIP_PROBED_FILE" "$CFIP_ADAPTIVE_AUDIT_FILE" "$audit_rc" || cfip_log "adaptive audit diagnostic unavailable"
+        if [[ -s "$CFIP_ADAPTIVE_AUDIT_FILE" ]]; then
             cfip_adaptive_record_audit "$CFIP_ADAPTIVE_AUDIT_FILE" || cfip_log "adaptive audit qualification update deferred"
-        else
-            cfip_log "adaptive full audit unavailable; no qualification evidence recorded"
         fi
     fi
+    ((eligible>0)) || { fail_run "NoEligibleCandidate: every target-domain probe failed"; return 1; }
     jq ".[0:${CFIP_IP_COUNT}]" "$CFIP_NATIVE_FILE" | cfip_atomic_write "$CFIP_SELECTED_FILE"
     if [[ "$CFIP_RILL_ENABLED" == true && "$CFIP_RILL_MODE" != off ]]; then
         cfip_rill_rank_shadow "$CFIP_NATIVE_FILE" "$CFIP_RILL_FILE" || true

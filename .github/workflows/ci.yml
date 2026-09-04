@@ -134,6 +134,14 @@ jobs:
           bash tests/adaptive-scheduler-deterministic.sh
           bash tests/adaptive-shadow-no-influence.sh
           bash tests/adaptive-measurement.sh
+          bash tests/adaptive-expansion-multi-batch.sh
+          bash tests/adaptive-expansion-unique-count.sh
+          bash tests/adaptive-evidence-byte-cap.sh
+          bash tests/adaptive-multi-ip-qualification.sh
+          bash tests/adaptive-off-no-side-effect.sh
+          bash tests/adaptive-deterministic-exploration.sh
+          bash tests/adaptive-guarded-run-lifecycle.sh
+          bash tests/adaptive-candidate-coexistence.sh
 
   legacy-contract:
     runs-on: ubuntu-latest

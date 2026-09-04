@@ -27,7 +27,7 @@ cat >"$tmp/input.json" <<'EOF_INPUT'
 EOF_INPUT
 
 orders="$(cfip_adaptive_orders_json "$tmp/input.json")"
-test "$(jq -r '.baselineOrder|join(",")' <<<"$orders")" = "1.1.1.1,2.2.2.2,2606:4700::1,2606:4700::2"
+test "$(jq -r '.baselineOrder|join(",")' <<<"$orders")" = "2.2.2.2,2606:4700::1,1.1.1.1,2606:4700::2"
 test "$(jq -r '.adaptiveOrder|length' <<<"$orders")" = 4
 test "$(jq -e '.candidates|all(has("probes")|not)' <<<"$orders")" = true
 test "$(cfip_adaptive_contract_json | jq -r '.forbiddenFields|index("probes")')" = 0
@@ -79,7 +79,7 @@ CFIP_RUN_ID=cadence-1; if cfip_adaptive_note_run; then exit 1; fi
 CFIP_RUN_ID=cadence-2; cfip_adaptive_note_run
 test "$(jq -r '.runCount' "$CFIP_ADAPTIVE_STATE_FILE")" = 2
 
-jq -n '[range(0;512)|{ip:("192.0.2." + ((. % 250)+1|tostring)),family:"ipv4",cfstRank:(.+1),sourceReliability:0.5}]' >"$tmp/large.json"
+jq -n '[range(0;512)|{ip:("192.0." + ((.+2)/256|floor|tostring) + "." + ((.%256)|tostring)),family:"ipv4",cfstRank:(.+1),sourceReliability:0.5}]' >"$tmp/large.json"
 large_orders="$(cfip_adaptive_orders_json "$tmp/large.json")"
 test "$(jq 'length' <<<"$(jq -c '.adaptiveOrder' <<<"$large_orders")")" = 512
 test "$(jq 'length' <<<"$large_orders")" -lt 1000000
@@ -94,7 +94,7 @@ test "$(jq -r '.K60.selectedK' "$tmp/audit.json")" = 3
 test "$(jq -r '.appliedCandidateRecall' "$tmp/audit.json")" = 1
 
 for i in 1 2 3; do
-    jq -n --argjson at "$((1000+i))" '{fullAudit:true,at:$at,contextFingerprint:"ctx",schedulerVersion:1,featureContractVersion:1,winnerRecall:1,topNRecall:1,severeMiss:0,eligibleInsufficiencyRate:0,probeSavings:0.3}' >"$tmp/audit.json"
+    jq -n --argjson at "$((1000+i))" '{fullAudit:true,auditComplete:true,auditCensored:false,at:$at,contextFingerprint:"ctx",schedulerVersion:1,featureContractVersion:1,winnerRecall:1,topNRecall:1,severeMiss:0,eligibleInsufficiencyRate:0,probeSavings:0.3}' >"$tmp/audit.json"
     cfip_adaptive_record_audit "$tmp/audit.json"
 done
 test "$(jq -r '.qualificationState' "$CFIP_ADAPTIVE_STATE_FILE")" = qualified
@@ -106,7 +106,7 @@ test "$(cfip_adaptive_qualification_is_usable; echo $?)" != 0
 test "$(cfip_adaptive_effective_mode)" = shadow
 test "$(jq -r '.qualificationState' "$CFIP_ADAPTIVE_STATE_FILE")" = stale
 
-jq -n '{fullAudit:true,at:1201,contextFingerprint:"ctx",schedulerVersion:1,featureContractVersion:1,winnerRecall:0.5,topNRecall:0.5,severeMiss:0.2,eligibleInsufficiencyRate:0.1,probeSavings:0.3}' >"$tmp/negative.json"
+jq -n '{fullAudit:true,auditComplete:true,auditCensored:false,at:1201,contextFingerprint:"ctx",schedulerVersion:1,featureContractVersion:1,winnerRecall:0.5,topNRecall:0.5,severeMiss:0.2,eligibleInsufficiencyRate:0.1,probeSavings:0.3}' >"$tmp/negative.json"
 cfip_adaptive_record_audit "$tmp/negative.json"
 test "$(jq -r '.qualificationState' "$CFIP_ADAPTIVE_STATE_FILE")" = insufficient
 

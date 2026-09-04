@@ -52,6 +52,10 @@ return view.extend({
 		var diagnostics = data[2] || {};
 		var adaptiveResponse = data[3] || {};
 		var adaptive = adaptiveResponse.adaptiveMeasurement || status.adaptiveMeasurement || {};
+		var adaptiveAggregate = adaptive.aggregate || {};
+		function adaptiveNumber(value, digits) {
+			return value == null || !isFinite(Number(value)) ? _('unavailable') : Number(value).toFixed(digits || 2);
+		}
 		var m = new form.Map('cf_ip', _('Rill Intelligence'),
 			_('The generic Rill Runtime is supplied by OpenWrt packaging. Cloudflare IP owns candidate validation, ranking policy, reward and proxy transactions.'));
 		var s, o;
@@ -86,12 +90,22 @@ return view.extend({
 		o.description = _('Shadow records counterfactual evidence without changing production probe order. Guarded is enabled only after fresh, complete, real audit evidence.');
 		o = s.option(form.DummyValue, '_adaptive_state', _('Current State'));
 		o.cfgvalue = function() { return (adaptive.qualificationState || _('insufficient')) + ' / ' + (adaptive.effectiveMode || _('shadow')); };
+		o = s.option(form.DummyValue, '_adaptive_modes', _('Requested / Effective Mode'));
+		o.cfgvalue = function() { return (adaptive.requestedMode || _('unavailable')) + ' / ' + (adaptive.effectiveMode || _('unavailable')); };
 		o = s.option(form.DummyValue, '_adaptive_evidence', _('Audit Evidence'));
 		o.cfgvalue = function() { return (adaptive.evidenceCount || 0) + ' / ' + _('fresh at') + ': ' + (adaptive.freshAt || _('never')); };
+		o = s.option(form.DummyValue, '_adaptive_recall', _('Winner / Top-N Recall'));
+		o.cfgvalue = function() { return adaptiveNumber(adaptiveAggregate.winnerRecall, 3) + ' / ' + adaptiveNumber(adaptiveAggregate.topNRecall, 3); };
+		o = s.option(form.DummyValue, '_adaptive_eligibility', _('Eligible Insufficiency Rate'));
+		o.cfgvalue = function() { return adaptiveNumber(adaptiveAggregate.eligibleInsufficiencyRate, 3); };
+		o = s.option(form.DummyValue, '_adaptive_savings', _('Estimated Probe Savings'));
+		o.cfgvalue = function() { return adaptiveAggregate.estimatedProbeSavings == null ? _('unavailable') : adaptiveNumber(adaptiveAggregate.estimatedProbeSavings * 100, 1) + '%'; };
+		o = s.option(form.DummyValue, '_adaptive_audit', _('Full Audit'));
+		o.cfgvalue = function() { var last = adaptive.lastFullAudit || {}; return (last.at || _('never')) + ' / ' + _('next in runs') + ': ' + (adaptive.nextAuditInRuns == null ? _('unavailable') : adaptive.nextAuditInRuns); };
 		o = s.option(form.DummyValue, '_adaptive_scheduler', _('Scheduler Contract'));
 		o.cfgvalue = function() { return 'v' + (adaptive.schedulerVersion || '?') + ' / ' + _('feature contract') + ' v' + (adaptive.featureContractVersion || '?'); };
 		o = s.option(form.DummyValue, '_adaptive_selection', _('Selection'));
-		o.cfgvalue = function() { return _('K') + ': ' + (adaptive.selectedK || 0) + ', ' + _('last fallback') + ': ' + (adaptive.lastFallbackReason || _('none')); };
+		o.cfgvalue = function() { return _('K') + ': ' + (adaptive.selectedK || 0) + ', ' + _('expansions') + ': ' + (adaptive.lastExpansionCount || 0) + ', ' + _('last fallback') + ': ' + (adaptive.lastFallbackReason || _('none')); };
 
 		s = m.section(form.TypedSection, 'rill', _('Rill Runtime Consumer'));
 		s.anonymous = true;

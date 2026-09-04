@@ -42,6 +42,8 @@ Source Intelligence 与 Reuse 仍分别由确定性 consumer 逻辑和 Native cu
 达到 recall、安全性和节省阈值后才可启用；资格失效、状态损坏或探测错误下一次全量
 回退。详见 docs/2.2_ADAPTIVE_MEASUREMENT.md。
 
+Guarded 模式只有在 `probe_top_count` 大于 `adaptive_min_probe_count` 时才会产生明显的 probe savings；默认值保持保守，不为追求表面 savings 放大完整测量规模。
+
 ## 安装
 
 ### 前置条件

@@ -106,7 +106,7 @@ cfip_probe_candidates() {
     fi
     if ((idx==0)); then printf '[]' | cfip_atomic_write "$output"; rm -rf "$tmpdir"; return 0; fi
     for ((f=1;f<=idx;f++)); do [[ -s "$tmpdir/$f.json" ]] || printf '{}' >"$tmpdir/$f.json"; done
-    jq -s '[.[]|select(type=="object" and has("ip"))]' "$tmpdir"/*.json | cfip_atomic_write "$output"
+    jq -s '[.[]|select(type=="object" and has("ip"))] | reduce .[] as $candidate ([]; if any(.[]; .ip == $candidate.ip) then . else .+[$candidate] end)' "$tmpdir"/*.json | cfip_atomic_write "$output"
     rm -rf "$tmpdir"
 }
 
@@ -125,9 +125,9 @@ cfip_probe_candidates_batched() {
         jq --argjson start "$offset" --argjson take "$take" '.[$start:($start+$take)]' "$input" >"$tmpdir/input-$batches.json"
         probed_json="$tmpdir/probed-$batches.json"
         cfip_probe_candidates "$tmpdir/input-$batches.json" "$probed_json" "$domains_csv" "$timeout_s" || true
-        aggregate="$(jq -cn --argjson all "$aggregate" --argjson next "$(cat "$probed_json" 2>/dev/null || printf '[]')" '$all+$next')"
+        aggregate="$(jq -cn --argjson all "$aggregate" --argjson next "$(cat "$probed_json" 2>/dev/null || printf '[]')" '$all+$next | reduce .[] as $candidate ([]; if any(.[]; .ip == $candidate.ip) then . else .+[$candidate] end)')"
         offset=$((offset+take)); batches=$((batches+1))
-        safe_count="$(jq --argjson required "$required" '[.[]|select(.eligible==true and ((.probeSummary.lossRate // .lossRate // 0)<=0.25) and ((.probeSummary.ttfbMs // 0)<=3000) and ((.probeSummary.totalMs // 0)<=5000))]|length' <<<"$aggregate")"
+        safe_count="$(jq --argjson required "$required" '[.[]|select(.eligible==true and ((.probeSummary.lossRate // .lossRate // 0)<=0.25) and ((.probeSummary.ttfbMs // 0)<=3000) and ((.probeSummary.totalMs // 0)<=5000))]|unique_by(.ip)|length' <<<"$aggregate")"
         best_rank="$(jq -r '[.[]|select(.eligible==true)|(.cfstRank//999999)]|min // 999999' <<<"$aggregate")"
         if [[ "${CFIP_EARLY_STOP_ENABLED:-true}" == true ]] && ((safe_count >= required)); then
             if ((offset >= total)); then early=true
