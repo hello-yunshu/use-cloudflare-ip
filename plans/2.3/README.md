@@ -4,8 +4,9 @@
 Native deterministic scheduler. It must answer where Adaptive Measurement
 reduces measurement cost without reducing Native result quality.
 
-This directory contains planning and acceptance boundaries only. It does not
-authorize or contain 2.3 feature implementation.
+This directory contains the planning and acceptance boundaries for the bounded
+Docker replay harness in `docker/2.3/`. The harness is evidence-only and does
+not authorize automatic tuning, a new learner, or a release decision.
 
 ## Recommended start condition
 

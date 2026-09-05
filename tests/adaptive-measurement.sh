@@ -91,7 +91,11 @@ test "$(jq -r '.fullNativeWinner' "$tmp/audit.json")" = 1.1.1.1
 test "$(jq -r '.K25.selectedK' "$tmp/audit.json")" = 1
 test "$(jq -r '.K40.selectedK' "$tmp/audit.json")" = 2
 test "$(jq -r '.K60.selectedK' "$tmp/audit.json")" = 3
+printf '%s\n' '[{"ip":"1.1.1.1"}]' >"$tmp/selected.json"
+jq -n '{effectiveMode:"native"}' >"$tmp/decision.json"
+cfip_adaptive_patch_final_selection "$tmp/audit.json" "$tmp/selected.json" "$tmp/decision.json" true
 test "$(jq -r '.appliedCandidateRecall' "$tmp/audit.json")" = 1
+test "$(jq -r '.transactionApplied' "$tmp/audit.json")" = true
 
 for i in 1 2 3; do
     jq -n --argjson at "$((1000+i))" '{fullAudit:true,auditComplete:true,auditCensored:false,at:$at,contextFingerprint:"ctx",schedulerVersion:1,featureContractVersion:1,winnerRecall:1,topNRecall:1,severeMiss:0,eligibleInsufficiencyRate:0,probeSavings:0.3}' >"$tmp/audit.json"

@@ -1,0 +1,9 @@
+[
+  {"name":"small-ipv4-cold-shadow","family":"ipv4","poolSize":8,"ipCount":1,"mode":"shadow","history":"cold"},
+  {"name":"small-ipv4-stable-shadow","family":"ipv4","poolSize":16,"ipCount":1,"mode":"shadow","history":"stable"},
+  {"name":"medium-ipv6-stable-guarded","family":"ipv6","poolSize":32,"ipCount":4,"mode":"guarded","history":"stable"},
+  {"name":"large-both-mixed-shadow","family":"both","poolSize":128,"ipCount":6,"mode":"shadow","history":"mixed"},
+  {"name":"large-ipv4-stale-fallback","family":"ipv4","poolSize":256,"ipCount":4,"mode":"guarded","history":"stale","fallback":true},
+  {"name":"medium-both-degraded-expansion","family":"both","poolSize":64,"ipCount":4,"mode":"guarded","history":"degraded","expansionCount":2},
+  {"name":"large-ipv6-stable-guarded","family":"ipv6","poolSize":512,"ipCount":6,"mode":"guarded","history":"stable"}
+]

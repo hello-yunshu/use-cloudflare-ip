@@ -35,6 +35,16 @@ cfip_generate_run_id() {
     printf '%s-%s-%s' "$now" "$$" "$rand"
 }
 
+cfip_now_millis() {
+    local value
+    value="$(date +%s%3N 2>/dev/null || true)"
+    if [[ "$value" =~ ^[0-9]+$ ]]; then
+        printf '%s' "$value"
+    else
+        printf '%s000' "$(date +%s)"
+    fi
+}
+
 cfip_is_ipv4() {
     local ip="$1" IFS=. octets i
     [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1

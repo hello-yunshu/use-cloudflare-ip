@@ -1,0 +1,10 @@
+services:
+  adaptive-replay:
+    build:
+      context: ../..
+      dockerfile: docker/2.3/Dockerfile
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    working_dir: /workspace/repo
+    volumes:
+      - ../..:/workspace/repo
+    command: ["docker/2.3/run-experiments.sh"]

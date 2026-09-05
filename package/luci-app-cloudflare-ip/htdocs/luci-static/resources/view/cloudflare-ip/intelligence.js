@@ -107,6 +107,37 @@ return view.extend({
 		o = s.option(form.DummyValue, '_adaptive_selection', _('Selection'));
 		o.cfgvalue = function() { return _('K') + ': ' + (adaptive.selectedK || 0) + ', ' + _('expansions') + ': ' + (adaptive.lastExpansionCount || 0) + ', ' + _('last fallback') + ': ' + (adaptive.lastFallbackReason || _('none')); };
 
+		s = m.section(form.TypedSection, 'main', _('Product Intelligence Summary'));
+		s.anonymous = true;
+		o = s.option(form.DummyValue, '_endpoint', _('Current Endpoint'));
+		o.cfgvalue = function() { return (status.best_ips || []).join(', ') || _('Unavailable'); };
+		o = s.option(form.DummyValue, '_health_summary', _('System Health'));
+		o.cfgvalue = function() { var h = status.operationalHealth || {}; return h.state || _('healthy'); };
+		o = s.option(form.DummyValue, '_adaptive_summary', _('Adaptive Measurement'));
+		o.cfgvalue = function() { return (adaptive.requestedMode || _('off')) + ' → ' + (adaptive.effectiveMode || _('off')) + ' / ' + (adaptive.qualificationState || _('insufficient')); };
+		o = s.option(form.DummyValue, '_candidate_summary', _('Candidate Intelligence'));
+		o.cfgvalue = function() { var d = status.decision || {}; return (d.effectiveMode === 'assisted' ? _('Candidate Assisted') : (d.effectiveMode === 'shadow' ? _('Candidate Shadow') : _('Native only'))) + ' / ' + (d.confidenceLevel || _('unavailable')); };
+		o = s.option(form.DummyValue, '_next_audit_summary', _('Next Full Audit / Optimize'));
+		o.cfgvalue = function() { return (adaptive.nextAuditInRuns == null ? _('unavailable') : adaptive.nextAuditInRuns + ' ' + _('runs')) + ' / ' + ((status.reusePolicy || {}).reason || _('policy current')); };
+
+		s = m.section(form.TypedSection, 'main', _('Operational Health'));
+		s.anonymous = true;
+		o = s.option(form.DummyValue, '_health_state', _('State'));
+		o.cfgvalue = function() { var h = status.operationalHealth || {}; return h.state || _('healthy'); };
+		o = s.option(form.DummyValue, '_health_reasons', _('Reason Codes'));
+		o.cfgvalue = function() { var h = status.operationalHealth || {}; return (h.reasonCodes || []).join(', ') || _('none'); };
+		o = s.option(form.DummyValue, '_why_run', _('Why This Run'));
+		o.cfgvalue = function() { return status.whyThisRun || _('Native measurement'); };
+		o = s.option(form.DummyValue, '_context_policy', _('Current Context Policy'));
+		o.cfgvalue = function() { var p = adaptive.contextPolicy || {}; return (p.policyId || _('conservative-default')) + (p.supported ? '' : ' / ' + _('conservative default')); };
+		o = s.option(form.DummyValue, '_run_history', _('Recent Runs'));
+		o.cfgvalue = function() {
+			var rows = diagnostics.recentDecisions || [];
+			return rows.slice(-20).map(function(row) {
+				return [row.time || row.at || '?', row.result || '?', row.mode || row.effectiveAdaptiveMode || '?', (row.bestIps || []).join(',')].join(' / ');
+			}).join(' | ') || _('No history');
+		};
+
 		s = m.section(form.TypedSection, 'rill', _('Rill Runtime Consumer'));
 		s.anonymous = true;
 

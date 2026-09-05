@@ -17,8 +17,40 @@ env:
   REPO_NAME: luci-app-cloudflare-ip
 
 jobs:
-  check-qualification:
+  changes:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    outputs:
+      release_needed: ${{ steps.scope.outputs.release_needed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
+      - id: scope
+        name: Classify release scope
+        shell: bash
+        env:
+          QUALIFICATION_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff-tree --no-commit-id --name-only -r "$QUALIFICATION_SHA^" "$QUALIFICATION_SHA")
+          release_needed=false
+          while IFS= read -r path; do
+            [[ -n "$path" ]] || continue
+            case "$path" in
+              docs/*|plans/*|README|README.*|LICENSE|.gitignore) ;;
+              *) release_needed=true; break ;;
+            esac
+          done <<< "$changed"
+          echo "release_needed=$release_needed" >> "$GITHUB_OUTPUT"
+          if [[ "$release_needed" == false ]]; then
+            echo 'docs/plans-only change: release promotion is a clean no-op'
+          fi
+
+  check-qualification:
+    needs: changes
+    if: needs.changes.outputs.release_needed == 'true'
     runs-on: ubuntu-latest
     outputs:
       commit: ${{ steps.verify.outputs.commit }}
@@ -56,6 +88,7 @@ jobs:
 
   collect:
     needs: check-qualification
+    if: needs.check-qualification.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -99,6 +132,7 @@ jobs:
 
   release:
     needs: [check-qualification, collect]
+    if: needs.check-qualification.result == 'success' && needs.collect.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -27,11 +27,12 @@ CFIP_GITHUB_MIRROR=""
 CFIP_RILL_ENABLED=false; CFIP_RILL_MODE=shadow; CFIP_RILL_RUNTIME="/usr/bin/rill-runtime"; CFIP_RILL_STATE="$CFIP_STATUS_DIR/rill-state.json"; CFIP_RILL_TIMEOUT_S=2; CFIP_RILL_SAFE_TOP_K=3; CFIP_RILL_MIN_FEEDBACK_SAMPLES=30; CFIP_RILL_EVALUATION_MAX_AGE_SECONDS=86400; CFIP_RILL_DELAYED_FEEDBACK_SECONDS=600; CFIP_RILL_DELAYED_PROBE_TIMEOUT=5
 CFIP_ADAPTIVE_MEASUREMENT_ENABLED=true; CFIP_ADAPTIVE_MEASUREMENT_MODE=shadow; CFIP_ADAPTIVE_TARGET_RATIO_PERCENT=25; CFIP_ADAPTIVE_MIN_PROBE_COUNT=8; CFIP_ADAPTIVE_EXPLORATION_RATIO_PERCENT=10; CFIP_ADAPTIVE_MIN_EVIDENCE=50; CFIP_ADAPTIVE_EVIDENCE_WINDOW=100; CFIP_ADAPTIVE_EVALUATION_MAX_AGE_SECONDS=604800; CFIP_ADAPTIVE_AUDIT_INTERVAL=20; CFIP_ADAPTIVE_MAX_PROBE_COUNT=60; CFIP_ADAPTIVE_EXPANSION_BATCH_SIZE=8; CFIP_ADAPTIVE_NOW="$(date +%s)"; CFIP_ADAPTIVE_CONTEXT_FINGERPRINT=""
 CFIP_REUSE_ENABLED=true; CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL=86400; CFIP_REUSE_VALIDATION_TIMEOUT=5; CFIP_REUSE_LOSS_LIMIT=0.25; CFIP_REUSE_TTFB_LIMIT=3000; CFIP_REUSE_TOTAL_LIMIT=5000; CFIP_REUSE_STATE_FILE="$CFIP_STATUS_DIR/reuse-policy.json"; CFIP_REUSE_DECISION_FILE=""
+CFIP_MEASUREMENT_STARTED_MS=0; CFIP_MEASUREMENT_DURATION_MS=0; CFIP_ADAPTIVE_SCHEDULER_DURATION_MS=0; CFIP_ADAPTIVE_PROBE_DURATION_MS=0
 
 CFIP_CANDIDATES_FILE=""; CFIP_PROBED_FILE=""; CFIP_NATIVE_FILE=""; CFIP_SELECTED_FILE=""; CFIP_RILL_FILE=""; CFIP_DECISION_FILE=""; CFIP_OUTCOME_FILE=""; CFIP_TXN_RESULT_FILE=""; CFIP_REUSE_DECISION_FILE=""; CFIP_ADAPTIVE_PLAN_FILE=""; CFIP_ADAPTIVE_PROBE_INPUT_FILE=""; CFIP_ADAPTIVE_AUDIT_FILE=""
 CFIP_INPUT_POOL_FILE=""; CFIP_CANDIDATE_INPUT_FILE=""; CFIP_PROBE_INPUT_FILE=""; CFIP_SOURCE_STATUS_FILE=""; CFIP_MEASUREMENT_DEADLINE=0; CFIP_MEASUREMENT_STARTED_AT=0; CFIP_RECOVERY_DEADLINE=0; CFIP_RECOVERY_STARTED_AT=0; CFIP_RECOVERY_ACTIVE=false; CFIP_RECOVERY_ERROR=""
 
-for lib in common.sh config.sh status.sh source.sh scheduler.sh cfst.sh observe.sh adaptive-measurement.sh transaction.sh openclash-transform.sh openclash-readback.sh publisher.sh rill-disabled.sh reuse.sh; do
+for lib in common.sh config.sh status.sh source.sh scheduler.sh cfst.sh observe.sh adaptive-measurement.sh context-policy.sh transaction.sh openclash-transform.sh openclash-readback.sh publisher.sh rill-disabled.sh reuse.sh operational-health.sh; do
     if [[ -r "$CFIP_LIB_DIR/$lib" ]]; then source "$CFIP_LIB_DIR/$lib"; else printf '[cloudflare-ip] ERROR: missing library %s\n' "$CFIP_LIB_DIR/$lib" >&2; exit 1; fi
 done
 if [[ -r "$CFIP_LIB_DIR/rill.sh" ]]; then source "$CFIP_LIB_DIR/rill.sh"; fi
@@ -58,6 +59,7 @@ load_config() {
     CFIP_PUBLISH_ENABLED="$(cfip_bool "$(uci_get cf_ip.lan.enabled 0)")"; CFIP_PUBLISH_BIND="$(uci_get cf_ip.lan.bind_address '')"; CFIP_PUBLISH_PORT="$(uci_get cf_ip.lan.port 12345)"
     CFIP_RILL_ENABLED="$(cfip_bool "$(uci_get cf_ip.rill.enabled 0)")"; CFIP_RILL_MODE="$(uci_get cf_ip.rill.mode shadow)"; CFIP_RILL_RUNTIME="$(uci_get cf_ip.rill.runtime /usr/bin/rill-runtime)"; CFIP_RILL_STATE="$(uci_get cf_ip.rill.state_file "$CFIP_STATUS_DIR/rill-state.json")"; CFIP_RILL_SAFE_TOP_K="$(uci_get cf_ip.rill.safe_top_k 3)"; CFIP_RILL_MIN_FEEDBACK_SAMPLES="$(uci_get cf_ip.rill.min_feedback_samples 30)"; CFIP_RILL_EVALUATION_MAX_AGE_SECONDS="$(uci_get cf_ip.rill.evaluation_max_age_seconds 86400)"; local delayed_minutes; delayed_minutes="$(uci_get cf_ip.rill.delayed_feedback_minutes 10)"; [[ "$delayed_minutes" =~ ^[1-9][0-9]*$ ]] || delayed_minutes=10; CFIP_RILL_DELAYED_FEEDBACK_SECONDS="$((delayed_minutes*60))"
     CFIP_REUSE_ENABLED="$(cfip_bool "$(uci_get cf_ip.main.reuse_enabled 1)")"; CFIP_REUSE_MAX_FULL_OPTIMIZE_INTERVAL="$(uci_get cf_ip.main.max_full_optimize_interval 86400)"; CFIP_REUSE_VALIDATION_TIMEOUT="$(uci_get cf_ip.main.reuse_validation_timeout 5)"; CFIP_REUSE_LOSS_LIMIT="$(uci_get cf_ip.main.reuse_loss_limit 0.25)"; CFIP_REUSE_TTFB_LIMIT="$(uci_get cf_ip.main.reuse_ttfb_limit 3000)"; CFIP_REUSE_TOTAL_LIMIT="$(uci_get cf_ip.main.reuse_total_limit 5000)"; CFIP_REUSE_STATE_FILE="$CFIP_STATUS_DIR/reuse-policy.json"
+    cfip_operational_apply_guardrails || true
     local timeout_ms; timeout_ms="$(uci_get cf_ip.rill.timeout_ms 2000)"; [[ "$timeout_ms" =~ ^[0-9]+$ ]] && ((timeout_ms>0)) && CFIP_RILL_TIMEOUT_S=$(((timeout_ms+999)/1000)) || CFIP_RILL_TIMEOUT_S=2
     if [[ "$CFIP_IP_COUNT" =~ ^[1-9][0-9]*$ && "$CFIP_PROBE_TOP_COUNT" =~ ^[1-9][0-9]*$ ]] && ((CFIP_PROBE_TOP_COUNT < CFIP_IP_COUNT)); then CFIP_PROBE_TOP_COUNT="$CFIP_IP_COUNT"; fi
     validate_config || return $?
@@ -127,7 +129,7 @@ init_run_paths(){ CFIP_RUN_ID="$(cfip_generate_run_id)"; local d="$CFIP_RUNTIME_
 cleanup_run_files(){ find "$CFIP_RUNTIME_DIR" -maxdepth 1 -type d -name 'run-*' -mmin +120 -exec rm -rf {} + 2>/dev/null || true; }
 
 write_status() {
-    local active_run="$1" phase="$2" result="$3" error="${4:-}" candidates=0 input_count=0 eligible=0 selected=0 best='[]' rill='{}' adaptive='{}' transaction='{}' sources='[]' publisher='{}' decision='{}' probe_metrics='{}' source_policy='{}' reuse='{}' context='{}' evidence_aggregate='{}' previous='{}' last_completed='' status_now completed_at=''
+    local active_run="$1" phase="$2" result="$3" error="${4:-}" candidates=0 input_count=0 eligible=0 selected=0 best='[]' rill='{}' adaptive='{}' transaction='{}' sources='[]' publisher='{}' decision='{}' probe_metrics='{}' source_policy='{}' reuse='{}' context='{}' evidence_aggregate='{}' operational='{}' why='' previous='{}' last_completed='' status_now completed_at=''
     [[ -f "$CFIP_CANDIDATES_FILE" ]] && candidates="$(jq 'length' "$CFIP_CANDIDATES_FILE" 2>/dev/null || printf 0)"
     [[ -f "$CFIP_INPUT_POOL_FILE" ]] && input_count="$(jq 'length' "$CFIP_INPUT_POOL_FILE" 2>/dev/null || printf 0)"
     [[ -f "$CFIP_NATIVE_FILE" ]] && eligible="$(jq 'length' "$CFIP_NATIVE_FILE" 2>/dev/null || printf 0)"
@@ -142,6 +144,8 @@ write_status() {
     [[ -f "${CFIP_PROBE_METRICS_FILE:-}" ]] && probe_metrics="$(jq -c . "$CFIP_PROBE_METRICS_FILE" 2>/dev/null || printf '{}')"
     source_policy="$(cfip_source_policy_json 2>/dev/null || printf '{}')"
     [[ -f "${CFIP_REUSE_DECISION_FILE:-}" ]] && reuse="$(jq -c . "$CFIP_REUSE_DECISION_FILE" 2>/dev/null || printf '{}')"
+    operational="$(cfip_operational_state_json 2>/dev/null || printf '{}')"
+    why="$(cfip_operational_why_run 2>/dev/null || printf '')"
     if declare -F cfip_rill_context_json >/dev/null 2>&1; then context="$(cfip_rill_context_json 2>/dev/null || printf '{}')"; fi
     if declare -F cfip_rill_evidence_aggregate_json >/dev/null 2>&1; then evidence_aggregate="$(cfip_rill_evidence_aggregate_json 2>/dev/null || printf '{}')"; fi
     status_now="$(date +%s)"
@@ -162,8 +166,8 @@ write_status() {
     local recovery_remaining recovery_active
     recovery_remaining="$(cfip_recovery_remaining)"
     [[ "${CFIP_RECOVERY_ACTIVE:-false}" == true ]] && recovery_active=true || recovery_active=false
-    jq -n --argjson schemaVersion "$ENGINE_SCHEMA_VERSION" --argjson activeRun "$active_run" --argjson enabled "$CFIP_ENABLED" --arg runId "$CFIP_RUN_ID" --arg phase "$phase" --arg lastResult "$result" --arg error "$error" --arg mode "$CFIP_MODE" --arg ipType "$CFIP_IP_TYPE" --arg protocol "$CFIP_SPEEDTEST_PROTOCOL" --arg version "$SCRIPT_VERSION" --arg cfstVersion "$cfst_version" --argjson requested "$CFIP_IP_COUNT" --argjson candidates "$candidates" --argjson inputCount "$input_count" --argjson budget "$CFIP_CANDIDATE_BUDGET" --argjson eligible "$eligible" --argjson selected "$selected" --argjson best "$best" --argjson intelligence "$rill" --argjson adaptive "$adaptive" --argjson transaction "$transaction" --argjson sources "$sources" --argjson publisher "$publisher" --argjson decision "$decision" --argjson probeMetrics "$probe_metrics" --argjson sourcePolicy "$source_policy" --argjson context "$context" --argjson evidenceAggregate "$evidence_aggregate" --argjson tar "$tar_ok" --argjson jq "$jq_ok" --argjson cfst "$cfst_ok" --argjson pi "$passwall_installed" --argjson pr "$passwall_running" --argjson oi "$openclash_installed" --argjson or "$openclash_running" --argjson recoveryRemaining "$recovery_remaining" --argjson recoveryActive "$recovery_active" --arg recoveryError "${CFIP_RECOVERY_ERROR:-}" --arg statusUpdatedAt "$(date -u -r "$status_now" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg lastCompleted "$completed_at" '
-      {schemaVersion:$schemaVersion,running:$enabled,enabled:$enabled,active_run:$activeRun,runId:$runId,phase:$phase,last_result:$lastResult,error:$error,mode:$mode,ip_type:$ipType,ip_count:$selected,requested_ip_count:$requested,speedtest_protocol:$protocol,best_ips:$best,script_version:$version,cfst_version:(if $cfstVersion=="" then null else $cfstVersion end),candidate_budget:$budget,measurement_input_count:$inputCount,candidate_count:$candidates,eligible_count:$eligible,degraded_candidate_count:($selected<$requested),probeMetrics:$probeMetrics,efficiency:$probeMetrics,sourcePolicy:$sourcePolicy,learningContext:$context,evidenceAggregate:$evidenceAggregate,adaptiveMeasurement:$adaptive,tar:$tar,jq:$jq,cfst_installed:$cfst,passwall_installed:$pi,passwall_running:$pr,openclash_installed:$oi,openclash_running:$or,env:{tar:$tar,jq:$jq,cfst_installed:$cfst,passwall_installed:$pi,passwall_running:$pr,openclash_installed:$oi,openclash_running:$or},sources:$sources,publisher:$publisher,intelligence:$intelligence,decision:$decision,confidenceLevel:($decision.confidenceLevel // null),confidenceReasons:($decision.confidenceReasons // []),requestedMode:($decision.requestedMode // null),effectiveMode:($decision.effectiveMode // null),fallbackReason:($decision.fallbackReason // null),authorityActionId:($decision.authorityActionId // null),nativeRillTop1Agreement:($decision.nativeRillTop1Agreement // null),rillTop3Overlap:($decision.rillTop3Overlap // null),transaction:$transaction,recovery:{active:$recoveryActive,remaining:$recoveryRemaining,error:(if $recoveryError=="" then null else $recoveryError end)},status_updated_at:$statusUpdatedAt,last_completed_run_at:(if $lastCompleted=="" then null else $lastCompleted end),last_run:(if $lastCompleted=="" then null else $lastCompleted end)}' | cfip_atomic_write "$CFIP_STATUS_FILE"
+    jq -n --argjson schemaVersion "$ENGINE_SCHEMA_VERSION" --argjson activeRun "$active_run" --argjson enabled "$CFIP_ENABLED" --arg runId "$CFIP_RUN_ID" --arg phase "$phase" --arg lastResult "$result" --arg error "$error" --arg mode "$CFIP_MODE" --arg ipType "$CFIP_IP_TYPE" --arg protocol "$CFIP_SPEEDTEST_PROTOCOL" --arg version "$SCRIPT_VERSION" --arg cfstVersion "$cfst_version" --argjson requested "$CFIP_IP_COUNT" --argjson candidates "$candidates" --argjson inputCount "$input_count" --argjson budget "$CFIP_CANDIDATE_BUDGET" --argjson eligible "$eligible" --argjson selected "$selected" --argjson best "$best" --argjson intelligence "$rill" --argjson adaptive "$adaptive" --argjson transaction "$transaction" --argjson sources "$sources" --argjson publisher "$publisher" --argjson decision "$decision" --argjson probeMetrics "$probe_metrics" --argjson sourcePolicy "$source_policy" --argjson context "$context" --argjson evidenceAggregate "$evidence_aggregate" --argjson operational "$operational" --arg why "$why" --argjson tar "$tar_ok" --argjson jq "$jq_ok" --argjson cfst "$cfst_ok" --argjson pi "$passwall_installed" --argjson pr "$passwall_running" --argjson oi "$openclash_installed" --argjson or "$openclash_running" --argjson recoveryRemaining "$recovery_remaining" --argjson recoveryActive "$recovery_active" --arg recoveryError "${CFIP_RECOVERY_ERROR:-}" --arg statusUpdatedAt "$(date -u -r "$status_now" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg lastCompleted "$completed_at" '
+      {schemaVersion:$schemaVersion,running:$enabled,enabled:$enabled,active_run:$activeRun,runId:$runId,phase:$phase,last_result:$lastResult,error:$error,mode:$mode,ip_type:$ipType,ip_count:$selected,requested_ip_count:$requested,speedtest_protocol:$protocol,best_ips:$best,script_version:$version,cfst_version:(if $cfstVersion=="" then null else $cfstVersion end),candidate_budget:$budget,measurement_input_count:$inputCount,candidate_count:$candidates,eligible_count:$eligible,degraded_candidate_count:($selected<$requested),probeMetrics:$probeMetrics,efficiency:$probeMetrics,sourcePolicy:$sourcePolicy,learningContext:$context,evidenceAggregate:$evidenceAggregate,adaptiveMeasurement:$adaptive,operationalHealth:$operational,whyThisRun:(if $why=="" then null else $why end),tar:$tar,jq:$jq,cfst_installed:$cfst,passwall_installed:$pi,passwall_running:$pr,openclash_installed:$oi,openclash_running:$or,env:{tar:$tar,jq:$jq,cfst_installed:$cfst,passwall_installed:$pi,passwall_running:$pr,openclash_installed:$oi,openclash_running:$or},sources:$sources,publisher:$publisher,intelligence:$intelligence,decision:$decision,confidenceLevel:($decision.confidenceLevel // null),confidenceReasons:($decision.confidenceReasons // []),requestedMode:($decision.requestedMode // null),effectiveMode:($decision.effectiveMode // null),fallbackReason:($decision.fallbackReason // null),authorityActionId:($decision.authorityActionId // null),nativeRillTop1Agreement:($decision.nativeRillTop1Agreement // null),rillTop3Overlap:($decision.rillTop3Overlap // null),transaction:$transaction,recovery:{active:$recoveryActive,remaining:$recoveryRemaining,error:(if $recoveryError=="" then null else $recoveryError end)},status_updated_at:$statusUpdatedAt,last_completed_run_at:(if $lastCompleted=="" then null else $lastCompleted end),last_run:(if $lastCompleted=="" then null else $lastCompleted end)}' | cfip_atomic_write "$CFIP_STATUS_FILE"
     if [[ -s "${CFIP_REUSE_DECISION_FILE:-}" && -s "$CFIP_STATUS_FILE" ]]; then
         jq --slurpfile reuse "$CFIP_REUSE_DECISION_FILE" '. + {reusePolicy: ($reuse[0] // {})}' "$CFIP_STATUS_FILE" | cfip_atomic_write "$CFIP_STATUS_FILE"
     fi
@@ -321,9 +325,21 @@ rollback_active_transaction() {
     return "$recovery_rc"
 }
 
-fail_run(){ local message="$1" recovery_rc=0; CFIP_LAST_RESULT=error; CFIP_ERROR="$message"; rollback_active_transaction || recovery_rc=$?; [[ -n "$CFIP_RECOVERY_ERROR" ]] && message="$message; $CFIP_RECOVERY_ERROR"; write_status false failed error "$message" || true; remember_history || true; cfip_log "run failed: $message"; ((recovery_rc==0)) || return 1; return 1; }
+fail_run(){ local message="$1" recovery_rc=0; CFIP_LAST_RESULT=error; CFIP_ERROR="$message"; rollback_active_transaction || recovery_rc=$?; [[ -n "$CFIP_RECOVERY_ERROR" ]] && message="$message; $CFIP_RECOVERY_ERROR"; cfip_operational_update run-failed "$message" || true; write_status false failed error "$message" || true; remember_history || true; cfip_log "run failed: $message"; ((recovery_rc==0)) || return 1; return 1; }
 run_cleanup(){ local rc="${1:-$?}" recovery_rc=0; trap - EXIT INT TERM; cfip_cancel_active_operation; rollback_active_transaction || recovery_rc=$?; release_lock; ((recovery_rc!=0 && rc==0)) && rc=1; exit "$rc"; }
 run_signal_cleanup(){ cfip_cancel_active_operation; run_cleanup 143; }
+
+prepare_adaptive_final_selection() {
+    [[ "${CFIP_ADAPTIVE_AUDIT_DUE:-false}" == true && -s "${CFIP_ADAPTIVE_AUDIT_FILE:-}" ]] || return 0
+    cfip_adaptive_patch_final_selection "$CFIP_ADAPTIVE_AUDIT_FILE" "$CFIP_SELECTED_FILE" "$CFIP_DECISION_FILE" false || cfip_log "adaptive final selection patch unavailable"
+}
+
+finalize_adaptive_audit() {
+    local applied="${1:-false}"
+    [[ "${CFIP_ADAPTIVE_AUDIT_DUE:-false}" == true && -s "${CFIP_ADAPTIVE_AUDIT_FILE:-}" ]] || return 0
+    cfip_adaptive_patch_final_selection "$CFIP_ADAPTIVE_AUDIT_FILE" "$CFIP_SELECTED_FILE" "$CFIP_DECISION_FILE" "$applied" || { cfip_log "adaptive final selection patch unavailable"; return 0; }
+    cfip_adaptive_record_audit "$CFIP_ADAPTIVE_AUDIT_FILE" || cfip_log "adaptive audit qualification update deferred"
+}
 
 run_v2() {
     load_config || return 1
@@ -336,6 +352,7 @@ run_v2() {
     CFIP_PHASE=preflight; CFIP_LAST_RESULT=running
     if cfip_reuse_try_current; then
         CFIP_LAST_RESULT=success; CFIP_PHASE=done; CFIP_ERROR=""
+        cfip_operational_update reuse-success validated_current_ip || true
         write_status false done success ""
         remember_history
         release_lock
@@ -351,6 +368,7 @@ run_v2() {
     write_status true "$CFIP_PHASE" "$CFIP_LAST_RESULT" ""
     CFIP_PHASE=measuring
     CFIP_MEASUREMENT_STARTED_AT="$(cfip_monotonic_seconds)"
+    CFIP_MEASUREMENT_STARTED_MS="$(cfip_now_millis)"
     CFIP_MEASUREMENT_DEADLINE=$((CFIP_MEASUREMENT_STARTED_AT+CFIP_MEASUREMENT_TIMEOUT))
     cfip_txn_prepare "$CFIP_MODE" || { fail_run "failed to snapshot proxy configuration"; return 1; }
     stop_service_for_measurement || { fail_run "failed to stop proxy service before measurement"; return 1; }
@@ -370,7 +388,10 @@ run_v2() {
     if [[ "$CFIP_ADAPTIVE_MEASUREMENT_ENABLED" == true && "$CFIP_ADAPTIVE_MEASUREMENT_MODE" != off ]]; then
         if cfip_adaptive_note_run; then CFIP_ADAPTIVE_AUDIT_DUE=true; fi
     fi
+    CFIP_ADAPTIVE_SCHEDULER_STARTED_MS="$(cfip_now_millis)"
     cfip_adaptive_prepare_probe_input "$CFIP_PROBE_INPUT_FILE" "$CFIP_ADAPTIVE_PROBE_INPUT_FILE" "$CFIP_ADAPTIVE_PLAN_FILE" || { fail_run "adaptive measurement planning failed"; return 1; }
+    CFIP_ADAPTIVE_SCHEDULER_DURATION_MS=$(( $(cfip_now_millis) - CFIP_ADAPTIVE_SCHEDULER_STARTED_MS )); ((CFIP_ADAPTIVE_SCHEDULER_DURATION_MS < 0)) && CFIP_ADAPTIVE_SCHEDULER_DURATION_MS=0
+    CFIP_ADAPTIVE_PROBE_STARTED_MS="$(cfip_now_millis)"
     local eligible audit_rc=0
     if [[ "$CFIP_ADAPTIVE_AUDIT_DUE" == true ]]; then
         # An audit is the production run on this cadence. Probe the full
@@ -383,15 +404,15 @@ run_v2() {
         cfip_adaptive_probe "$CFIP_PROBE_INPUT_FILE" "$CFIP_PROBED_FILE" "$CFIP_TARGET_DOMAINS" "$CFIP_PROBE_TIMEOUT" "$CFIP_IP_COUNT" "$CFIP_ADAPTIVE_EXPANSION_BATCH_SIZE" "$CFIP_ADAPTIVE_MAX_PROBE_COUNT" "$CFIP_ADAPTIVE_PLAN_FILE" "$CFIP_PROBE_METRICS_FILE" "$CFIP_ADAPTIVE_EFFECTIVE_MODE" || { fail_run "candidate probing failed"; return 1; }
         cfip_rill_update_history "$CFIP_PROBED_FILE" || cfip_log "candidate history update deferred"
     fi
+    CFIP_ADAPTIVE_PROBE_DURATION_MS=$(( $(cfip_now_millis) - CFIP_ADAPTIVE_PROBE_STARTED_MS )); ((CFIP_ADAPTIVE_PROBE_DURATION_MS < 0)) && CFIP_ADAPTIVE_PROBE_DURATION_MS=0
+    CFIP_MEASUREMENT_DURATION_MS=$(( $(cfip_now_millis) - CFIP_MEASUREMENT_STARTED_MS )); ((CFIP_MEASUREMENT_DURATION_MS < 0)) && CFIP_MEASUREMENT_DURATION_MS=0
+    cfip_adaptive_record_run_metrics "$CFIP_ADAPTIVE_PLAN_FILE" "$CFIP_PROBED_FILE" "$CFIP_PROBE_METRICS_FILE" || cfip_log "adaptive operational metrics unavailable"
     [[ "$(cfip_deadline_remaining)" -gt 0 ]] || { fail_run "measurement timeout during target probe"; return 1; }
     CFIP_PHASE=ranking
     cfip_native_rank "$CFIP_PROBED_FILE" "$CFIP_NATIVE_FILE" || { fail_run "native ranking failed"; return 1; }
     eligible="$(jq 'length' "$CFIP_NATIVE_FILE")"
     if [[ "$CFIP_ADAPTIVE_AUDIT_DUE" == true ]]; then
         cfip_adaptive_make_audit_record "$CFIP_ADAPTIVE_PLAN_FILE" "$CFIP_NATIVE_FILE" "$CFIP_PROBED_FILE" "$CFIP_ADAPTIVE_AUDIT_FILE" "$audit_rc" || cfip_log "adaptive audit diagnostic unavailable"
-        if [[ -s "$CFIP_ADAPTIVE_AUDIT_FILE" ]]; then
-            cfip_adaptive_record_audit "$CFIP_ADAPTIVE_AUDIT_FILE" || cfip_log "adaptive audit qualification update deferred"
-        fi
     fi
     ((eligible>0)) || { fail_run "NoEligibleCandidate: every target-domain probe failed"; return 1; }
     jq ".[0:${CFIP_IP_COUNT}]" "$CFIP_NATIVE_FILE" | cfip_atomic_write "$CFIP_SELECTED_FILE"
@@ -400,6 +421,7 @@ run_v2() {
     fi
     select_assisted_candidates
     build_decision
+    prepare_adaptive_final_selection
     CFIP_PHASE=applying
     local txrc=0 holdout_json='{}'
     cfip_txn_apply "$CFIP_MODE" "$CFIP_SELECTED_FILE" || txrc=$?
@@ -407,6 +429,7 @@ run_v2() {
         jq -cn --argjson rc "$txrc" --argjson rolledBack "${CFIP_TXN_ROLLED_BACK:-false}" --arg recovery "${CFIP_RECOVERY_ERROR:-}" '{success:false,rc:$rc,rolledBack:$rolledBack,recoveryVerified:($recovery==""),recoveryError:(if $recovery=="" then null else $recovery end)}' | cfip_atomic_write "$CFIP_TXN_RESULT_FILE" || true
         jq -cn --arg ip "$(jq -r '.[0].ip // empty' "$CFIP_SELECTED_FILE")" '{schemaVersion:2,candidateOutcome:"unknown",hostOutcome:"failure",censored:true,reason:"host_transaction_failed",observedIp:$ip,decisionActionId:$ip}' | cfip_atomic_write "$CFIP_OUTCOME_FILE" || true
         CFIP_STOPPED_MODE=""
+        finalize_adaptive_audit false
         fail_run "apply transaction failed (rc=$txrc)"
         return 1
     fi
@@ -418,6 +441,7 @@ run_v2() {
         cfip_txn_rollback "$CFIP_MODE" || true
         CFIP_STOPPED_MODE=""
         jq -cn --argjson rolledBack "${CFIP_TXN_ROLLED_BACK:-false}" --arg recovery "${CFIP_RECOVERY_ERROR:-}" '{success:false,reason:"post_apply_probe_failed",rolledBack:$rolledBack,recoveryVerified:($recovery==""),recoveryError:(if $recovery=="" then null else $recovery end)}' | cfip_atomic_write "$CFIP_TXN_RESULT_FILE"
+        finalize_adaptive_audit false
         fail_run "post-apply validation failed"
         return 1
     fi
@@ -427,6 +451,7 @@ run_v2() {
         cfip_txn_rollback "$CFIP_MODE" || true
         CFIP_STOPPED_MODE=""
         jq -cn --argjson rolledBack "${CFIP_TXN_ROLLED_BACK:-false}" --arg recovery "${CFIP_RECOVERY_ERROR:-}" '{success:false,reason:"transaction_commit_failed",rolledBack:$rolledBack,recoveryVerified:($recovery==""),recoveryError:(if $recovery=="" then null else $recovery end)}' | cfip_atomic_write "$CFIP_TXN_RESULT_FILE"
+        finalize_adaptive_audit false
         fail_run "transaction commit failed"
         return 1
     fi
@@ -458,6 +483,8 @@ run_v2() {
         cfip_rill_record_evidence "$CFIP_DECISION_FILE" "$feedback_file" "$(cat "$holdout_json" 2>/dev/null || printf '{}')" || cfip_log "Rill evidence store update deferred"
         cfip_rill_queue_feedback "$CFIP_DECISION_FILE" "$feedback_file" "$CFIP_TARGET_DOMAINS" || cfip_log "Rill delayed feedback queue unavailable"
     fi
+    finalize_adaptive_audit true
+    cfip_operational_update full-optimize-success full_optimize_completed || true
     CFIP_LAST_RESULT=success; CFIP_PHASE=done; CFIP_ERROR=""
     write_status false done success ""
     remember_history
