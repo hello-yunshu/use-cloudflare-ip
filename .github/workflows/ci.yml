@@ -152,7 +152,7 @@ jobs:
       - name: Build bounded Docker replay harness image
         run: docker compose -f docker/2.3/compose.yaml build adaptive-replay
       - name: Run bounded Docker replay harness
-        run: docker compose -f docker/2.3/compose.yaml run --no-build --rm adaptive-replay
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/workspace/repo" -w /workspace/repo cloudflare-ip-adaptive-replay:ci docker/2.3/run-experiments.sh
       - name: Validate replay evidence schema
         run: jq -e '(.schemaVersion == 1) and (.timingMode == "replayed") and (.environment == "macbook-docker-replay") and ((.scenarios | length) == 7)' docker/2.3/results/replay-evidence.json
 

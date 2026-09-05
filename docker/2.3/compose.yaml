@@ -1,5 +1,6 @@
 services:
   adaptive-replay:
+    image: cloudflare-ip-adaptive-replay:ci
     build:
       context: ../..
       dockerfile: docker/2.3/Dockerfile
