@@ -91,23 +91,23 @@ cfip_adaptive_write_plan() {
     k="$(jq -nr --argjson n "$n" --argjson ratio "$ratio" --argjson min "$min" --argjson max "$max" --argjson required "${CFIP_IP_COUNT:-1}" '([$required,(($n*$ratio+99)/100|floor),$min]|max) as $v|[$v,$n,$max]|min')"
     ((k < ${CFIP_IP_COUNT:-1})) && k="${CFIP_IP_COUNT:-1}"; ((k > n)) && k="$n"
     anchors='[]'
-    previous="$(jq -r '.scoredCandidates[]|select(.previousWinner==true)|.ip' <<<"$orders" | head -n1)"
+    previous="$(jq -r 'first(.scoredCandidates[]|select(.previousWinner==true)|.ip) // empty' <<<"$orders")"
     [[ -n "$previous" ]] && anchors="$(jq -cn --argjson a "$anchors" --arg ip "$previous" 'reduce ($a+[$ip])[] as $v ([];if index($v) then . else .+[$v] end)')"
     if [[ "${CFIP_IP_TYPE:-ipv4}" == both ]]; then
         for family in ipv4 ipv6; do
-            ip="$(jq -r --arg family "$family" '.scoredCandidates[]|select(.family==$family)|.ip' <<<"$orders" | head -n1)"
+            ip="$(jq -r --arg family "$family" 'first(.scoredCandidates[]|select(.family==$family)|.ip) // empty' <<<"$orders")"
             [[ -n "$ip" ]] && anchors="$(jq -cn --argjson a "$anchors" --arg ip "$ip" 'reduce ($a+[$ip])[] as $v ([];if index($v) then . else .+[$v] end)')"
         done
     fi
     while IFS= read -r source; do
         [[ -n "$source" ]] || continue
-        ip="$(jq -r --arg source "$source" '.scoredCandidates[]|select((.sources|index($source))!=null)|.ip' <<<"$orders" | head -n1)"
+        ip="$(jq -r --arg source "$source" 'first(.scoredCandidates[]|select((.sources|index($source))!=null)|.ip) // empty' <<<"$orders")"
         [[ -n "$ip" ]] && anchors="$(jq -cn --argjson a "$anchors" --arg ip "$ip" 'reduce ($a+[$ip])[] as $v ([];if index($v) then . else .+[$v] end)')"
     done < <(jq -r '.scoredCandidates[].sources[]?' <<<"$orders" | sort -u)
     for feature in prefixHistory coloHistory; do
         while IFS= read -r value; do
             [[ -n "$value" && "$value" != null ]] || continue
-            ip="$(jq -r --arg feature "$feature" --arg value "$value" '.scoredCandidates[]|select((.[ $feature ]|tostring)==$value)|.ip' <<<"$orders" | head -n1)"
+            ip="$(jq -r --arg feature "$feature" --arg value "$value" 'first(.scoredCandidates[]|select((.[ $feature ]|tostring)==$value)|.ip) // empty' <<<"$orders")"
             [[ -n "$ip" ]] && anchors="$(jq -cn --argjson a "$anchors" --arg ip "$ip" 'reduce ($a+[$ip])[] as $v ([];if index($v) then . else .+[$v] end)')"
         done < <(jq -r --arg feature "$feature" '.scoredCandidates[]|select(.[ $feature ]!=null)|.[ $feature ]|tostring' <<<"$orders" | sort -u)
     done
