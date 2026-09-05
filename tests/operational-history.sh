@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-export CFIP_STATUS_DIR="$TMP/status" CFIP_OPERATIONAL_STATE_FILE="$TMP/status/operational-health.json" CFIP_OPERATIONAL_HISTORY_FILE="$TMP/status/operational-history.json"
+export CFIP_STATUS_DIR="$TMP/status" CFIP_LOG_FILE="$TMP/operational-history.log" CFIP_OPERATIONAL_STATE_FILE="$TMP/status/operational-health.json" CFIP_OPERATIONAL_HISTORY_FILE="$TMP/status/operational-history.json"
 mkdir -p "$CFIP_STATUS_DIR"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/common.sh"
 source "$ROOT/package/luci-app-cloudflare-ip/root/usr/libexec/cf-ip/adaptive-measurement.sh"
