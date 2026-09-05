@@ -57,6 +57,7 @@ jobs:
       run_id: ${{ steps.verify.outputs.run_id }}
       version: ${{ steps.verify.outputs.version }}
       release: ${{ steps.verify.outputs.release }}
+      channel: ${{ steps.verify.outputs.channel }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -78,12 +79,20 @@ jobs:
           python3 scripts/validate-qualification-evidence.py "$manifest" --commit "$QUALIFICATION_SHA" --require-assets 4
           version=$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
           release=$(sed -n 's/^PKG_RELEASE:=//p' package/luci-app-cloudflare-ip/Makefile | head -n1)
+          channel=$(jq -er 'select(.schemaVersion == 1) | .channel' release-channel.json)
+          reason=$(jq -er 'select((.reason // "") != "") | .reason' release-channel.json)
+          if [[ "$channel" != prerelease ]]; then
+            echo "stable channel requires an explicit Stable Gate; automatic promotion is disabled" >&2
+            exit 1
+          fi
+          echo "release channel: $channel ($reason)"
           [[ "$version" != *-dev ]]
           {
             echo "commit=$QUALIFICATION_SHA"
             echo "run_id=$QUALIFICATION_RUN_ID"
             echo "version=$version"
             echo "release=$release"
+            echo "channel=$channel"
           } >> "$GITHUB_OUTPUT"
 
   collect:
@@ -163,6 +172,8 @@ jobs:
         with:
           tag_name: v${{ needs.check-qualification.outputs.version }}-${{ needs.check-qualification.outputs.release }}
           name: v${{ needs.check-qualification.outputs.version }}-${{ needs.check-qualification.outputs.release }}
+          prerelease: true
+          make_latest: false
           body: |
             Cloudflare IP Optimization v${{ needs.check-qualification.outputs.version }}-${{ needs.check-qualification.outputs.release }}
 
@@ -171,6 +182,7 @@ jobs:
             Assets include the Cloudflare IP OpenWrt IPK/APK packages and relative SHA256 checksums. Generic Rill source/runtime contracts are owned by `hello-yunshu/rill-ml`; OpenWrt package distribution is owned by `hello-yunshu/rill-openwrt-packages`, and Cloudflare consumes it through OpenWrt package management.
 
             Real OpenWrt device runtime, hardware coverage, PassWall/OpenClash version matrix, and 24-hour soak remain separate evidence boundaries unless explicitly recorded in the qualification manifest.
+            This 2.x release is part of the 2.0 prerelease development line and is not a stable/latest release.
           files: |
             release/*.ipk
             release/*.apk

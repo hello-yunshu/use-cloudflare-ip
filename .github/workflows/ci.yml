@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Install host tools
         run: sudo apt-get update && sudo apt-get install -y jq ripgrep shellcheck
       - name: Shell syntax and lint
@@ -33,6 +35,14 @@ jobs:
           set -euo pipefail
           find package -type f -name '*.json' -exec jq empty {} +
           find package -type f -name '*.js' -exec node --check {} \;
+          jq empty release-channel.json
+      - name: Release channel and package identity contracts
+        run: |
+          set -euo pipefail
+          bash tests/release-channel-contract.sh
+          bash tests/v2-prerelease-workflow-contract.sh
+          bash tests/immutable-tag-contract.sh
+          bash tests/package-release-bump-contract.sh
       - name: V2 host contract tests
         run: |
           bash tests/v2-observation.sh
@@ -144,6 +154,8 @@ jobs:
           bash tests/adaptive-candidate-coexistence.sh
           bash tests/adaptive-run-v2-lifecycle.sh
           bash tests/operational-health.sh
+          bash tests/operational-history.sh
+          bash tests/run-history-contract.sh
 
   docker-replay:
     runs-on: ubuntu-latest
@@ -154,7 +166,10 @@ jobs:
       - name: Run bounded Docker replay harness
         run: docker run --rm -v "$GITHUB_WORKSPACE:/workspace/repo" -w /workspace/repo cloudflare-ip-adaptive-replay:ci docker/2.3/run-experiments.sh
       - name: Validate replay evidence schema
-        run: jq -e '(.schemaVersion == 1) and (.timingMode == "replayed") and (.environment == "macbook-docker-replay") and ((.scenarios | length) == 7)' docker/2.3/results/replay-evidence.json
+        run: |
+          set -euo pipefail
+          jq -e '(.schemaVersion == 1) and (.timingMode == "replayed") and (.environment == "macbook-docker-replay") and ((.scenarios | length) == 7) and all(.scenarios[]; (has("estimatedWallClockSaving") | not))' docker/2.3/results/replay-evidence.json
+          jq -e '(.schemaVersion == 1) and (.source.timingMode == "replayed") and (.aggregate | has("meanReplayProbeReductionRatio") and has("meanReplayWinnerRecall") and has("meanReplayTopNRecall") and has("replayFallbackRate") and has("meanReplayMeasurementDurationMs"))' docker/2.3/results/replay-evidence-summary.json
 
   legacy-contract:
     runs-on: ubuntu-latest
