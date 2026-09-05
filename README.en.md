@@ -27,7 +27,9 @@
 
 ## Current version
 
-The mainline version is Cloudflare IP `2.6.0`. It builds on the deterministic Native
+The 2.x line remains the `2.0 prerelease development line`; the current package
+milestone is `2.6.0-r2`, and GitHub Releases remain prereleases rather than stable
+releases. It builds on the deterministic Native
 safety envelope from 2.0 and adds Candidate Intelligence: context fingerprints and
 isolation, non-blocking holdout evaluation, budgeted evidence storage, continuous
 qualification, confidence reasons, and LuCI diagnostics. Runtime still has one
@@ -35,11 +37,11 @@ Candidate Learner; Source Intelligence and Reuse remain deterministic consumer
 logic and a Native current-IP hard gate respectively.
 
 The formal package is promoted only from successful exact-head CI on `main` to
-`v2.6.0-1`. IPK/APK packages, `sha256sums.txt`, and `qualification.json` belong to
+the new `v2.6.0-2` prerelease. IPK/APK packages, `sha256sums.txt`, and `qualification.json` belong to
 one qualification chain. Live OpenWrt devices, hardware coverage, and soak are
 separate evidence boundaries.
 
-2.2 development adds Adaptive Measurement as an independent Native pre-probe
+Adaptive Measurement is implemented as an independent Native pre-probe
 scheduler, defaulting to Shadow. It accepts only CFST/source/history/prefix/Colo
 and previous-winner fields, never creates a second Rill learner or partition, and
 enables Guarded only after complete, compatible, fresh audit evidence meets the

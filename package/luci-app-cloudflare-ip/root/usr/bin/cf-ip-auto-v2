@@ -173,7 +173,31 @@ write_status() {
     fi
 }
 
-remember_history(){ [[ -n "$CFIP_RUN_ID" ]] || return 0; mkdir -p "$CFIP_STATUS_DIR"; jq -cn --arg runId "$CFIP_RUN_ID" --arg result "$CFIP_LAST_RESULT" --arg mode "$CFIP_MODE" --arg policy "${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}" --argjson best "$( [[ -f "$CFIP_SELECTED_FILE" ]] && jq '[.[].ip]' "$CFIP_SELECTED_FILE" || printf '[]')" '{schemaVersion:1,time:now,runId:$runId,result:$result,mode:$mode,sourcePolicy:$policy,bestIps:$best}' >>"$CFIP_RUN_HISTORY"; tail -n 100 "$CFIP_RUN_HISTORY" >"$CFIP_RUN_HISTORY.tmp" 2>/dev/null && mv "$CFIP_RUN_HISTORY.tmp" "$CFIP_RUN_HISTORY" || true; }
+remember_history(){
+    [[ -n "$CFIP_RUN_ID" ]] || return 0
+    mkdir -p "$CFIP_STATUS_DIR"
+    local metrics='{}' adaptive='{}' decision='{}' qualification='{}' transaction='{}' audit='{}' best='[]' context='' planned='null' actual='null' full='null' expansion='null' fallback='null' audit_run=false transaction_applied='null' adaptive_effective='' candidate_effective=''
+    [[ -s "${CFIP_PROBE_METRICS_FILE:-}" ]] && metrics="$(jq -c . "$CFIP_PROBE_METRICS_FILE" 2>/dev/null || printf '{}')"
+    [[ -s "${CFIP_ADAPTIVE_STATE_FILE:-}" ]] && adaptive="$(jq -c . "$CFIP_ADAPTIVE_STATE_FILE" 2>/dev/null || printf '{}')"
+    [[ -s "${CFIP_DECISION_FILE:-}" ]] && decision="$(jq -c . "$CFIP_DECISION_FILE" 2>/dev/null || printf '{}')"
+    [[ -s "${CFIP_TXN_RESULT_FILE:-}" ]] && transaction="$(jq -c . "$CFIP_TXN_RESULT_FILE" 2>/dev/null || printf '{}')"
+    [[ -s "${CFIP_ADAPTIVE_AUDIT_FILE:-}" ]] && audit="$(jq -c . "$CFIP_ADAPTIVE_AUDIT_FILE" 2>/dev/null || printf '{}')"
+    declare -F cfip_rill_qualification_json >/dev/null 2>&1 && qualification="$(cfip_rill_qualification_json 2>/dev/null || printf '{}')"
+    [[ -s "${CFIP_SELECTED_FILE:-}" ]] && best="$(jq -c '[.[].ip]' "$CFIP_SELECTED_FILE" 2>/dev/null || printf '[]')"
+    adaptive_effective="$(jq -r '.effectiveAdaptiveMode // empty' <<<"$metrics")"; [[ -n "$adaptive_effective" ]] || adaptive_effective="${CFIP_ADAPTIVE_EFFECTIVE_MODE:-}"
+    candidate_effective="$(jq -r '.effectiveMode // empty' <<<"$decision")"
+    context="${CFIP_ADAPTIVE_CONTEXT_FINGERPRINT:-$(jq -r '.contextFingerprint // .lastContextFingerprint // empty' <<<"$adaptive" 2>/dev/null || true)}"
+    planned="$(jq -r '.plannedK // .selectedK // "null"' <<<"$metrics")"
+    actual="$(jq -r '.actualUniqueProbeCount // "null"' <<<"$metrics")"
+    full="$(jq -r '.fullCandidateCount // "null"' <<<"$metrics")"
+    expansion="$(jq -r '.expansionCount // "null"' <<<"$metrics")"
+    fallback="$(jq -r '.fallbackUsed // "null"' <<<"$metrics")"
+    audit_run="$(jq -r '.auditRun // false' <<<"$metrics")"
+    transaction_applied="$(jq -r 'if has("success") then (.success == true) else "null" end' <<<"$transaction")"
+    jq -cn --arg runId "$CFIP_RUN_ID" --arg result "$CFIP_LAST_RESULT" --arg mode "$CFIP_MODE" --arg policy "${CFIP_SOURCE_POLICY_EFFECTIVE:-${CFIP_SOURCE_POLICY:-balanced}}" --arg adaptiveRequestedMode "${CFIP_ADAPTIVE_MEASUREMENT_MODE:-}" --arg adaptiveEffectiveMode "$adaptive_effective" --arg adaptiveQualificationState "$(jq -r '.qualificationState // "null"' <<<"$adaptive")" --arg candidateRequestedMode "${CFIP_RILL_MODE:-}" --arg candidateEffectiveMode "$candidate_effective" --arg candidateQualificationState "$(jq -r '.state // .qualificationState // "null"' <<<"$qualification")" --arg contextFingerprint "$context" --argjson best "$best" --argjson plannedK "$planned" --argjson actualUniqueProbeCount "$actual" --argjson fullCandidateCount "$full" --argjson expansionCount "$expansion" --argjson fallbackUsed "$fallback" --argjson auditRun "$audit_run" --argjson transactionApplied "$transaction_applied" --argjson audit "$audit" --argjson measurementDurationMs "$(jq -r '.measurementDurationMs // "null"' <<<"$metrics")" --argjson probeDurationMs "$(jq -r '.probeDurationMs // "null"' <<<"$metrics")" '{schemaVersion:1,time:now,runId:$runId,result:$result,mode:$mode,sourcePolicy:$policy,bestIps:$best,proxyMode:$mode,adaptiveMode:(if $adaptiveEffectiveMode=="" then null else $adaptiveEffectiveMode end),candidateMode:(if $candidateEffectiveMode=="" then null else $candidateEffectiveMode end),adaptiveRequestedMode:(if $adaptiveRequestedMode=="" then null else $adaptiveRequestedMode end),candidateRequestedMode:(if $candidateRequestedMode=="" then null else $candidateRequestedMode end),adaptiveQualificationState:(if $adaptiveQualificationState=="null" then null else $adaptiveQualificationState end),candidateQualificationState:(if $candidateQualificationState=="null" then null else $candidateQualificationState end),contextFingerprint:(if $contextFingerprint=="" then null else $contextFingerprint end),fullCandidateCount:$fullCandidateCount,plannedK:$plannedK,actualUniqueProbeCount:$actualUniqueProbeCount,fallbackUsed:$fallbackUsed,expansionCount:$expansionCount,measurementDurationMs:$measurementDurationMs,transactionApplied:$transactionApplied,auditRun:$auditRun,winnerRecall:($audit.winnerRecall // null),topNRecall:($audit.topNRecall // null),severeMiss:($audit.severeMiss // null)}' >>"$CFIP_RUN_HISTORY"
+    tail -n 100 "$CFIP_RUN_HISTORY" >"$CFIP_RUN_HISTORY.tmp" 2>/dev/null && mv "$CFIP_RUN_HISTORY.tmp" "$CFIP_RUN_HISTORY" || true
+    declare -F cfip_operational_record_run >/dev/null 2>&1 && cfip_operational_record_run || true
+}
 
 apply_startup_delay(){ local d="$CFIP_STARTUP_DELAY"; [[ "${CFIP_SKIP_STARTUP_DELAY:-false}" == true ]] && return 0; [[ -z "$d" || "$d" == 0 ]] && return 0; [[ "$d" == random ]] && d=300; [[ "$d" =~ ^[0-9]+$ ]] || return 1; ((d>0)) && sleep $((RANDOM%(d+1))); }
 
@@ -525,7 +549,7 @@ cmd_rill_self_check(){
 }
 cmd_rill_diagnostics(){
     load_config >/dev/null || return 1
-    local status qualification pending meta source_policy reuse recent prefix_history colo_history prefix_summary colo_summary context evidence aggregate
+    local status qualification pending meta source_policy reuse recent prefix_history colo_history prefix_summary colo_summary context evidence aggregate operational_history operational
     status="$(cfip_rill_status_json 2>/dev/null || printf '{"available":false,"state":"error"}')"
     qualification="$(cfip_rill_qualification_json 2>/dev/null || printf '{}')"
     pending='[]'; [[ -s "$CFIP_RILL_PENDING_FILE" ]] && pending="$(cat "$CFIP_RILL_PENDING_FILE")"
@@ -537,8 +561,9 @@ cmd_rill_diagnostics(){
     colo_summary="$(jq -cn --argjson h "$colo_history" '{observedColoCount:($h.entries|length),latestObservedColo:($h.lastObserved//null),unknownCount:($h.unknownCount//0),history:($h.entries//{})}')"
     context="$(cfip_rill_context_json 2>/dev/null || printf '{}')"; evidence="$(cfip_rill_evidence_json 2>/dev/null || printf '[]')"; aggregate="$(cfip_rill_evidence_aggregate_json 2>/dev/null || printf '{}')"
     recent='[]'; [[ -f "$CFIP_RUN_HISTORY" ]] && recent="$(tail -n 20 "$CFIP_RUN_HISTORY" | jq -sc '.' 2>/dev/null || printf '[]')"
-    jq -cn --argjson status "$status" --argjson qualification "$qualification" --argjson pending "$pending" --argjson meta "$meta" --argjson sourcePolicy "$source_policy" --argjson reuse "$reuse" --argjson recent "$recent" --argjson prefix "$prefix_summary" --argjson colo "$colo_summary" --argjson context "$context" --argjson evidence "$evidence" --argjson aggregate "$aggregate" \
-        '{success:true,runtime:$status,qualification:$qualification,recentDecisions:$recent,pendingFeedback:($pending[0:64]),sourcePolicy:$sourcePolicy,reusePolicy:$reuse,prefixIntelligence:$prefix,coloIntelligence:$colo,stateMeta:$meta,learningContext:$context,evidenceAggregate:$aggregate,evidenceWindow:$evidence,warnings:[]}'
+    operational_history="$(cfip_operational_history_json 2>/dev/null || printf '{"schemaVersion":1,"records":[]}')"; operational="$(cfip_operational_state_json 2>/dev/null || printf '{}')"
+    jq -cn --argjson status "$status" --argjson qualification "$qualification" --argjson pending "$pending" --argjson meta "$meta" --argjson sourcePolicy "$source_policy" --argjson reuse "$reuse" --argjson recent "$recent" --argjson prefix "$prefix_summary" --argjson colo "$colo_summary" --argjson context "$context" --argjson evidence "$evidence" --argjson aggregate "$aggregate" --argjson operationalHistory "$operational_history" --argjson operationalHealth "$operational" \
+        '{success:true,runtime:$status,qualification:$qualification,recentDecisions:$recent,operationalHistory:$operationalHistory,operationalHealth:$operationalHealth,pendingFeedback:($pending[0:64]),sourcePolicy:$sourcePolicy,reusePolicy:$reuse,prefixIntelligence:$prefix,coloIntelligence:$colo,stateMeta:$meta,learningContext:$context,evidenceAggregate:$aggregate,evidenceWindow:$evidence,warnings:[]}'
 }
 cmd_rill_reset(){
     load_config >/dev/null || return 1

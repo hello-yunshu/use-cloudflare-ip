@@ -98,8 +98,8 @@ return view.extend({
 		o.cfgvalue = function() { return adaptiveNumber(adaptiveAggregate.winnerRecall, 3) + ' / ' + adaptiveNumber(adaptiveAggregate.topNRecall, 3); };
 		o = s.option(form.DummyValue, '_adaptive_eligibility', _('Eligible Insufficiency Rate'));
 		o.cfgvalue = function() { return adaptiveNumber(adaptiveAggregate.eligibleInsufficiencyRate, 3); };
-		o = s.option(form.DummyValue, '_adaptive_savings', _('Estimated Probe Savings'));
-		o.cfgvalue = function() { return adaptiveAggregate.estimatedProbeSavings == null ? _('unavailable') : adaptiveNumber(adaptiveAggregate.estimatedProbeSavings * 100, 1) + '%'; };
+        o = s.option(form.DummyValue, '_adaptive_savings', _('Replay Probe Savings'));
+        o.cfgvalue = function() { return adaptiveAggregate.estimatedProbeSavings == null ? _('unavailable') : adaptiveNumber(adaptiveAggregate.estimatedProbeSavings * 100, 1) + '% / replay'; };
 		o = s.option(form.DummyValue, '_adaptive_audit', _('Full Audit'));
 		o.cfgvalue = function() { var last = adaptive.lastFullAudit || {}; return (last.at || _('never')) + ' / ' + _('next in runs') + ': ' + (adaptive.nextAuditInRuns == null ? _('unavailable') : adaptive.nextAuditInRuns); };
 		o = s.option(form.DummyValue, '_adaptive_scheduler', _('Scheduler Contract'));
@@ -133,9 +133,10 @@ return view.extend({
 		o = s.option(form.DummyValue, '_run_history', _('Recent Runs'));
 		o.cfgvalue = function() {
 			var rows = diagnostics.recentDecisions || [];
-			return rows.slice(-20).map(function(row) {
-				return [row.time || row.at || '?', row.result || '?', row.mode || row.effectiveAdaptiveMode || '?', (row.bestIps || []).join(',')].join(' / ');
-			}).join(' | ') || _('No history');
+            function value(value) { return value == null || value === '' ? '—' : String(value); }
+            return rows.slice(-20).map(function(row) {
+                return [value(row.time || row.at), value(row.result), value((row.bestIps || []).join(',') || row.finalIp), value(row.adaptiveMode), value(row.candidateMode), value(row.actualUniqueProbeCount), value(row.fallbackUsed), value(row.measurementDurationMs) + ' ms'].join(' / ');
+            }).join(' | ') || _('No history');
 		};
 
 		s = m.section(form.TypedSection, 'rill', _('Rill Runtime Consumer'));

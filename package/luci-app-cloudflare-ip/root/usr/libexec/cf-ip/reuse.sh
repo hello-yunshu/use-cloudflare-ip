@@ -63,7 +63,7 @@ cfip_reuse_record_decision() {
 
 cfip_reuse_try_current() {
     local reason current probe_output saved_probes saved_runtime="0" start
-    CFIP_REUSE_ATTEMPTED=true
+    CFIP_REUSE_ATTEMPTED=false
     reason="$(cfip_reuse_hard_gate_reason)" || reason=""
     if [[ -n "$reason" ]]; then
         CFIP_REUSE_FALLBACK_REASON="$reason"
@@ -74,12 +74,14 @@ cfip_reuse_try_current() {
     jq '[.best_ips[]? as $ip | {ip:$ip,family:(if ($ip|contains(":")) then "ipv6" else "ipv4" end),origin:"reuse-current",sources:["current"],sourceClass:"current",sourceCount:0,stale:false}]' "$CFIP_STATUS_FILE" | jq --argjson n "$CFIP_IP_COUNT" '.[0:$n]' >"$current"
     [[ "$(jq 'length' "$current")" == "$CFIP_IP_COUNT" ]] || { rm -f "$current"; CFIP_REUSE_FALLBACK_REASON=current_ip_count_insufficient; cfip_reuse_record_decision FULL_OPTIMIZE true "$CFIP_REUSE_FALLBACK_REASON"; return 1; }
     start="$(date +%s)"; CFIP_PHASE=reuse_validation; CFIP_MEASUREMENT_STARTED_AT="$(cfip_monotonic_seconds)"; CFIP_MEASUREMENT_DEADLINE=$((CFIP_MEASUREMENT_STARTED_AT+CFIP_REUSE_VALIDATION_TIMEOUT))
+    CFIP_REUSE_ATTEMPTED=true
     cp "$current" "$CFIP_SELECTED_FILE"
     probe_output="$(mktemp "${TMPDIR:-/tmp}/cfip-reuse-outcome.XXXXXX")" || { rm -f "$current"; return 1; }
     if ! cfip_post_apply_probe "$current" "$CFIP_TARGET_DOMAINS" "$CFIP_REUSE_VALIDATION_TIMEOUT" "$probe_output"; then
         CFIP_REUSE_FALLBACK_REASON=current_validation_failed
         cfip_reuse_record_decision FULL_OPTIMIZE false "$CFIP_REUSE_FALLBACK_REASON"
         cfip_reuse_write_event reuse-failure "$CFIP_REUSE_FALLBACK_REASON"
+        declare -F cfip_operational_record_event >/dev/null 2>&1 && cfip_operational_record_event reuse-failure "$CFIP_REUSE_FALLBACK_REASON" validation_failure
         rm -f "$current" "$probe_output"; return 1
     fi
     if ! jq -e --argjson loss "$CFIP_REUSE_LOSS_LIMIT" --argjson ttfb "$CFIP_REUSE_TTFB_LIMIT" --argjson total "$CFIP_REUSE_TOTAL_LIMIT" \
@@ -87,6 +89,7 @@ cfip_reuse_try_current() {
         CFIP_REUSE_FALLBACK_REASON=current_quality_regression
         cfip_reuse_record_decision FULL_OPTIMIZE false "$CFIP_REUSE_FALLBACK_REASON"
         cfip_reuse_write_event reuse-failure "$CFIP_REUSE_FALLBACK_REASON"
+        declare -F cfip_operational_record_event >/dev/null 2>&1 && cfip_operational_record_event reuse-failure "$CFIP_REUSE_FALLBACK_REASON" validation_failure
         rm -f "$current" "$probe_output"; return 1
     fi
     saved_probes="$(jq '.probes // [] | length' "$probe_output" 2>/dev/null || printf 0)"; saved_runtime="$(( $(date +%s)-start ))"

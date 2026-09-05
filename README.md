@@ -27,16 +27,17 @@
 
 ## 当前版本
 
-当前主线是 Cloudflare IP `2.6.0`。2.6.0 在 2.0 的确定性 Native 安全边界上增加
+当前 2.x 仍是 `2.0 prerelease development line`，当前 package milestone 为
+`2.6.0-r2`，GitHub Release 必须保持 prerelease，不代表稳定版。2.6.0 在 2.0 的确定性 Native 安全边界上增加
 Candidate Intelligence：上下文指纹与隔离、非阻塞 holdout、受预算约束的 evidence store、
 持续 qualification、置信度原因和 LuCI diagnostics。Runtime 仍只有一个 Candidate Learner；
 Source Intelligence 与 Reuse 仍分别由确定性 consumer 逻辑和 Native current-IP hard gate 负责。
 
-正式包只从 `main` 的 successful exact-head CI 自动晋级到 `v2.6.0-1`。IPK/APK、
+正式包只从 `main` 的 successful exact-head CI 自动晋级到新的 `v2.6.0-2` prerelease。IPK/APK、
 `sha256sums.txt` 和 `qualification.json` 是同一资格化证据链的一部分；真实 OpenWrt 设备、
 硬件矩阵和 Soak 不由主机或 SDK 测试替代。
 
-2.2 开发中的 Adaptive Measurement 是独立的 Native 预探测调度层，默认 Shadow；
+Adaptive Measurement 已实现，是独立的 Native 预探测调度层，默认 Shadow；
 它只使用 CFST、来源、历史、前缀/Colo 和上一健康赢家等 pre-probe 字段，绝不创建
 第二个 Rill learner 或 partition。Guarded 只有在完整、兼容、未过期的真实审计证据
 达到 recall、安全性和节省阈值后才可启用；资格失效、状态损坏或探测错误下一次全量
