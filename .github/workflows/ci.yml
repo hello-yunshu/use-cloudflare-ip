@@ -149,8 +149,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Build bounded Docker replay harness image
+        run: docker compose -f docker/2.3/compose.yaml build adaptive-replay
       - name: Run bounded Docker replay harness
-        run: docker compose -f docker/2.3/compose.yaml run --rm adaptive-replay
+        run: docker compose -f docker/2.3/compose.yaml run --no-build --rm adaptive-replay
       - name: Validate replay evidence schema
         run: jq -e '(.schemaVersion == 1) and (.timingMode == "replayed") and (.environment == "macbook-docker-replay") and ((.scenarios | length) == 7)' docker/2.3/results/replay-evidence.json
 
